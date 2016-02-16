@@ -62,5 +62,5 @@ data["sorted"] = sortentries(data["files"])
 data["hashes"] = {}
 for files in data["sorted"]:
     filehash=hashfile(files)
-    if filehash in db.execute('select hash from videoinfo where hash is ?', (filehash,)):
-        print(db.execute('select filename from videoinfo where hash is ?', (filehash,)))
+
+    data["hashes"][files]=filehash
