@@ -1,0 +1,61 @@
+#!/usr/bin/python3.5 -O
+import pathlib
+import json
+import sqlite3
+import argparse
+from humanize import filesize
+import sys
+
+from andy.colors import Color
+from andy.sortentries import sortentries
+from andy.hashfile import hashfile
+from andy.flatten import flatten
+from andy.runprogram import runprogram
+
+args=argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
+args.add_argument("--database", "-db", default="videoinfo.sqlite", help="Location of the sqlite database to save the information into.")
+args.add_argument("--debug", "-d", action="store_true", help="Run in debug mode.")
+args.add_argument("--test", "-t", action="store_true", help="Run in test mode.")
+args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
+args.add_argument("files", nargs="*", help="Files get information from.")
+
+options=vars(args.parse_args())
+
+if options["debug"]:
+    database=sqlite3.connect(":memory:")
+else:
+    database=sqlite3.connect(options["database"])
+
+db=sqlite3.Cursor()
+
+av=db.execute('pragma auto_vacuum')
+if av[0] is not 1:
+    db.execute('pragma auto_vacuum = 1')
+    db.execute('vacuum')
+    database.commit()
+
+db.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, width integer, height integer, hash text unique)')
+database.commit()
+
+if options["maintainence"]:
+    db.execute('vacuum')
+    database.commit()
+    sys.exit(0)
+
+data={}
+
+data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.gif', '.mng', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v']
+
+data["files"] = []
+
+if not files:
+    for filepath in pathlib.Path.iterdir():
+        if filepath.suffix in data["whitelist"]:
+            data["files"].append(filepath.name)
+else:
+    for files in options["files"]:
+        filepath=pathlib.Path(files)
+        if filepath.suffix in data["whitelist"]:
+            data["files"].append(filepath.name)
+
+data["sorted"] = sortentries(data["files"])
