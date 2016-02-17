@@ -18,15 +18,14 @@ def sortentries(text):
             text=prettylist(text, sep=' ').split()
             return humansorted(text.split())
         if type(text) in (tuple, list):
-            text=prettylist(text, sep=' ').split()
             return humansorted(text)
         else:
             print("{} Argument must be a string, tuple, or list.".format(colors.mood("sad")))
     else:
         if type(text) in (str,):
+            text=prettylist(text, sep=' ').split()
             return sorted(text.split(), key=str.lower)
         elif type(text) in (tuple, list):
-            text=prettylist(text, sep=' ').split()
             return sorted(text, key=str.lower)
         else:
             print("{} Argument must be a string, tuple, or list.".format(colors.mood("sad")))
