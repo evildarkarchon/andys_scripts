@@ -11,6 +11,7 @@ from andy.sortentries import sortentries
 from andy.hashfile import hashfile
 from andy.flatten import flatten
 from andy.runprogram import runprogram
+from andy.prettylist import prettylist
 
 args=argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
 args.add_argument("--database", "-db", default="videoinfo.sqlite", help="Location of the sqlite database to save the information into.")
@@ -26,7 +27,7 @@ if options["debug"]:
 else:
     database=sqlite3.connect(options["database"])
 
-db=sqlite3.Cursor()
+db=database.cursor()
 
 av=db.execute('pragma auto_vacuum')
 if av[0] is not 1:
@@ -46,21 +47,21 @@ data={}
 
 data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.gif', '.mng', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v']
 
-data["files"] = []
+data["unsorted"] = []
+
+db.execute("select filename videoinfo")
+data["existing"] = list(flatten(db.fetchall()))
 
 if not files:
     for filepath in pathlib.Path.iterdir():
-        if filepath.suffix in data["whitelist"]:
-            data["files"].append(filepath.name)
+        if filepath.suffix in data["whitelist"] and filepath.is_file():
+            data["unsorted"].append(filepath.name)
 else:
     for files in options["files"]:
         filepath=pathlib.Path(files)
-        if filepath.suffix in data["whitelist"]:
-            data["files"].append(filepath.name)
+        if filepath.suffix in data["whitelist"] and filepath.is_file():
+            data["unsorted"].append(filepath.name)
 
-data["sorted"] = sortentries(data["files"])
-data["hashes"] = {}
-for files in data["sorted"]:
-    filehash=hashfile(files)
+data["files"] = sortentries(data["unsorted"])
 
-    data["hashes"][files]=filehash
+for filename in data["files"]:
