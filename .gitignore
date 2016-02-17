@@ -1,0 +1,5 @@
+.*
+*test*
+generate-json.py
+__pycache__
+!.gitignore
