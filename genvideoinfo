@@ -3,8 +3,10 @@ import pathlib
 import json
 import sqlite3
 import argparse
-from humanize import filesize
+from humanize.filesize import naturalsize
 import sys
+import subprocess
+import time
 
 from andy.colors import Color
 from andy.sortentries import sortentries
@@ -13,14 +15,24 @@ from andy.flatten import flatten
 from andy.runprogram import runprogram
 from andy.prettylist import prettylist
 
+colors=Color()
+
 args=argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
 args.add_argument("--database", "-db", default="videoinfo.sqlite", help="Location of the sqlite database to save the information into.")
 args.add_argument("--debug", "-d", action="store_true", help="Run in debug mode.")
 args.add_argument("--test", "-t", action="store_true", help="Run in test mode.")
 args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
-args.add_argument("files", nargs="*", help="Files get information from.")
+args.add_argument("--slow", "-s", action="store_true", help="Calculate hashes for all files, even if they are already in the database.")
+#args.add_argument("--regen", "-r", action="store_true", help="Regenerate database.")
+args.add_argument("files", nargs="*", help="Files to get information from.")
 
 options=vars(args.parse_args())
+
+databasepath=pathlib.Path(options["database"])
+if databasepath.exists():
+    databasepath=databasepath.resolve()
+    with open(str(databasepath), "rb") as source, open(str(databasepath).replace(databasepath.suffix, "{}{}".format(databasepath.suffix, ".bak")), "wb") as dest:
+        dest.write(bytes(source.read()))
 
 if options["debug"]:
     database=sqlite3.connect(":memory:")
@@ -28,11 +40,16 @@ else:
     database=sqlite3.connect(options["database"])
 
 db=database.cursor()
-
-av=db.execute('pragma auto_vacuum')
+db.execute('pragma auto_vacuum')
+av=db.fetchone()
 if av[0] is not 1:
     db.execute('pragma auto_vacuum = 1')
     db.execute('vacuum')
+    database.commit()
+
+if options["slow"]:
+    db.execute("drop table videoinfo")
+    db.execute("vacuum")
     database.commit()
 
 db.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, width integer, height integer, hash text unique)')
@@ -49,19 +66,109 @@ data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.gif', '.
 
 data["unsorted"] = []
 
-db.execute("select filename videoinfo")
-data["existing"] = list(flatten(db.fetchall()))
+#db.execute("select filename videoinfo")
+#data["existing"] = list(flatten(db.fetchall()))
 
-if not files:
-    for filepath in pathlib.Path.iterdir():
-        if filepath.suffix in data["whitelist"] and filepath.is_file():
+#if options["slow"]:
+#    data["existing"] = None
+existinghash={}
+db.execute("select filename, hash from videoinfo")
+if not options["slow"]:
+    for a, b in db.fetchall():
+        existinghash[a] = b
+
+if not options["files"]:
+    for filepath in pathlib.Path.cwd().iterdir():
+        if filepath.suffix in data["whitelist"] and filepath.name and filepath.is_file() and filepath.name not in existinghash:
             data["unsorted"].append(filepath.name)
 else:
     for files in options["files"]:
         filepath=pathlib.Path(files)
-        if filepath.suffix in data["whitelist"] and filepath.is_file():
+        if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
             data["unsorted"].append(filepath.name)
+for filename in data["unsorted"]:
+    if pathlib.Path(filename).suffix not in data["whitelist"]:
+        data["unsorted"].remove(filename)
 
 data["files"] = sortentries(data["unsorted"])
-
+if len(data["files"]) is 0:
+    print("{} All files are already in the database or there are no files.".format(colors.mood("happy")))
+    sys.exit(0)
+filehash = {}
 for filename in data["files"]:
+    if not options["slow"]:
+            if filename not in existinghash:
+                print("{} Calculating hash for {}".format(colors.mood("happy"), filename))
+                filehash[filename] = hashfile(filename)
+            elif filename in existinghash:
+                data["files"].remove(filename)
+                continue
+    else:
+        print("{} Calculating hash for {}".format(colors.mood("happy"), filename))
+        filehash[filename] = hashfile(filename)
+
+video_dict={}
+for filename in data["files"]:
+    print("{} Extracting metadata for {}".format(colors.mood("happy"), filename))
+    metadata=subprocess.Popen(["ffprobe", "-i", filename, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    jsondata=json.loads(metadata.communicate()[0].decode("utf-8"))
+
+    video_dict["filename"]=filename
+    video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"]["duration"]))))
+    video_dict["bitrate_total"]=naturalsize(jsondata["format"]["bit_rate"]).replace("B", "b/s")
+    try:
+        video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0]["bit_rate"]).replace("B", "b/s")
+    except (KeyError, IndexError):
+        video_dict["bitrate_0"]=None
+        pass
+    try:
+        video_dict["height"]=jsondata["streams"][0]["coded_height"]
+    except (KeyError, IndexError):
+        video_dict["height"]=None
+        pass
+    try:
+        video_dict["width"]=jsondata["streams"][0]["coded_width"]
+    except (KeyError, IndexError):
+        video_dict["width"]=None
+        pass
+    try:
+        video_dict["codec_0"]=jsondata["streams"][0]["codec_name"]
+    except (KeyError, IndexError):
+        video_dict["codec_0"]=None
+        pass
+    try:
+        video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1]["bit_rate"]).replace("B", "b/s")
+    except (KeyError, IndexError):
+        video_dict["bitrate_1"]=None
+        pass
+    try:
+        video_dict["codec_1"]=jsondata["streams"][1]["codec_name"]
+    except (KeyError, IndexError):
+        video_dict["codec_1"]=None
+        pass
+    try:
+        video_dict["height"]=jsondata["streams"][1]["coded_height"]
+    except (KeyError, IndexError):
+        if not video_dict["height"]:
+            video_dict["height"]=None
+            pass
+        else:
+            pass
+    try:
+        video_dict["width"]=jsondata["streams"][1]["coded_width"]
+    except (KeyError, IndexError):
+        if not video_dict["width"]:
+            video_dict["width"]=None
+            pass
+        else:
+            pass
+    video_dict["hash"]=filehash[filename]
+
+    if options["debug"]:
+        print(video_dict["hash"])
+        print(video_dict)
+
+    db.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, width, height, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["width"], video_dict["height"], video_dict["hash"]))
+    database.commit()
+
+database.close()
