@@ -5,7 +5,7 @@ from andy.colors import Color
 
 colors=Color()
 
-def runprogram(program, verify=True, use_sudo=False, user="root" stdinput=None, stdoutput=None, stderror=None, environment=None):
+def runprogram(program, verify=True, use_sudo=False, user="root", stdinput=None, stdoutput=None, stderror=None, environment=None):
 
     if type(program) in (list, tuple):
         command=list(program)
