@@ -62,7 +62,7 @@ if options["maintainence"]:
 
 data={}
 
-data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.gif', '.mng', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v']
+data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v']
 
 data["unsorted"] = []
 
