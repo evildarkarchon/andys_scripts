@@ -4,9 +4,46 @@ import sqlite3
 import argparse
 import pathlib
 
-from andy.python_version import python_version
+from andy.python_version import is_python_version
 from andy.colors import Color
 from andy.flatten import flatten
 from andy.runprogram import runprogram
 from andy.prettylist import prettylist
 from andy.sortentries import sortentries
+from andy.genjson import genjson
+
+colors=Color()
+
+args=argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+video=args.add_argument_group(description="Video options:")
+audio=args.add_argument_group(description="Audio Options:")
+config=args.add_argument_group(description="Configuration/Testing options:")
+test=config.add_mutually_exclusive_group()
+
+video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
+video.add_argument("--video-bitrate", "-vb", help="Bitrate for the video codec.")
+video.add_argument("--video-codec", "-vc", help="Video codec to use.")
+
+audio.add_argument("--audio-bitrate", "-ab", help="Bitrate for the audio codec.")
+audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
+audio.add_argument("--filter", "-f", help="Filter to be applied to the audio.")
+
+config.add_argument("--database", "-d", default="videoinfo.sqlite", help="Location of the video info database.")
+config.add_argument("--config", "-c", default="/home/evildarkarchon/.config/absconvert.json", help="Location of the configuration file (JSON format).")
+
+test.add_argument("--debug", "-db", action="store_true", help="Print ALL variables and exit")
+test.add_argument("--test", "-t", action="store_true", help="Print some variables and exit.")
+
+args.add_argument("files", nargs="*", help="Files to encode.")
+
+options=vars(args.parse_args())
+#print(options)
+
+database=sqlite3.connect(options["database"])
+db=database.cursor()
+
+with open(options["config"]) as jsonsource:
+    config=json.loads(jsonsource.read())
+
+#def convert(filename, videocodec=None, audiocodec=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None):
