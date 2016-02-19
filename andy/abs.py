@@ -111,4 +111,4 @@ class ABS:
             runprogram(command1pass)
 
         with self.database:
-            self.database.execute('delete from videoinfo where filename = "?"', filename)
+            self.database.execute('delete from videoinfo where filename = "?"', (filename,))
