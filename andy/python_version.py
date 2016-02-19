@@ -7,7 +7,7 @@ colors=Color()
 def is_python_version(query):
     if type(query) not in (tuple, list):
         print("{} Value must be a tuple or a list.".format(colors.mood("sad")))
-        raise ValueError
+        raise TypeError
 
     if type(query) in (list,):
         query=tuple(query)

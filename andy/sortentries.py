@@ -21,6 +21,7 @@ def sortentries(text):
             return humansorted(text)
         else:
             print("{} Argument must be a string, tuple, or list.".format(colors.mood("sad")))
+            raise TypeError
     else:
         if type(text) in (str,):
             text=prettylist(text, sep=' ').split()
@@ -29,4 +30,4 @@ def sortentries(text):
             return sorted(text, key=str.lower)
         else:
             print("{} Argument must be a string, tuple, or list.".format(colors.mood("sad")))
-            raise ValueError
+            raise TypeError
