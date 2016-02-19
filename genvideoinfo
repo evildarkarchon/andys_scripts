@@ -172,8 +172,8 @@ for filename in data["files"]:
     if options["debug"]:
         print(video_dict["hash"])
         print(video_dict)
-
-    db.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, container, width, height, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["container"], video_dict["width"], video_dict["height"], video_dict["hash"]))
-    database.commit()
+    with database:
+        database.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, container, width, height, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["container"], video_dict["width"], video_dict["height"], video_dict["hash"]))
+#    database.commit()
 
 database.close()
