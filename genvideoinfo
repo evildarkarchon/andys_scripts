@@ -43,21 +43,22 @@ db=database.cursor()
 db.execute('pragma auto_vacuum')
 av=db.fetchone()
 if av[0] is not 1:
-    db.execute('pragma auto_vacuum = 1')
-    db.execute('vacuum')
-    database.commit()
+    with database:
+        database.execute('pragma auto_vacuum = 1')
+        database.execute('vacuum')
 
 if options["slow"]:
-    db.execute("drop table if exists videoinfo")
-    db.execute("vacuum")
-    database.commit()
+    with database:
+        database.execute("drop table if exists videoinfo")
+        database.execute("vacuum")
+
 
 db.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, hash text unique)')
 database.commit()
 
 if options["maintainence"]:
-    db.execute('vacuum')
-    database.commit()
+    with database:
+        database.execute('vacuum')
     sys.exit(0)
 
 data={}
