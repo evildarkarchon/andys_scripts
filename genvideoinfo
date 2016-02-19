@@ -48,11 +48,11 @@ if av[0] is not 1:
     database.commit()
 
 if options["slow"]:
-    db.execute("drop table videoinfo")
+    db.execute("drop table if exists videoinfo")
     db.execute("vacuum")
     database.commit()
 
-db.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, width integer, height integer, hash text unique)')
+db.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, hash text unique)')
 database.commit()
 
 if options["maintainence"]:
@@ -147,6 +147,11 @@ for filename in data["files"]:
         video_dict["codec_1"]=None
         pass
     try:
+        video_dict["container"]=jsondata["format"]["format_name"]
+    except (KeyError, IndexError):
+        video_dict["container"]=None
+        pass
+    try:
         video_dict["height"]=jsondata["streams"][1]["coded_height"]
     except (KeyError, IndexError):
         if not video_dict["height"]:
@@ -168,7 +173,7 @@ for filename in data["files"]:
         print(video_dict["hash"])
         print(video_dict)
 
-    db.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, width, height, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["width"], video_dict["height"], video_dict["hash"]))
+    db.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, container, width, height, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["container"], video_dict["width"], video_dict["height"], video_dict["hash"]))
     database.commit()
 
 database.close()
