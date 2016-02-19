@@ -11,6 +11,8 @@ from andy.runprogram import runprogram
 from andy.prettylist import prettylist
 from andy.sortentries import sortentries
 from andy.genjson import genjson
+from andy.listfilter import listfilter
+from andy.abs import ABS
 
 colors=Color()
 
@@ -31,6 +33,7 @@ audio.add_argument("--filter", "-f", help="Filter to be applied to the audio.")
 
 config.add_argument("--database", "-d", default="videoinfo.sqlite", help="Location of the video info database.")
 config.add_argument("--config", "-c", default="/home/evildarkarchon/.config/absconvert.json", help="Location of the configuration file (JSON format).")
+config.add_argument("--container", "-ct", help="Container format to put the video in.")
 
 test.add_argument("--debug", "-db", action="store_true", help="Print ALL variables and exit")
 test.add_argument("--test", "-t", action="store_true", help="Print some variables and exit.")
@@ -38,12 +41,44 @@ test.add_argument("--test", "-t", action="store_true", help="Print some variable
 args.add_argument("files", nargs="*", help="Files to encode.")
 
 options=vars(args.parse_args())
-#print(options)
 
-database=sqlite3.connect(options["database"])
-db=database.cursor()
+abs=ABS(database=options["database"], debug=options["debug"], test=options["test"])
+
+if options["debug"]:
+    print(options)
 
 with open(options["config"]) as jsonsource:
     config=json.loads(jsonsource.read())
 
-#def convert(filename, videocodec=None, audiocodec=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None):
+if options["debug"]:
+    print(config)
+
+if options["container"]:
+    options["container"]=".{}".format(options["container"])
+elif not options["container"]:
+    options["container"]=".{}".format(config["defaults"]["container"])
+
+if not options["video_codec"]:
+    options["video_codec"]=config["defaults"]["video"]
+
+if not options["audio_codec"]:
+    options["audio_codec"]=config["defaults"]["audio"]
+
+if not options["filter"]:
+    options["filter"]=config["options"]["audiofilter"]
+
+if options["audio_codec"] in config["codecs"]:
+    options["audiocodecopts"]=config["codecs"][options["audio_codec"]]
+else:
+    options["audiocodecopts"]=None
+
+if options["video_codec"] in config["codecs"]:
+    options["videocodecopts"]=config["codecs"][options["video_codec"]]
+else:
+    options["videocodecopts"]=None
+
+if not options["passes"]:
+    options["passes"]=config["defaults"]["passes"]
+
+for files in options["files"]:
+    abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"], audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"], audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"])
