@@ -110,9 +110,5 @@ class ABS:
         elif passes is 1:
             runprogram(command1pass)
 
-        try:
-            self.db.execute('delete from videoinfo where filename=?', filepath.name)
-        except sqlite3.Error:
-            self.database.rollback()
-        else:
-            self.database.commit()
+        with self.database:
+            self.database.execute('delete from videoinfo where filename = "?"', filename)
