@@ -59,7 +59,7 @@ with databasetemp:
     dbtemp.execute("select * from videoinfo")
     test=dict(dbtemp.fetchone())
     test2=test.keys()
-    if "container" not in test2:
+    if not {"container"}.issubset(test2):
         print("{} Container column not found, regenerating database.".format(colors.mood("neutral")))
         databasetemp.execute("drop table if exists videoinfo")
         databasetemp.execute("vacuum")
