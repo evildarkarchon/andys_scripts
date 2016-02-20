@@ -51,10 +51,21 @@ if options["slow"]:
     with database:
         database.execute("drop table if exists videoinfo")
         database.execute("vacuum")
+databasetemp=sqlite3.connect(options["database"])
 
+with databasetemp:
+    databasetemp.row_factory=sqlite3.Row
+    dbtemp=databasetemp.cursor()
+    dbtemp.execute("select * from videoinfo")
+    test=dict(dbtemp.fetchone())
+    test2=test.keys()
+    if "container" not in test2:
+        print("{} Container column not found, regenerating database.".format(colors.mood("neutral")))
+        databasetemp.execute("drop table if exists videoinfo")
+        databasetemp.execute("vacuum")
 
-db.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, hash text unique)')
-database.commit()
+with database:
+    database.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, hash text unique)')
 
 if options["maintainence"]:
     with database:
