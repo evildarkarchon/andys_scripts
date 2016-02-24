@@ -104,7 +104,7 @@ if not options["regen"] and not options["delete"]:
         pathlist=[]
         for files in paths:
             pathlist.append(files.name)
-            
+
         if filename not in pathlist:
             with database:
                 print("{} {} not found, deleting from database.".format(colors.mood("neutral"), filename))
@@ -151,9 +151,9 @@ if not options["delete"]:
                         data["files"].remove(filename)
                         filehash.pop(filename)
                     continue
-            elif options["regen"] and not options["delete"]:
-                print("{} Calculating hash for {}".format(colors.mood("happy"), filename))
-                filehash[filename] = hashfile(filename)
+        elif options["regen"] and not options["delete"]:
+            print("{} Calculating hash for {}".format(colors.mood("happy"), filename))
+            filehash[filename] = hashfile(filename)
 
     data["files"] = sortentries(data["files"])
 
@@ -170,60 +170,52 @@ else:
         jsondata=json.loads(metadata.communicate()[0].decode("utf-8"))
 
         video_dict["filename"]=filename
-        video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"]["duration"]))))
-        video_dict["bitrate_total"]=naturalsize(jsondata["format"]["bit_rate"]).replace("B", "b/s")
+        video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"].get("duration")))))
+        video_dict["bitrate_total"]=naturalsize(jsondata["format"].get("bit_rate")).replace("B", "b/s")
         try:
-            video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0]["bit_rate"]).replace("B", "b/s")
+            video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace("B", "b/s")
         except (KeyError, IndexError):
             video_dict["bitrate_0"]=None
             pass
-        try:
-            video_dict["height"]=jsondata["streams"][0]["coded_height"]
-        except (KeyError, IndexError):
-            video_dict["height"]=None
-            pass
-        try:
-            video_dict["width"]=jsondata["streams"][0]["coded_width"]
-        except (KeyError, IndexError):
-            video_dict["width"]=None
-            pass
-        try:
-            video_dict["codec_0"]=jsondata["streams"][0]["codec_name"]
-        except (KeyError, IndexError):
-            video_dict["codec_0"]=None
-            pass
-        try:
-            video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1]["bit_rate"]).replace("B", "b/s")
-        except (KeyError, IndexError):
-            video_dict["bitrate_1"]=None
-            pass
-        try:
-            video_dict["codec_1"]=jsondata["streams"][1]["codec_name"]
-        except (KeyError, IndexError):
-            video_dict["codec_1"]=None
-            pass
-        try:
-            video_dict["container"]=jsondata["format"]["format_name"]
-        except (KeyError, IndexError):
-            video_dict["container"]=None
-            pass
-        try:
-            video_dict["height"]=jsondata["streams"][1]["coded_height"]
-        except (KeyError, IndexError):
-            if not video_dict["height"]:
-                video_dict["height"]=None
-                pass
-            else:
-                pass
-        try:
-            video_dict["width"]=jsondata["streams"][1]["coded_width"]
-        except (KeyError, IndexError):
-            if not video_dict["width"]:
-                video_dict["width"]=None
-                pass
-            else:
-                pass
-        video_dict["hash"]=filehash[filename]
+        #try:
+        #    video_dict["height"]=jsondata["streams"][0]["height"]
+        #except (KeyError, IndexError):
+        #    video_dict["height"]=None
+        #    pass
+        #try:
+        #    video_dict["width"]=jsondata["streams"][0]["width"]
+        #except (KeyError, IndexError):
+        #    video_dict["width"]=None
+        #    pass
+        video_dict["height"]=jsondata["streams"][0].get("height")
+        video_dict["width"]=jsondata["streams"][0].get("width")
+        video_dict["codec_0"]=jsondata["streams"][0].get("codec_name")
+
+        video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace("B", "b/s")
+        video_dict["codec_1"]=jsondata["streams"][1].get("codec_name")
+        video_dict["container"]=jsondata["format"].get("format_name")
+        #try:
+        #    video_dict["height"]=jsondata["streams"][1]["height"]
+        #except (KeyError, IndexError):
+        #    if not video_dict["height"]:
+        #        video_dict["height"]=None
+        #        pass
+        #    else:
+        #        pass
+        if not video_dict["height"]:
+            video_dict["height"]=jsondata["streams"][1].get("height")
+        #try:
+        #    video_dict["width"]=jsondata["streams"][1]["width"]
+        #except (KeyError, IndexError):
+        #    if not video_dict["width"]:
+        #        video_dict["width"]=None
+        #        pass
+        #    else:
+        #        pass
+        if not video_dict["width"]:
+            video_dict["width"]=jsondata["streams"][1].get("width")
+
+        video_dict["hash"]=filehash.get(filename)
 
         if options["debug"]:
             print(video_dict["hash"])
