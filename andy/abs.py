@@ -5,12 +5,21 @@ import subprocess
 
 from andy.runprogram import runprogram
 from andy.flatten import flatten
+from andy.colors import Color
+
+colors=Color()
 
 class ABS:
-    def __init__(self, database="videoinfo.sqlite", test=None, debug=None):
-        self.database=sqlite3.connect(database)
-        self.db=self.database.cursor()
-        atexit.register(self.database.close)
+    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None):
+        try:
+            self.database=sqlite3.connect(database)
+        except sqlite3.OperationalError:
+            self.database=None
+            print("{} Could not open database or no database specified.")
+            pass
+        else:
+            self.db=self.database.cursor()
+            atexit.register(self.database.close)
         self.test=test
         self.debug=debug
 
@@ -109,6 +118,6 @@ class ABS:
                 pathlib.Path(filename.replace(filepath.suffix, "-0.log")).unlink()
         elif passes is 1:
             runprogram(command1pass)
-
-        with self.database:
-            self.database.execute('delete from videoinfo where filename = "?"', (filename,))
+        if self.database:
+            with self.database:
+                self.database.execute('delete from videoinfo where filename = "?"', (filename,))

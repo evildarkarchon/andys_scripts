@@ -31,10 +31,10 @@ audio.add_argument("--audio-bitrate", "-ab", help="Bitrate for the audio codec."
 audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
 audio.add_argument("--filter", "-f", help="Filter to be applied to the audio.")
 
-config.add_argument("--database", "-d", default="videoinfo.sqlite", help="Location of the video info database.")
+config.add_argument("--database", "-d", help="Location of the video info database.")
 config.add_argument("--config", "-c", default="/home/evildarkarchon/.config/absconvert.json", help="Location of the configuration file (JSON format).")
 config.add_argument("--container", "-ct", help="Container format to put the video in.")
-config.add_argument("--no-sort", "-ns", action="store_true" help="Don't sort the list of files to be encoded.")
+config.add_argument("--no-sort", "-ns", action="store_true", help="Don't sort the list of files to be encoded.")
 
 test.add_argument("--debug", "-db", action="store_true", help="Print ALL variables and exit")
 test.add_argument("--test", "-t", action="store_true", help="Print some variables and exit.")
@@ -42,6 +42,12 @@ test.add_argument("--test", "-t", action="store_true", help="Print some variable
 args.add_argument("files", nargs="*", help="Files to encode.")
 
 options=vars(args.parse_args())
+
+if not options["database"]:
+    if pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite").exists():
+        options["database"]=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite")
+    else:
+        options["database"]=None
 
 abs=ABS(database=options["database"], debug=options["debug"], test=options["test"])
 
