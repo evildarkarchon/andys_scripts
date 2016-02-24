@@ -51,8 +51,14 @@ if av[0] is not 1:
     with database:
         database.execute('pragma auto_vacuum = 1')
         database.execute('vacuum')
+db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
+vi=db.fetchall()
+if len(vi) >= 1:
+    viexists=True
+else:
+    viexists=False
 db.close()
-if not options["delete"]:
+if not options["delete"] and viexists:
     with database:
         database.row_factory = sqlite3.Row
         db=database.cursor()
