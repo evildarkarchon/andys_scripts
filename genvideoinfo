@@ -43,7 +43,8 @@ if options["debug"]:
     database=sqlite3.connect(":memory:")
 else:
     database=sqlite3.connect(options["database"])
-global vi
+
+vi=None
 with database:
     db=database.cursor()
     db.execute('pragma auto_vacuum')
