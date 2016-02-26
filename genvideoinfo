@@ -43,21 +43,21 @@ if options["debug"]:
     database=sqlite3.connect(":memory:")
 else:
     database=sqlite3.connect(options["database"])
-
-db=database.cursor()
-db.execute('pragma auto_vacuum')
-av=db.fetchone()
-if av[0] is not 1:
-    with database:
+global vi
+with database:
+    db=database.cursor()
+    db.execute('pragma auto_vacuum')
+    av=db.fetchone()
+    if av[0] is not 1:
         database.execute('pragma auto_vacuum = 1')
         database.execute('vacuum')
-db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
-vi=db.fetchall()
+    db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
+    vi=db.fetchone()
 if len(vi) >= 1:
     viexists=True
 else:
     viexists=False
-db.close()
+
 if not options["delete"] and viexists:
     with database:
         database.row_factory = sqlite3.Row
