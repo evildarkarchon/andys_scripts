@@ -101,10 +101,13 @@ data["unsorted"] = []
 #    data["existing"] = None
 existinghash={}
 with database:
-    database.execute("select filename, hash from videoinfo")
+    db=database.cursor()
+    db.execute("select filename, hash from videoinfo")
     if not options["regen"] and not options["delete"]:
         for a, b in db.fetchall():
             existinghash[a] = b
+            if options["debug"]:
+                print("{}: {}".format(b, existinghash[a]))
 
     for filename in existinghash.keys():
         paths=pathlib.Path.cwd().iterdir()
