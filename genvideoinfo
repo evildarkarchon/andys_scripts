@@ -74,7 +74,6 @@ if not options["delete"] and viexists:
                     db.execute("drop table if exists videoinfo")
                     db.execute("vacuum")
         database.row_factory=None
-db=database.cursor()
 if options["regen"] and not options["delete"]:
     with database:
         database.execute("drop table if exists videoinfo")
@@ -100,10 +99,11 @@ data["unsorted"] = []
 #if options["regen"]:
 #    data["existing"] = None
 existinghash={}
-db.execute("select filename, hash from videoinfo")
-if not options["regen"] and not options["delete"]:
-    for a, b in db.fetchall():
-        existinghash[a] = b
+with database:
+    database.execute("select filename, hash from videoinfo")
+    if not options["regen"] and not options["delete"]:
+        for a, b in db.fetchall():
+            existinghash[a] = b
 
     for filename in existinghash.keys():
         paths=pathlib.Path.cwd().iterdir()
@@ -114,7 +114,7 @@ if not options["regen"] and not options["delete"]:
         if filename not in pathlist:
             with database:
                 print("{} {} not found, deleting from database.".format(colors.mood("neutral"), filename))
-                db.execute("delete from videoinfo where filename=?", (filename,))
+                database.execute("delete from videoinfo where filename=?", (filename,))
 
 if not options["files"] and not options["delete"]:
     for filepath in pathlib.Path.cwd().iterdir():
@@ -146,17 +146,18 @@ if not options["delete"]:
                 filehash[filename] = hashfile(filename)
 
                 if filehash[filename] in existinghash:
-                    db.execute("select filename from videoinfo where hash=?", (filehash[filename]))
-                    existingnames=db.fetchall()
-                    print("{} {} was found in the database.".format(colors.mood("neutral"), filename))
+                    with database:
+                        database.execute("select filename from videoinfo where hash=?", (filehash[filename]))
+                        existingnames=database.fetchall()
+                        print("{} {} was found in the database.".format(colors.mood("neutral"), filename))
 
-                    print("{} Filenames for existing file(s) are:".format(colors.mood("neutral")))
-                    for filenames in existingnames:
-                        print(colors.mood("neutral"), ''.join(filenames))
-                        print("{} Removing {} from file list.".format(colors.mood("neutral"), filename))
-                        data["files"].remove(filename)
-                        filehash.pop(filename)
-                    continue
+                        print("{} Filenames for existing file(s) are:".format(colors.mood("neutral")))
+                        for filenames in existingnames:
+                            print(colors.mood("neutral"), ''.join(filenames))
+                            print("{} Removing {} from file list.".format(colors.mood("neutral"), filename))
+                            data["files"].remove(filename)
+                            filehash.pop(filename)
+                            continue
         elif options["regen"] and not options["delete"]:
             print("{} Calculating hash for {}".format(colors.mood("happy"), filename))
             filehash[filename] = hashfile(filename)
