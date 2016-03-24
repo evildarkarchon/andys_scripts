@@ -6,10 +6,10 @@ from andy.colors import Color
 colors=Color()
 
 def genjson(filename, dictionary):
-    jsonpath=pathlib.Path(filename)
+    jsonpath=pathlib.Path(filename).resolve()
 #    print(dictionary)
 
-    if not isinstance(dictionary, dict):
+    if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
         print("{} Second argument must be a dictionary.".format(colors.mood("sad")))
         raise TypeError
 

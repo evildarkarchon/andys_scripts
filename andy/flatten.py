@@ -1,6 +1,8 @@
+import collections
+
 def flatten(lst):
     for elem in lst:
-        if type(elem) in (tuple, list):
+        if isinstance(elem, (tuple, list, collections.deque)):
             for i in flatten(elem):
                 yield i
         else:
