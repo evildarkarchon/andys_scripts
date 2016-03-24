@@ -4,6 +4,9 @@ import sqlite3
 import argparse
 import pathlib
 
+from collections import deque
+from collections import ChainMap
+
 from andy.python_version import is_python_version
 from andy.colors import Color
 from andy.flatten import flatten
@@ -11,7 +14,6 @@ from andy.runprogram import runprogram
 from andy.prettylist import prettylist
 from andy.sortentries import sortentries
 from andy.genjson import genjson
-from andy.listfilter import listfilter
 from andy.abs import ABS
 
 colors=Color()
@@ -26,6 +28,7 @@ test=config.add_mutually_exclusive_group()
 video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
 video.add_argument("--video-bitrate", "-vb", help="Bitrate for the video codec.")
 video.add_argument("--video-codec", "-vc", help="Video codec to use.")
+video.add_argument("--frame-rate", "-fr", dest="frame_rate", help="Frame Rate of the video (if ffmpeg has a problem detecting it automatically, especially helps with mpeg-1 files).")
 
 audio.add_argument("--audio-bitrate", "-ab", help="Bitrate for the audio codec.")
 audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
@@ -41,54 +44,59 @@ test.add_argument("--test", "-t", action="store_true", help="Print some variable
 
 args.add_argument("files", nargs="*", help="Files to encode.")
 
-options=vars(args.parse_args())
+cmdline=vars(args.parse_args())
+
+with open(cmdline["config"]) as jsonsource:
+    config=json.loads(jsonsource.read())
+
+options=ChainMap(cmdline, config)
 
 if not options["database"]:
     if pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite").exists():
-        options["database"]=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite")
+        options["database"]=str(pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"))
     else:
         options["database"]=None
 
 abs=ABS(database=options["database"], debug=options["debug"], test=options["test"])
 
 if options["debug"]:
+    options["test"]=True
     print(options)
-
-with open(options["config"]) as jsonsource:
-    config=json.loads(jsonsource.read())
-
-if options["debug"]:
     print(config)
 
 if options["container"]:
     options["container"]=".{}".format(options["container"])
 elif not options["container"]:
-    options["container"]=".{}".format(config["defaults"]["container"])
+    options["container"]=".{}".format(options["defaults"]["container"])
 
 if not options["video_codec"]:
-    options["video_codec"]=config["defaults"]["video"]
+    options["video_codec"]=options["defaults"]["video"]
 
 if not options["audio_codec"]:
-    options["audio_codec"]=config["defaults"]["audio"]
+    options["audio_codec"]=options["defaults"]["audio"]
 
 if not options["filter"]:
     options["filter"]=config["options"]["audiofilter"]
 
-if options["audio_codec"] in config["codecs"]:
-    options["audiocodecopts"]=config["codecs"][options["audio_codec"]]
+if options["audio_codec"] in options["codecs"]:
+    options["audiocodecopts"]=options["codecs"][options["audio_codec"]]
 else:
     options["audiocodecopts"]=None
 
-if options["video_codec"] in config["codecs"]:
+if options["video_codec"] in options["codecs"]:
     options["videocodecopts"]=config["codecs"][options["video_codec"]]
 else:
     options["videocodecopts"]=None
 
 if not options["passes"]:
-    options["passes"]=config["defaults"]["passes"]
+    options["passes"]=options["defaults"]["passes"]
 
 if not options["no_sort"]:
     options["files"]=sortentries(options["files"])
 
-for files in options["files"]:
-    abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"], audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"], audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"])
+if "frame_rate" not in options:
+    options["frame_rate"]=None
+
+if not options["test"]:
+    for files in options["files"]:
+        abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"], audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"], audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"], framerate=options["frame_rate"])

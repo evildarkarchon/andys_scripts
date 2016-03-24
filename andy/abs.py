@@ -3,6 +3,8 @@ import pathlib
 import atexit
 import subprocess
 
+from collections import deque
+
 from andy.runprogram import runprogram
 from andy.flatten import flatten
 from andy.colors import Color
@@ -13,26 +15,45 @@ class ABS:
     def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None):
         try:
             self.database=sqlite3.connect(database)
-        except sqlite3.OperationalError:
+        except (sqlite3.OperationalError, TypeError):
             self.database=None
-            print("{} Could not open database or no database specified.")
+            print("{} Could not open database or no database specified.".format(colors.mood("neutral")))
             pass
         else:
-            self.db=self.database.cursor()
             atexit.register(self.database.close)
         self.test=test
         self.debug=debug
+        self.db=self.database.cursor()
 
-    def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, passes=2):
+    def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
 
         filepath=pathlib.Path(filename)
+
+        if self.database and not framerate:
+            print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
+            with self.database:
+                try:
+                    self.db.execute("select frame_rate from videoinfo where filename=?", (filename,))
+                    framerate=self.db.fetchone()
+                except sqlite3.Error:
+                    print("{} Frame Rate not found in database, will rely on ffmpeg auto-detection.".format(colors.mood("neutral")))
+                    framerate=None
+                    pass
+
+        if not self.database and not framerate:
+            print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg audto-detection.".format(colors.mood("neutral")))
 
         if videocodec is "copy" or videocodec is "none" or not videocodec:
             passes=1
 
-        basecommandpass1=["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "1", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-an", "-hide_banner", "-y", "-f", "matroska", "/dev/null"]
-        basecommandpass2=["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "2", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(filepath.with_suffix(container))]
-        basecommand1pass=["ffmpeg", "-i", str(filepath), "c:v", videocodec, "-b:v", videobitrate, videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(filepath.with_suffix(container))]
+        basecommandpass1=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "1", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-an", "-hide_banner", "-y", "-f", "matroska", "/dev/null"])
+        basecommandpass2=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "2", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(filepath.with_suffix(container))])
+        basecommand1pass=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(filepath.with_suffix(container))])
+
+        if framerate:
+            basecommandpass1.insert(5, ["-filter:v", "fps={}".format(framerate[0])])
+            basecommandpass2.insert(5, ["-filter:v", "fps={}".format(framerate[0])])
+            basecommand1pass.insert(5, ["-filter:v", "fps={}".format(framerate[0])])
 
         if not videocodecopts:
             basecommandpass1.remove(videocodecopts)
@@ -106,6 +127,7 @@ class ABS:
         command1pass=list(flatten(basecommand1pass))
 
         if self.debug:
+            print('')
             print(commandpass1)
             print(commandpass2)
             print(command1pass)
@@ -115,9 +137,28 @@ class ABS:
                 runprogram(commandpass1)
                 runprogram(commandpass2)
             except (KeyboardInterrupt, subprocess.CalledProcessError):
-                pathlib.Path(filename.replace(filepath.suffix, "-0.log")).unlink()
+                if pathlib.Path(filename).with_suffix(container).exists():
+                    print("{} Removing unfinished file.".format(colors.mood("neutral")))
+                    runprogram(["rm", str(pathlib.Path(filename).with_suffix(container))])
+            else:
+                if self.database:
+                    with self.database:
+                        self.db.execute('delete from videoinfo where filename = ?', (filename,))
+            finally:
+                if pathlib.Path(filename.replace(filepath.suffix, "-0.log")).exists():
+                    print("{} Removing 1st pass log file.".format(colors.mood("neutral")))
+                    runprogram(["rm", filename.replace(filepath.suffix, "-0.log")])
+
         elif passes is 1:
-            runprogram(command1pass)
-        if self.database:
-            with self.database:
-                self.database.execute('delete from videoinfo where filename = "?"', (filename,))
+            try:
+                runprogram(command1pass)
+            except (KeyboardInterrupt, subprocess.CalledProcessError):
+                if pathlib.Path(filename).with_suffix(container).exists():
+                    print("{} Removing unfinished file.".format(colors.mood("neutral")))
+                    runprogram(["rm", str(pathlib.Path(filename).with_suffix(container))])
+            else:
+                if self.database:
+                    with self.database:
+                        #db=self.database.cursor()
+                        print("{} Removing {} from the database".format(colors.mood("happy"), filename))
+                        self.db.execute('delete from videoinfo where filename = ?', (filename,))
