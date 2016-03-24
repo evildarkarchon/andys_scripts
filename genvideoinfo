@@ -1,4 +1,4 @@
-#!/usr/bin/python3.5 -O
+#!/usr/bin/python3.5
 import pathlib
 import json
 import sqlite3
@@ -24,10 +24,12 @@ args.add_argument("--delete", "-del", action="store_true", help="Delete the file
 args.add_argument("--test", "-t", action="store_true", help="Run in test mode.")
 args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
 args.add_argument("--regen", "-r", action="store_true", help="Regenerate the database.")
-#args.add_argument("--regen", "-r", action="store_true", help="Regenerate database.")
+#args.add_argument("--refill", "-rf", action="store_true", help="Refill database with new information. (WIP)")
 args.add_argument("files", nargs="*", help="Files to get information from.")
 
 options=vars(args.parse_args())
+
+data={}
 
 if options["delete"] and not options["files"]:
     print("{} You must specify files to delete.")
@@ -39,12 +41,19 @@ if databasepath.exists():
     with open(str(databasepath), "rb") as source, open(str(databasepath).replace(databasepath.suffix, "{}{}".format(databasepath.suffix, ".bak")), "wb") as dest:
         dest.write(bytes(source.read()))
 
-if options["debug"]:
-    database=sqlite3.connect(":memory:")
-else:
-    database=sqlite3.connect(options["database"])
+database=sqlite3.connect(options["database"])
 
-vi=None
+if options["regen"] and not options["delete"]:
+    with database:
+        print("{} Deleting existing videoinfo table.".format(colors.mood("neutral")))
+        database.execute("drop table if exists videoinfo")
+        database.execute("vacuum")
+
+if options["maintainence"]:
+    with database:
+        database.execute('vacuum')
+    sys.exit(0)
+
 with database:
     db=database.cursor()
     db.execute('pragma auto_vacuum')
@@ -52,14 +61,23 @@ with database:
     if av[0] is not 1:
         database.execute('pragma auto_vacuum = 1')
         database.execute('vacuum')
+
     db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
     vi=db.fetchone()
-if len(vi) >= 1:
-    viexists=True
-else:
-    viexists=False
+    global viexists
+    try:
+        vitemp=len(vi)
+    except TypeError:
+        db.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)')
+        viexists=True
+    else:
+        if vitemp >=1:
+            viexists=True
+        else:
+            viexists=False
 
-if not options["delete"] and viexists:
+missingcolumn=["container", "frame_rate"]
+if not options["delete"] and viexists and not options["regen"]:
     with database:
         database.row_factory = sqlite3.Row
         db=database.cursor()
@@ -69,26 +87,15 @@ if not options["delete"] and viexists:
             print(type(test))
         if test:
             test2=test.keys()
-            for column in ["container"]:
+            for column in missingcolumn:
                 if not {column}.issubset(test2):
-                    print("{} Container column not found, regenerating database.".format(colors.mood("neutral")))
+                    print("{} Column {} not found, resetting database.".format(colors.mood("neutral"), column))
                     db.execute("drop table if exists videoinfo")
                     db.execute("vacuum")
         database.row_factory=None
-if options["regen"] and not options["delete"]:
-    with database:
-        database.execute("drop table if exists videoinfo")
-        database.execute("vacuum")
 
 with database:
-    database.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, hash text unique)')
-
-if options["maintainence"]:
-    with database:
-        database.execute('vacuum')
-    sys.exit(0)
-
-data={}
+    database.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)')
 
 data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v']
 
@@ -228,11 +235,18 @@ else:
 
         video_dict["hash"]=filehash.get(filename)
 
+        if jsondata["streams"][0]["avg_frame_rate"]:
+            video_dict["frame_rate"]=eval(jsondata["streams"][0]["avg_frame_rate"])
+        elif jsondata["streams"][1]["avg_frame_rate"]:
+            video_dict["frame_rate"]=eval(jsondata["streams"][1]["avg_frame_rate"])
+        else:
+            video_dict["frame_rate"]=None
+
         if options["debug"]:
             print(video_dict["hash"])
             print(video_dict)
         with database:
-            database.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, container, width, height, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["container"], video_dict["width"], video_dict["height"], video_dict["hash"]))
+            database.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, container, width, height, frame_rate, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["container"], video_dict["width"], video_dict["height"], video_dict["frame_rate"], video_dict["hash"]))
 #    database.commit()
 
 database.close()
