@@ -2,6 +2,7 @@ import sqlite3
 import pathlib
 import atexit
 import subprocess
+import shutil
 
 from collections import deque
 
@@ -12,7 +13,7 @@ from andy.colors import Color
 colors=Color()
 
 class ABS:
-    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None):
+    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None, backup=None):
         try:
             self.database=sqlite3.connect(database)
         except (sqlite3.OperationalError, TypeError):
@@ -24,16 +25,19 @@ class ABS:
         self.test=test
         self.debug=debug
         self.db=self.database.cursor()
+        if backup:
+            self.backuppath=pathlib.Path(backup).resolve()
+            self.backup=str(self.backuppath)
 
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
 
-        filepath=pathlib.Path(filename)
+        filepath=pathlib.Path(filename).resolve()
 
         if self.database and not framerate:
             print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
             with self.database:
                 try:
-                    self.db.execute("select frame_rate from videoinfo where filename=?", (filename,))
+                    self.db.execute("select frame_rate from videoinfo where filename=?", (filepath.name,))
                     framerate=self.db.fetchone()
                 except sqlite3.Error:
                     print("{} Frame Rate not found in database, will rely on ffmpeg auto-detection.".format(colors.mood("neutral")))
@@ -137,13 +141,15 @@ class ABS:
                 runprogram(commandpass1)
                 runprogram(commandpass2)
             except (KeyboardInterrupt, subprocess.CalledProcessError):
-                if pathlib.Path(filename).with_suffix(container).exists():
+                if filepath.with_suffix(container).exists():
                     print("{} Removing unfinished file.".format(colors.mood("neutral")))
-                    runprogram(["rm", str(pathlib.Path(filename).with_suffix(container))])
+                    runprogram(["rm", str(filepath.with_suffix(container))])
             else:
                 if self.database:
                     with self.database:
-                        self.db.execute('delete from videoinfo where filename = ?', (filename,))
+                        self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
+                if self.backuppath and self.backuppath.exists():
+                    shutil.move(str(filepath), self.backup)
             finally:
                 if pathlib.Path(filename.replace(filepath.suffix, "-0.log")).exists():
                     print("{} Removing 1st pass log file.".format(colors.mood("neutral")))
@@ -153,12 +159,14 @@ class ABS:
             try:
                 runprogram(command1pass)
             except (KeyboardInterrupt, subprocess.CalledProcessError):
-                if pathlib.Path(filename).with_suffix(container).exists():
+                if filepath.with_suffix(container).exists():
                     print("{} Removing unfinished file.".format(colors.mood("neutral")))
-                    runprogram(["rm", str(pathlib.Path(filename).with_suffix(container))])
+                    runprogram(["rm", str(filepath.with_suffix(container))])
             else:
                 if self.database:
                     with self.database:
                         #db=self.database.cursor()
-                        print("{} Removing {} from the database".format(colors.mood("happy"), filename))
-                        self.db.execute('delete from videoinfo where filename = ?', (filename,))
+                        print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
+                        self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
+                if self.backuppath and self.backuppath.exists():
+                    shutil.move(str(filepath), self.backup)

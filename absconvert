@@ -23,6 +23,7 @@ args=argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conv
 video=args.add_argument_group(description="Video options:")
 audio=args.add_argument_group(description="Audio Options:")
 config=args.add_argument_group(description="Configuration/Testing options:")
+files=args.add_argument_group(description="Options for file manipulation:")
 test=config.add_mutually_exclusive_group()
 
 video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
@@ -39,6 +40,8 @@ config.add_argument("--config", "-c", default="/home/evildarkarchon/.config/absc
 config.add_argument("--container", "-ct", help="Container format to put the video in.")
 config.add_argument("--no-sort", "-ns", action="store_true", help="Don't sort the list of files to be encoded.")
 
+files.add_argument("--backup", "-b", help="Directory where files will be moved when encoded.")
+
 test.add_argument("--debug", "-db", action="store_true", help="Print ALL variables and exit")
 test.add_argument("--test", "-t", action="store_true", help="Print some variables and exit.")
 
@@ -51,13 +54,16 @@ with open(cmdline["config"]) as jsonsource:
 
 options=ChainMap(cmdline, config)
 
+if not "backup" in options:
+    options["backup"]=None
+
 if not options["database"]:
     if pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite").exists():
         options["database"]=str(pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"))
     else:
         options["database"]=None
 
-abs=ABS(database=options["database"], debug=options["debug"], test=options["test"])
+abs=ABS(database=options["database"], debug=options["debug"], test=options["test"], backup=options["backup"])
 
 if options["debug"]:
     options["test"]=True
