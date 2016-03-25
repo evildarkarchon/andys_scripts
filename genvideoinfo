@@ -190,6 +190,7 @@ else:
         video_dict["filename"]=filename
         video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"].get("duration")))))
         video_dict["bitrate_total"]=naturalsize(jsondata["format"].get("bit_rate")).replace("B", "b/s")
+        video_dict["container"]=jsondata["format"].get("format_name")
         try:
             video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace("B", "b/s")
         except (KeyError, IndexError):
@@ -209,9 +210,17 @@ else:
         video_dict["width"]=jsondata["streams"][0].get("width")
         video_dict["codec_0"]=jsondata["streams"][0].get("codec_name")
 
-        video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace("B", "b/s")
-        video_dict["codec_1"]=jsondata["streams"][1].get("codec_name")
-        video_dict["container"]=jsondata["format"].get("format_name")
+        try:
+            video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace("B", "b/s")
+        except IndexError:
+            video_dict["bitrate_1"]=None
+            pass
+        try:
+            video_dict["codec_1"]=jsondata["streams"][1].get("codec_name")
+        except IndexError:
+            video_dict["codec_1"]=None
+
+
         #try:
         #    video_dict["height"]=jsondata["streams"][1]["height"]
         #except (KeyError, IndexError):
@@ -236,11 +245,31 @@ else:
         video_dict["hash"]=filehash.get(filename)
 
         if jsondata["streams"][0]["avg_frame_rate"]:
-            video_dict["frame_rate"]=eval(jsondata["streams"][0]["avg_frame_rate"])
+            if not jsondata["streams"][0]["avg_frame_rate"] == "0/0" and not jsondata["streams"][0]["avg_frame_rate"] == "0":
+                try:
+                    framerate=round(eval(jsondata["streams"][0]["avg_frame_rate"]), 2)
+                    if framerate.is_integer():
+                        framerate=int(framerate)
+                    video_dict["frame_rate"]=framerate
+                except ZeroDivisionError:
+                    video_dict["frame_rate"]=None
+                    pass
+            elif jsondata["streams"][0]["avg_frame_rate"] == "0":
+                video_dict["frame_rate"]=None
         elif jsondata["streams"][1]["avg_frame_rate"]:
-            video_dict["frame_rate"]=eval(jsondata["streams"][1]["avg_frame_rate"])
-        else:
-            video_dict["frame_rate"]=None
+            if not jsondata["streams"][1]["avg_frame_rate"] == "0/0" and not jsondata["streams"][1]["avg_frame_rate"] == "0":
+                try:
+                    framerate=round(eval(jsondata["streams"][1]["avg_frame_rate"]), 2)
+                    if framerate.is_integer():
+                        framerate=int(framerate)
+                    video_dict["frame_rate"]=framerate
+                except ZeroDivisionError:
+                    video_dict["frame_rate"]=None
+                    pass
+            elif jsondata["streams"][1]["avg_frame_rate"] == "0":
+                video_dict["frame_rate"]=None
+            else:
+                video_dict["frame_rate"]=None
 
         if options["debug"]:
             print(video_dict["hash"])
