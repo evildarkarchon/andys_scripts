@@ -13,7 +13,7 @@ from andy.colors import Color
 colors=Color()
 
 class ABS:
-    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None, backup=None):
+    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None, backup=None, output=None):
         try:
             self.database=sqlite3.connect(database)
         except (sqlite3.OperationalError, TypeError):
@@ -25,13 +25,22 @@ class ABS:
         self.test=test
         self.debug=debug
         self.db=self.database.cursor()
+
         if backup:
             self.backuppath=pathlib.Path(backup).resolve()
             self.backup=str(self.backuppath)
 
+        if output:
+            self.outputpath=pathlib.Path(output).resolve()
+        else:
+            self.outputpath=pathlib.Path.cwd()
+
+        self.output=str(self.outputpath)
+
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
 
         filepath=pathlib.Path(filename).resolve()
+        outpath=self.outputpath.joinpath(filepath.with_suffix(container).name)
 
         if self.database and not framerate:
             print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
@@ -51,8 +60,8 @@ class ABS:
             passes=1
 
         basecommandpass1=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "1", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-an", "-hide_banner", "-y", "-f", "matroska", "/dev/null"])
-        basecommandpass2=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "2", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(filepath.with_suffix(container))])
-        basecommand1pass=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(filepath.with_suffix(container))])
+        basecommandpass2=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "2", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(outpath)])
+        basecommand1pass=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(outpath)])
 
         if framerate:
             basecommandpass1.insert(5, ["-filter:v", "fps={}".format(framerate[0])])
@@ -149,6 +158,7 @@ class ABS:
                     with self.database:
                         self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
                 if self.backuppath and self.backuppath.exists():
+                    print("{} Moving {} to {}".format(colors.mood("happy"), filepath.name, self.backup))
                     shutil.move(str(filepath), self.backup)
             finally:
                 if pathlib.Path(filename.replace(filepath.suffix, "-0.log")).exists():
@@ -169,4 +179,5 @@ class ABS:
                         print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
                         self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
                 if self.backuppath and self.backuppath.exists():
+                    print("{} Moving {} to {}".format(colors.mood("happy"), filepath.name, self.backup))
                     shutil.move(str(filepath), self.backup)
