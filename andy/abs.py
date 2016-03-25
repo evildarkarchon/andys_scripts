@@ -42,7 +42,7 @@ class ABS:
         filepath=pathlib.Path(filename).resolve()
         outpath=self.outputpath.joinpath(filepath.with_suffix(container).name)
 
-        if self.database and not framerate:
+        if self.database and not framerate and videocodec not in (None,"none","copy"):
             print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
             with self.database:
                 try:
@@ -150,12 +150,13 @@ class ABS:
                 runprogram(commandpass1)
                 runprogram(commandpass2)
             except (KeyboardInterrupt, subprocess.CalledProcessError):
-                if filepath.with_suffix(container).exists():
-                    print("{} Removing unfinished file.".format(colors.mood("neutral")))
-                    runprogram(["rm", str(filepath.with_suffix(container))])
+                if outpath.exists():
+                    print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
+                    runprogram(["rm", str(outpath)])
             else:
                 if self.database:
                     with self.database:
+                        print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
                         self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
                 if self.backuppath and self.backuppath.exists():
                     print("{} Moving {} to {}".format(colors.mood("happy"), filepath.name, self.backup))
@@ -169,9 +170,9 @@ class ABS:
             try:
                 runprogram(command1pass)
             except (KeyboardInterrupt, subprocess.CalledProcessError):
-                if filepath.with_suffix(container).exists():
-                    print("{} Removing unfinished file.".format(colors.mood("neutral")))
-                    runprogram(["rm", str(filepath.with_suffix(container))])
+                if outpath.exists():
+                    print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
+                    runprogram(["rm", str(outpath)])
             else:
                 if self.database:
                     with self.database:
