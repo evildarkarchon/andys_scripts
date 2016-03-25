@@ -7,6 +7,7 @@ from humanize.filesize import naturalsize
 import sys
 import subprocess
 import time
+import atexit
 
 from andy.colors import Color
 from andy.sortentries import sortentries
@@ -32,7 +33,7 @@ options=vars(args.parse_args())
 data={}
 
 if options["delete"] and not options["files"]:
-    print("{} You must specify files to delete.")
+    print("{} You must specify files to delete from the database.")
     raise ValueError
 
 databasepath=pathlib.Path(options["database"])
@@ -42,6 +43,7 @@ if databasepath.exists():
         dest.write(bytes(source.read()))
 
 database=sqlite3.connect(options["database"])
+atexit.register(database.close)
 
 if options["regen"] and not options["delete"]:
     with database:
@@ -276,6 +278,3 @@ else:
             print(video_dict)
         with database:
             database.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, container, width, height, frame_rate, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["container"], video_dict["width"], video_dict["height"], video_dict["frame_rate"], video_dict["hash"]))
-#    database.commit()
-
-database.close()
