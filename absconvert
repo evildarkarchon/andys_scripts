@@ -83,7 +83,7 @@ if not options["audio_codec"]:
     options["audio_codec"]=options["defaults"]["audio"]
 
 if not options["filter"]:
-    options["filter"]=config["options"]["audiofilter"]
+    options["filter"]=options["options"]["audiofilter"]
 
 if options["audio_codec"] in options["codecs"]:
     options["audiocodecopts"]=options["codecs"][options["audio_codec"]]
