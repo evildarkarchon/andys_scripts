@@ -95,7 +95,7 @@ else:
     options["audiocodecopts"]=None
 
 if options["video_codec"] in options["codecs"]:
-    options["videocodecopts"]=config["codecs"][options["video_codec"]]
+    options["videocodecopts"]=options["codecs"][options["video_codec"]]
 else:
     options["videocodecopts"]=None
 
