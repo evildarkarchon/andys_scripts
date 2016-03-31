@@ -1,0 +1,20 @@
+#!/usr/bin/python3.5
+import pathlib
+import magic
+
+from andy.sortentries import sortentries
+
+fileglob=pathlib.Path("/data/Private").rglob("videoinfo.sqlite")
+
+filelist=[]
+
+for filename in fileglob:
+    with magic.Magic() as m:
+        filetype=m.id_filename(str(filename))
+        if filetype == "SQLite 3.x database":
+            filelist.append(str(filename))
+
+filelist=sortentries(filelist)
+
+for filename in filelist:
+    print(repr(filename))
