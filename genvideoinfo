@@ -8,6 +8,7 @@ import sys
 import subprocess
 import time
 import atexit
+import locale
 
 from andy.colors import Color
 from andy.sortentries import sortentries
@@ -17,6 +18,16 @@ from andy.runprogram import runprogram
 from andy.prettylist import prettylist
 
 colors=Color()
+locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
+
+try:
+    import magic
+except ImportError:
+    print("{} Could not import filemagic module, reverting to extension-based whitelisting.".format(colors.mood("sad")))
+    magicpresent=False
+    pass
+else:
+    magicpresent=True
 
 args=argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
 args.add_argument("--database", "-db", default="videoinfo.sqlite", help="Location of the sqlite database to save the information into.")
@@ -61,9 +72,21 @@ with database:
     db.execute('pragma auto_vacuum')
     av=db.fetchone()
     if av[0] is not 1:
-        database.execute('pragma auto_vacuum = 1')
-        database.execute('vacuum')
+        db.execute('pragma auto_vacuum = 1')
+        db.execute('vacuum')
 
+
+with database:
+    db=database.cursor()
+    db.execute('pragma page_size')
+    pgsize=db.fetchone()
+    if pgsize[0] is not 4096:
+        db.execute('pragma page_size = 4096')
+        db.execute('vacuum')
+    db.execute('pragma cache_size = -2000')
+
+with database:
+    db=database.cursor()
     db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
     vi=db.fetchone()
     global viexists
@@ -99,7 +122,12 @@ if not options["delete"] and viexists and not options["regen"]:
 with database:
     database.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)')
 
-data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v']
+data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
+
+if magicpresent:
+    data["mime"] = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
+else:
+    data["mime"] = None
 
 data["unsorted"] = []
 
@@ -128,21 +156,36 @@ with database:
             with database:
                 print("{} {} not found, deleting from database.".format(colors.mood("neutral"), filename))
                 database.execute("delete from videoinfo where filename=?", (filename,))
+if magicpresent:
+    with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
+        if not options["files"] and not options["delete"]:
+            for filepath in pathlib.Path.cwd().iterdir():
+                if m.id_filename(str(filepath)) in data["mime"] and filepath.is_file() and filepath.name not in existinghash:
+                    data["unsorted"].append(filepath.name)
+        elif options["files"] and not options["delete"]:
+            for filename in options["files"]:
+                filepath=pathlib.Path(filename)
+                if m.id_filename(filename) in data["mime"] and filepath.is_file() and filepath.name not in existinghash:
+                    data["unsorted"].append(filepath.name)
+        if not options["delete"]:
+            for filename in data["unsorted"]:
+                if m.id_filename(filename) not in data["mime"]:
+                    data["unsorted"].remove(filename)
+else:
+    if not options["files"] and not options["delete"]:
+        for filepath in pathlib.Path.cwd().iterdir():
+            if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
+                data["unsorted"].append(filepath.name)
+    elif options["files"] and not options["delete"]:
+        for files in options["files"]:
+            filepath=pathlib.Path(files)
+            if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
+                data["unsorted"].append(filepath.name)
 
-if not options["files"] and not options["delete"]:
-    for filepath in pathlib.Path.cwd().iterdir():
-        if filepath.suffix in data["whitelist"] and filepath.name and filepath.is_file() and filepath.name not in existinghash:
-            data["unsorted"].append(filepath.name)
-elif options["files"]:
-    for files in options["files"]:
-        filepath=pathlib.Path(files)
-        if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
-            data["unsorted"].append(filepath.name)
-
-if not options["delete"]:
-    for filename in data["unsorted"]:
-        if pathlib.Path(filename).suffix not in data["whitelist"]:
-            data["unsorted"].remove(filename)
+    if not options["delete"]:
+        for filename in data["unsorted"]:
+            if pathlib.Path(filename).suffix not in data["whitelist"]:
+                data["unsorted"].remove(filename)
 
 data["files"] = sortentries(data["unsorted"])
 
@@ -208,19 +251,30 @@ else:
         #except (KeyError, IndexError):
         #    video_dict["width"]=None
         #    pass
-        video_dict["height"]=jsondata["streams"][0].get("height")
-        video_dict["width"]=jsondata["streams"][0].get("width")
+        try:
+            video_dict["height"]=jsondata["streams"][0].get("height")
+        except (KeyError, IndexError):
+            video_dict["height"]=None
+            pass
+
+        try:
+            video_dict["width"]=jsondata["streams"][0].get("width")
+        except (KeyError, IndexError):
+            video_dict["width"]=None
+            pass
+
         video_dict["codec_0"]=jsondata["streams"][0].get("codec_name")
 
         try:
             video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace("B", "b/s")
-        except IndexError:
+        except (KeyError, IndexError):
             video_dict["bitrate_1"]=None
             pass
         try:
             video_dict["codec_1"]=jsondata["streams"][1].get("codec_name")
-        except IndexError:
+        except (KeyError, IndexError):
             video_dict["codec_1"]=None
+            pass
 
 
         #try:
@@ -232,7 +286,11 @@ else:
         #    else:
         #        pass
         if not video_dict["height"]:
-            video_dict["height"]=jsondata["streams"][1].get("height")
+            try:
+                video_dict["height"]=jsondata["streams"][1].get("height")
+            except (KeyError, IndexError):
+                video_dict["height"]=None
+                pass
         #try:
         #    video_dict["width"]=jsondata["streams"][1]["width"]
         #except (KeyError, IndexError):
@@ -242,7 +300,11 @@ else:
         #    else:
         #        pass
         if not video_dict["width"]:
-            video_dict["width"]=jsondata["streams"][1].get("width")
+            try:
+                video_dict["width"]=jsondata["streams"][1].get("width")
+            except (KeyError, IndexError):
+                video_dict["width"]=None
+                pass
 
         video_dict["hash"]=filehash.get(filename)
 
