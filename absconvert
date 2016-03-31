@@ -1,20 +1,23 @@
 #!/usr/bin/python3.5
 import json
-import sqlite3
+#import sqlite3
 import argparse
 import pathlib
+import locale
 
 from collections import deque
 from collections import ChainMap
 
 from andy.python_version import is_python_version
 from andy.colors import Color
-from andy.flatten import flatten
-from andy.runprogram import runprogram
-from andy.prettylist import prettylist
+#from andy.flatten import flatten
+#from andy.runprogram import runprogram
+#from andy.prettylist import prettylist
 from andy.sortentries import sortentries
-from andy.genjson import genjson
+#from andy.genjson import genjson
 from andy.abs import ABS
+
+locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
 colors=Color()
 
@@ -36,6 +39,7 @@ audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
 audio.add_argument("--filter", "-f", help="Filter to be applied to the audio.")
 
 config.add_argument("--database", "-d", help="Location of the video info database.")
+config.add_argument("--convert-test", dest="converttest", action="store_true", help="Testing conversion, so do not delete entry from database.")
 config.add_argument("--config", "-c", default="/home/evildarkarchon/.config/absconvert.json", help="Location of the configuration file (JSON format).")
 config.add_argument("--container", "-ct", help="Container format to put the video in.")
 config.add_argument("--no-sort", "-ns", action="store_true", help="Don't sort the list of file(s) to be encoded.")
@@ -59,12 +63,12 @@ if not "backup" in options:
     options["backup"]=None
 
 if not options["database"]:
-    if pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite").exists():
-        options["database"]=str(pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"))
+    if pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
+        options["database"]=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite"))
     else:
         options["database"]=None
 
-abs=ABS(database=options["database"], debug=options["debug"], test=options["test"], backup=options["backup"], output=options["output"])
+abs=ABS(database=options["database"], debug=options["debug"], test=options["test"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
 
 if options["debug"]:
     options["test"]=True
@@ -83,7 +87,7 @@ if not options["audio_codec"]:
     options["audio_codec"]=options["defaults"]["audio"]
 
 if not options["filter"]:
-    options["filter"]=options["options"]["audiofilter"]
+    options["filter"]=options["defaults"]["audiofilter"]
 
 if options["audio_codec"] in options["codecs"]:
     options["audiocodecopts"]=options["codecs"][options["audio_codec"]]

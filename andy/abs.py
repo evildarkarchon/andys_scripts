@@ -3,6 +3,7 @@ import pathlib
 import atexit
 import subprocess
 import shutil
+import locale
 
 from collections import deque
 
@@ -12,23 +13,29 @@ from andy.colors import Color
 
 colors=Color()
 
+locale.setlocale(locale.LC_ALL, "en_US.utf-8")
+
 class ABS:
-    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None, backup=None, output=None):
+    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None, backup=None, output=None, converttest=False):
         try:
             self.database=sqlite3.connect(database)
         except (sqlite3.OperationalError, TypeError):
             self.database=None
+            self.db=None
             print("{} Could not open database or no database specified.".format(colors.mood("neutral")))
             pass
         else:
             atexit.register(self.database.close)
+            self.db=self.database.cursor()
         self.test=test
         self.debug=debug
-        self.db=self.database.cursor()
 
         if backup:
             self.backuppath=pathlib.Path(backup).resolve()
             self.backup=str(self.backuppath)
+        else:
+            self.backuppath=None
+            self.backup=None
 
         if output:
             self.outputpath=pathlib.Path(output).resolve()
@@ -36,6 +43,8 @@ class ABS:
             self.outputpath=pathlib.Path.cwd()
 
         self.output=str(self.outputpath)
+
+        self.converttest=converttest
 
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
 
@@ -155,7 +164,7 @@ class ABS:
                     runprogram(["rm", str(outpath)])
             else:
                 if self.database:
-                    with self.database:
+                    with self.database and not self.converttest:
                         print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
                         self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
                 if self.backuppath and self.backuppath.exists():
@@ -172,9 +181,9 @@ class ABS:
             except (KeyboardInterrupt, subprocess.CalledProcessError):
                 if outpath.exists():
                     print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
-                    runprogram(["rm", str(outpath)])
+                    outpath.unlink()
             else:
-                if self.database:
+                if self.database and not self.converttest:
                     with self.database:
                         #db=self.database.cursor()
                         print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
