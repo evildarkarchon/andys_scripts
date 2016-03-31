@@ -1,5 +1,4 @@
 import pathlib
-import atexit
 import os
 
 from collections import deque
