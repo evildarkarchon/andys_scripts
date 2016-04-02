@@ -45,7 +45,7 @@ config.add_argument("--no-sort", "-ns", action="store_true", help="Don't sort th
 config.add_argument("--debug", "-db", action="store_true", help="Print variables and exit.")
 
 files.add_argument("--backup", "-b", help="Directory where files will be moved when encoded.")
-files.add_argument("--output-dir", "-o", dest="output", default=str(pathlib.Path("..").resolve()), help="Directory to output the encoded file(s) to.")
+files.add_argument("--output-dir", "-o", dest="output", help="Directory to output the encoded file(s) to (defaults to previous directory unless you are in your home directory).")
 
 args.add_argument("files", nargs="*", help="Files to encode.")
 
@@ -58,6 +58,12 @@ options=ChainMap(cmdline, config)
 
 if not "backup" in options:
     options["backup"]=None
+
+if not options["output"]:
+    if str(pathlib.Path.cwd()) == str(pathlib.Path.home()):
+        options["output"]=str(pathlib.Path.home())
+    else:
+        options["output"]=str(pathlib.Path("..").resolve())
 
 if not options["database"]:
     if pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
