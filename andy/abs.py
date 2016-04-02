@@ -16,7 +16,7 @@ colors=Color()
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
 class ABS:
-    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), test=None, debug=None, backup=None, output=None, converttest=False):
+    def __init__(self, database=pathlib.Path(str(pathlib.Path.cwd()), "videoinfo.sqlite"), debug=None, backup=None, output=None, converttest=False):
         try:
             self.database=sqlite3.connect(database)
         except (sqlite3.OperationalError, TypeError):
@@ -27,7 +27,6 @@ class ABS:
         else:
             atexit.register(self.database.close)
             self.db=self.database.cursor()
-        self.test=test
         self.debug=debug
 
         if backup:
@@ -67,97 +66,73 @@ class ABS:
 
         if videocodec is "copy" or videocodec is "none" or not videocodec:
             passes=1
+            
+        def commandlist(passno=None, passmax=passes):
+            if passno is None and passmax is 2:
+                print("{} You must specify a pass number if using 2-pass encoding.".format(colors.mood("sad")))
+                raise ValueError
 
-        basecommandpass1=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "1", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-an", "-hide_banner", "-y", "-f", "matroska", "/dev/null"])
-        basecommandpass2=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, "-pass", "2", "-passlogfile", str(filepath.with_suffix("")), videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(outpath)])
-        basecommand1pass=deque(["ffmpeg", "-i", str(filepath), "-c:v", videocodec, "-b:v", videobitrate, videocodecopts, "-c:a", audiocodec, "-b:a", audiobitrate, audiocodecopts, "-af", audiofilteropts, "-hide_banner", "-y", str(outpath)])
+            if passmax not in (1, 2):
+                print("{} The maximum pass variable can only be 1 or 2.".format(colors.mood("sad")))
+                raise ValueError
 
-        if framerate:
-            basecommandpass1.insert(5, ["-filter:v", "fps={}".format(framerate[0])])
-            basecommandpass2.insert(5, ["-filter:v", "fps={}".format(framerate[0])])
-            basecommand1pass.insert(5, ["-filter:v", "fps={}".format(framerate[0])])
+            if isinstance(passno, int) and (passno >=2 and passmax is 1):
+                print("{} is >=2 and the maximum number of passes is set to 1.".format(colors.mood("sad")))
+                raise ValueError
 
-        if not videocodecopts:
-            basecommandpass1.remove(videocodecopts)
-            basecommandpass2.remove(videocodecopts)
-            basecommand1pass.remove(videocodecopts)
+            biglist=[]
+            baselist=["ffmpeg", "-i", str(filepath)]
+            videocodeclist=["-c:v", videocodec]
+            bitratelist=["-b:v", videobitrate]
+            passlist=["-pass", str(passno), "-passlogfile", str(filepath.with_suffix(""))]
+            listsuffix=["-hide_banner", "-y"]
 
-        if not audiocodecopts:
-            basecommandpass2.remove(audiocodecopts)
-            basecommand1pass.remove(audiocodecopts)
+            biglist.append(baselist)
+            if videocodec not in (None, "none"):
+                biglist.append(videocodeclist)
+                if videocodec is not "copy":
+                    if framerate:
+                        try:
+                            biglist.append(["-filter:v", "fps={}".format(framerate[0])])
+                        except IndexError:
+                            biglist.append(["-filter:v", "fps={}".format(framerate)])
+                            pass
+                    biglist.append(bitratelist)
 
-        if not audiofilteropts:
-            basecommandpass2.remove("-af")
-            basecommandpass2.remove(audiofilteropts)
-            basecommand1pass.remove("-af")
-            basecommand1pass.remove(audiofilteropts)
+            if passmax is 2:
+                biglist.append(passlist)
 
-        if not audiocodec or audiocodec is "none":
-            basecommandpass2.remove(audiocodec)
-            basecommandpass2.remove("-b:a")
-            basecommandpass2.remove(audiobitrate)
-            basecommandpass2.remove(audiocodecopts)
-            basecommandpass2.remove("-af")
-            basecommandpass2.remove(audiofilteropts)
-            basecommandpass2.insert(len(basecommandpass2)-2, "-an")
+            if videocodecopts:
+                biglist.append(videocodecopts)
 
-            basecommand1pass.remove(audiocodec)
-            basecommand1pass.remove("-b:a")
-            basecommand1pass.remove(audiobitrate)
-            basecommand1pass.remove(audiocodecopts)
-            basecommand1pass.remove("-af")
-            basecommand1pass.remove(audiofilteropts)
-            basecommand1pass.insert(len(basecommand1pass)-2, "-an")
+            if passno is 1:
+                biglist.append(["-an", listsuffix, "-f", "matroska", "/dev/null"])
 
-        if not videocodec or videocodec is "none":
-            basecommandpass2.remove(videocodec)
-            basecommandpass2.remove("-b:v")
-            basecommandpass2.remove(videobitrate)
-            basecommandpass2.remove(videocodecopts)
-            basecommandpass2.insert(len(basecommandpass2)-2, "-vn")
+            if passno is 2 or not passno:
+                if audiocodec not in (None, "none"):
+                    biglist.append(["-c:a", audiocodec])
+                    if audiocodec is not "copy":
+                        biglist.append(["-b:a", audiobitrate])
+                        if audiocodecopts:
+                            biglist.append(audiocodecopts)
+                        if audiofilteropts:
+                            biglist.append(["-af", audiofilteropts])
+                biglist.append([listsuffix, str(outpath)])
 
-            basecommand1pass.remove(videocodec)
-            basecommand1pass.remove("-b:v")
-            basecommand1pass.remove(videobitrate)
-            basecommand1pass.remove(videocodecopts)
-            basecommand1pass.insert(len(basecommand1pass)-2, "-vn")
+            #print(list(flatten(biglist))) #temporary for debugging purposes
 
-        if audiocodec is "copy":
-            basecommandpass2.remove("-b:a")
-            basecommandpass2.remove(audiobitrate)
-            basecommandpass2.remove(audiocodecopts)
-            basecommandpass2.remove("-af")
-            basecommandpass2.remove(audiofilteropts)
-
-            basecommand1pass.remove("-b:a")
-            basecommand1pass.remove(audiobitrate)
-            basecommand1pass.remove(audiocodecopts)
-            basecommand1pass.remove("-af")
-            basecommand1pass.remove(audiofilteropts)
-
-        if videocodec is "copy":
-            basecommandpass2.remove("-b:v")
-            basecommandpass2.remove(videobitrate)
-            basecommandpass2.remove(videocodecopts)
-
-            basecommand1pass.remove("-b:v")
-            basecommand1pass.remove(videobitrate)
-            basecommand1pass.remove(videocodecopts)
-
-        commandpass1=list(flatten(basecommandpass1))
-        commandpass2=list(flatten(basecommandpass2))
-        command1pass=list(flatten(basecommand1pass))
+            return list(flatten(biglist))
 
         if self.debug:
             print('')
-            print(commandpass1)
-            print(commandpass2)
-            print(command1pass)
+            print(commandlist(passno=1, passmax=2))
+            print(commandlist(passno=2, passmax=2))
+            print(commandlist(passmax=1))
 
-        if passes is 2:
+        if passes is 2 and not self.debug:
             try:
-                runprogram(commandpass1)
-                runprogram(commandpass2)
+                runprogram(commandlist(passno=1, passmax=2))
+                runprogram(commandlist(passno=2, passmax=2))
             except (KeyboardInterrupt, subprocess.CalledProcessError):
                 if outpath.exists():
                     print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
@@ -175,9 +150,9 @@ class ABS:
                     print("{} Removing 1st pass log file.".format(colors.mood("neutral")))
                     runprogram(["rm", filename.replace(filepath.suffix, "-0.log")])
 
-        elif passes is 1:
+        elif passes is 1 and not self.debug:
             try:
-                runprogram(command1pass)
+                runprogram(commandlist(passmax=1))
             except (KeyboardInterrupt, subprocess.CalledProcessError):
                 if outpath.exists():
                     print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
