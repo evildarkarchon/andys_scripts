@@ -6,4 +6,27 @@ import logging
 import systemd.journal as journal
 import argparse
 import lzma
-import datetime
+from datetime import datetime
+import os
+
+from andy.colors import Color
+from andy.runprogram import runprogram
+
+colors=Color()
+
+pgdump=shutil.which("pg_dump", mode=os.X_OK)
+
+if not pgdump:
+    print("{} pg_dump could not be found or is not executable.".format(colors.mood("sad")))
+    raise FileNotFoundError
+
+database="feeds"
+
+with open(str(pathlib.Path.home().joinpath("feeds_{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz"))), mode="wb") as db:
+    data=subprocess.Popen([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], stdout=subprocess.PIPE)
+    print("{} Dumping Data.".format(colors.mood("happy")))
+    dump=data.communicate()[0]
+    print("{} Compressing Data.".format(colors.mood("happy")))
+    compress=lzma.compress(dump)
+    print("{} Writing File.".format(colors.mood("happy")))
+    db.write(compress)
