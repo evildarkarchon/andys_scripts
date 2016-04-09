@@ -6,27 +6,55 @@ import logging
 import systemd.journal as journal
 import argparse
 import lzma
+import locale
 from datetime import datetime
 import os
+import argparse
 
 from andy.colors import Color
 from andy.runprogram import runprogram
 
-colors=Color()
+locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
 pgdump=shutil.which("pg_dump", mode=os.X_OK)
+
+args=argparse.ArgumentParser()
+args.add_argument("--cron", "-c", help="Activate this program in cron mode.")
+options=(vars(args.parse_args()))
+
+if not options["cron"]:
+    colors=Color()
+
+if options["cron"]:
+    logformat = '%(asctime)-15s %(message)s'
+    logging.basicConfig(format=logformat)
+
+    log = logging.getLogger('backup')
+    log.propagate = False
+    log.addHandler(journal.JournalHandler())
+    log.setLevel(logging.DEBUG)
 
 if not pgdump:
     print("{} pg_dump could not be found or is not executable.".format(colors.mood("sad")))
     raise FileNotFoundError
 
 database="feeds"
+filename=str(pathlib.Path("/data/ttrssbackup").joinpath("feeds_{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz")))
 
-with open(str(pathlib.Path.home().joinpath("feeds_{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz"))), mode="wb") as db:
+with open(filename, mode="wb") as db:
+    if options["cron"]:
+        log.info("Dumping Database.")
+    else:
+        print("{} Dumping Database.".format(colors.mood("happy")))
     data=subprocess.Popen([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], stdout=subprocess.PIPE)
-    print("{} Dumping Data.".format(colors.mood("happy")))
     dump=data.communicate()[0]
-    print("{} Compressing Data.".format(colors.mood("happy")))
+    if options["cron"]:
+        log.info("Compressing Data.")
+    else:
+        print("{} Compressing Data.".format(colors.mood("happy")))
     compress=lzma.compress(dump)
-    print("{} Writing File.".format(colors.mood("happy")))
+    if options["cron"]:
+        log.info("Writing File: {}.".format(filename))
+    else:
+        print("{} Writing File: {}".format(colors.mood("happy"), filename))
     db.write(compress)
