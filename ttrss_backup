@@ -13,6 +13,7 @@ import argparse
 
 from andy.colors import Color
 from andy.runprogram import runprogram
+from andy.returninfo import returninfo
 
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
@@ -41,20 +42,25 @@ if not pgdump:
 database="feeds"
 filename=str(pathlib.Path("/data/ttrssbackup").joinpath("feeds_{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz")))
 
-with open(filename, mode="wb") as db:
-    if options["cron"]:
-        log.info("Dumping Database.")
-    else:
-        print("{} Dumping Database.".format(colors.mood("happy")))
-    data=subprocess.Popen([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], stdout=subprocess.PIPE)
-    dump=data.communicate()[0]
-    if options["cron"]:
-        log.info("Compressing Data.")
-    else:
-        print("{} Compressing Data.".format(colors.mood("happy")))
-    compress=lzma.compress(dump)
-    if options["cron"]:
-        log.info("Writing File: {}.".format(filename))
-    else:
-        print("{} Writing File: {}".format(colors.mood("happy"), filename))
-    db.write(compress)
+try:
+    with open(filename, mode="wb") as db:
+        if options["cron"]:
+            log.info("Dumping Database.")
+        else:
+            print("{} Dumping Database.".format(colors.mood("happy")))
+
+        data=returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
+
+        if options["cron"]:
+            log.info("Compressing Data.")
+        else:
+            print("{} Compressing Data.".format(colors.mood("happy")))
+        compress=lzma.compress(data)
+        if options["cron"]:
+            log.info("Writing File: {}.".format(filename))
+        else:
+            print("{} Writing File: {}".format(colors.mood("happy"), filename))
+        db.write(compress)
+except KeyboardInterrupt:
+    pathlib.Path(filename).unlink()
+    raise KeyboardInterrupt
