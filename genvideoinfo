@@ -16,6 +16,7 @@ from andy.hashfile import hashfile
 from andy.flatten import flatten
 from andy.runprogram import runprogram
 from andy.prettylist import prettylist
+from andy.returninfo import returninfo
 
 colors=Color()
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
@@ -201,8 +202,8 @@ else:
     video_dict={}
     for filename in data["files"]:
         print("{} Extracting metadata for {}".format(colors.mood("happy"), filename))
-        metadata=subprocess.Popen(["ffprobe", "-i", filename, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        jsondata=json.loads(metadata.communicate()[0].decode("utf-8"))
+
+        jsondata=json.loads(returninfo(["ffprobe", "-i", filename, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True))
 
         video_dict["filename"]=filename
         video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"].get("duration")))))
