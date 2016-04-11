@@ -64,9 +64,9 @@ class ABS:
         if not self.database and not framerate:
             print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg audto-detection.".format(colors.mood("neutral")))
 
-        if videocodec is "copy" or videocodec is "none" or not videocodec:
+        if videocodec in ("copy", "none") or not videocodec:
             passes=1
-            
+
         def commandlist(passno=None, passmax=passes):
             if passno is None and passmax is 2:
                 print("{} You must specify a pass number if using 2-pass encoding.".format(colors.mood("sad")))
@@ -88,16 +88,16 @@ class ABS:
             listsuffix=["-hide_banner", "-y"]
 
             biglist.append(baselist)
-            if videocodec not in (None, "none"):
+
+            if videocodec not in (None, "none", "copy"):
                 biglist.append(videocodeclist)
-                if videocodec is not "copy":
-                    if framerate:
-                        try:
-                            biglist.append(["-filter:v", "fps={}".format(framerate[0])])
-                        except IndexError:
-                            biglist.append(["-filter:v", "fps={}".format(framerate)])
-                            pass
-                    biglist.append(bitratelist)
+                if framerate:
+                    try:
+                        biglist.append(["-filter:v", "fps={}".format(framerate[0])])
+                    except IndexError:
+                        biglist.append(["-filter:v", "fps={}".format(framerate)])
+                        pass
+                biglist.append(bitratelist)
 
             if passmax is 2:
                 biglist.append(passlist)
@@ -125,9 +125,11 @@ class ABS:
 
         if self.debug:
             print('')
-            print(commandlist(passno=1, passmax=2))
-            print(commandlist(passno=2, passmax=2))
-            print(commandlist(passmax=1))
+            if passes is 2:
+                print(commandlist(passno=1, passmax=2))
+                print(commandlist(passno=2, passmax=2))
+            else:
+                print(commandlist(passmax=1))
 
         if passes is 2 and not self.debug:
             try:
