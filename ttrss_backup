@@ -8,6 +8,7 @@ import argparse
 import lzma
 import locale
 from datetime import datetime
+from datetime import timedelta
 import os
 import argparse
 
@@ -20,7 +21,7 @@ locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 pgdump=shutil.which("pg_dump", mode=os.X_OK)
 
 args=argparse.ArgumentParser()
-args.add_argument("--cron", "-c", help="Activate this program in cron mode.")
+args.add_argument("--cron", "-c", action="store_true", help="Activate this program in cron mode.")
 options=(vars(args.parse_args()))
 
 if not options["cron"]:
@@ -32,7 +33,7 @@ if options["cron"]:
 
     log = logging.getLogger('backup')
     log.propagate = False
-    log.addHandler(journal.JournalHandler())
+    log.addHandler(journal.JournalHandler(SYSLOG_IDENTIFIER="ttrss_backup"))
     log.setLevel(logging.DEBUG)
 
 if not pgdump:
@@ -40,7 +41,7 @@ if not pgdump:
     raise FileNotFoundError
 
 database="feeds"
-filename=str(pathlib.Path("/data/ttrssbackup").joinpath("feeds_{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz")))
+filename=str(pathlib.Path("/data/ttrssbackup").joinpath("feeds-{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz")))
 
 try:
     with open(filename, mode="wb") as db:
@@ -64,3 +65,17 @@ try:
 except KeyboardInterrupt:
     pathlib.Path(filename).unlink()
     raise KeyboardInterrupt
+
+now=datetime.now()
+
+files=pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz")
+
+for filepath in files:
+    then=datetime.fromtimestamp(filepath.stat().st_mtime)
+    filetime=now-then
+    if filetime.days > 14:
+        if options["cron"]:
+            log.info("Removing {} from backup directory.".format(filepath.name))
+        else:
+            print("{} Removing {} from backup directory.".format(colors.mood("neutral"), filepath.name))
+        filepath.unlink()

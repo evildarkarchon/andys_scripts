@@ -1,0 +1,21 @@
+#!/usr/bin/python3.5
+import pathlib
+from datetime import datetime
+from datetime import timedelta
+
+from andy.colors import Color
+from andy.sortentries import sortentries
+
+colors=Color()
+
+now=datetime.now()
+
+files=pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz")
+#print(sorted(files))
+
+for filepath in files:
+    then=datetime.fromtimestamp(filepath.stat().st_mtime)
+    filetime=now-then
+    if filetime.days > 14:
+        print("{} Removing {} from backup directory.".format(colors.mood("neutral"), filepath.name))
+        filepath.unlink()
