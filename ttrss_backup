@@ -15,6 +15,7 @@ import argparse
 from andy.colors import Color
 from andy.runprogram import runprogram
 from andy.returninfo import returninfo
+from andy.sortentries import sortentries
 
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
@@ -68,7 +69,7 @@ except KeyboardInterrupt:
 
 now=datetime.now()
 
-files=pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz")
+files=sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
 
 for filepath in files:
     then=datetime.fromtimestamp(filepath.stat().st_mtime)
