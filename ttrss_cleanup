@@ -10,8 +10,8 @@ colors=Color()
 
 now=datetime.now()
 
-files=pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz")
-#print(sorted(files))
+files=sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
+#print(sortentries(files))
 
 for filepath in files:
     then=datetime.fromtimestamp(filepath.stat().st_mtime)
