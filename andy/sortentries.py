@@ -23,7 +23,6 @@ def sortentries(text):
             return list(humansorted(text))
     else:
         if isinstance(text, str):
-            text=prettylist(text, sep=' ').split()
             return sorted(text.split(), key=str.lower)
         elif isinstance(text, (list, collections.deque)):
             return sorted(text, key=str.lower)
