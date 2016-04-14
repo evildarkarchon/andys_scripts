@@ -1,6 +1,5 @@
 #!/usr/bin/python3.5
 import json
-#import sqlite3
 import argparse
 import pathlib
 import locale
@@ -10,11 +9,7 @@ from collections import ChainMap
 
 from andy.python_version import is_python_version
 from andy.colors import Color
-#from andy.flatten import flatten
-#from andy.runprogram import runprogram
-#from andy.prettylist import prettylist
 from andy.sortentries import sortentries
-#from andy.genjson import genjson
 from andy.abs import ABS
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
