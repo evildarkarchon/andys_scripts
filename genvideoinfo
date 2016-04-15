@@ -37,7 +37,6 @@ args.add_argument("--delete", "-del", action="store_true", help="Delete the file
 args.add_argument("--test", "-t", action="store_true", help="Run in test mode.")
 args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
 args.add_argument("--regen", "-r", action="store_true", help="Regenerate the database.")
-#args.add_argument("--refill", "-rf", action="store_true", help="Refill database with new information. (WIP)")
 args.add_argument("files", nargs="*", help="Files to get information from.")
 
 options=vars(args.parse_args())
@@ -214,16 +213,7 @@ else:
         except (KeyError, IndexError):
             video_dict["bitrate_0"]=None
             pass
-        #try:
-        #    video_dict["height"]=jsondata["streams"][0]["height"]
-        #except (KeyError, IndexError):
-        #    video_dict["height"]=None
-        #    pass
-        #try:
-        #    video_dict["width"]=jsondata["streams"][0]["width"]
-        #except (KeyError, IndexError):
-        #    video_dict["width"]=None
-        #    pass
+
         try:
             video_dict["height"]=jsondata["streams"][0].get("height")
         except (KeyError, IndexError):
@@ -249,29 +239,12 @@ else:
             video_dict["codec_1"]=None
             pass
 
-
-        #try:
-        #    video_dict["height"]=jsondata["streams"][1]["height"]
-        #except (KeyError, IndexError):
-        #    if not video_dict["height"]:
-        #        video_dict["height"]=None
-        #        pass
-        #    else:
-        #        pass
         if not video_dict["height"]:
             try:
                 video_dict["height"]=jsondata["streams"][1].get("height")
             except (KeyError, IndexError):
                 video_dict["height"]=None
                 pass
-        #try:
-        #    video_dict["width"]=jsondata["streams"][1]["width"]
-        #except (KeyError, IndexError):
-        #    if not video_dict["width"]:
-        #        video_dict["width"]=None
-        #        pass
-        #    else:
-        #        pass
         if not video_dict["width"]:
             try:
                 video_dict["width"]=jsondata["streams"][1].get("width")
