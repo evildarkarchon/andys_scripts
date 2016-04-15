@@ -1,6 +1,7 @@
 import hashlib
 import pathlib
 
+
 def hashfile(filename):
     blocksize = 65536
     hasher = hashlib.sha256()

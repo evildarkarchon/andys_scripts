@@ -1,5 +1,6 @@
-import sys
 import collections
+import sys
+
 from andy.colors import Color
 
 colors=Color()

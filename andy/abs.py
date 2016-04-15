@@ -1,15 +1,14 @@
-import sqlite3
-import pathlib
 import atexit
-import subprocess
-import shutil
 import locale
-
+import pathlib
+import shutil
+import sqlite3
+import subprocess
 from collections import deque
 
-from andy.runprogram import runprogram
-from andy.flatten import flatten
 from andy.colors import Color
+from andy.flatten import flatten
+from andy.runprogram import runprogram
 
 colors=Color()
 

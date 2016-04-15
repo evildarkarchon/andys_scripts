@@ -1,5 +1,7 @@
-from termcolor import colored
 import platform
+
+from termcolor import colored
+
 
 class Color:
     def mood(self, currentmood):

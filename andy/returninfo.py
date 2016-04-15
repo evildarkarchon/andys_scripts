@@ -1,5 +1,5 @@
-import subprocess
 import collections
+import subprocess
 
 from andy.colors import Color
 

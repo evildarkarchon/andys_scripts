@@ -1,11 +1,10 @@
-import subprocess
 import pwd
 import shlex
-
+import subprocess
 from collections import deque
 
-from andy.python_version import is_python_version
 from andy.colors import Color
+from andy.python_version import is_python_version
 
 colors=Color()
 

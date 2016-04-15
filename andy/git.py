@@ -1,11 +1,11 @@
-import pathlib
 import os
-
+import pathlib
 from collections import deque
 
-from andy.runprogram import runprogram
 from andy.colors import Color
 from andy.privileged import is_privileged
+from andy.runprogram import runprogram
+
 
 class Git:
     def __init__(self, directory, use_sudo=None, sudo_user="root", url=None):

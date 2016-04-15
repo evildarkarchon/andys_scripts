@@ -1,16 +1,14 @@
 #!/usr/bin/python3.5
-import json
 import argparse
-import pathlib
+import json
 import locale
+import pathlib
+from collections import ChainMap, deque
 
-from collections import deque
-from collections import ChainMap
-
-from andy.python_version import is_python_version
-from andy.colors import Color
-from andy.sortentries import sortentries
 from andy.abs import ABS
+from andy.colors import Color
+from andy.python_version import is_python_version
+from andy.sortentries import sortentries
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 

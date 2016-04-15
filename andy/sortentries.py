@@ -1,4 +1,9 @@
 import collections
+
+from andy.colors import Color
+from andy.flatten import flatten
+from andy.prettylist import prettylist
+
 try:
     from natsort import humansorted
     natsortpresent=True
@@ -7,9 +12,6 @@ except ImportError:
     print("natsort not found.")
     pass
 
-from andy.colors import Color
-from andy.prettylist import prettylist
-from andy.flatten import flatten
 
 colors=Color()
 
