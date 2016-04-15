@@ -32,12 +32,12 @@ audio.add_argument("--audio-bitrate", "-ab", help="Bitrate for the audio codec."
 audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
 audio.add_argument("--filter", "-f", help="Filter to be applied to the audio.")
 
-config.add_argument("--database", "-d", help="Location of the video info database.")
+config.add_argument("--database", "-db", help="Location of the video info database.")
 config.add_argument("--convert-test", dest="converttest", action="store_true", help="Testing conversion, so do not delete entry from database.")
 config.add_argument("--config", "-c", default="/home/evildarkarchon/.config/absconvert.json", help="Location of the configuration file (JSON format).")
 config.add_argument("--container", "-ct", help="Container format to put the video in.")
 config.add_argument("--no-sort", "-ns", action="store_true", help="Don't sort the list of file(s) to be encoded.")
-config.add_argument("--debug", "-db", action="store_true", help="Print variables and exit.")
+config.add_argument("--debug", "-d", action="store_true", help="Print variables and exit.")
 
 files.add_argument("--backup", "-b", help="Directory where files will be moved when encoded.")
 files.add_argument("--output-dir", "-o", dest="output", help="Directory to output the encoded file(s) to (defaults to previous directory unless you are in your home directory).")
