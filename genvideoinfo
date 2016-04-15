@@ -85,6 +85,8 @@ with database:
         db.execute('vacuum')
     db.execute('pragma cache_size = -2000')
 
+createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)'
+
 with database:
     db=database.cursor()
     db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
@@ -93,8 +95,9 @@ with database:
     try:
         vitemp=len(vi)
     except TypeError:
-        db.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)')
+        db.execute(createstatement)
         viexists=True
+        pass
     else:
         if vitemp >=1:
             viexists=True
@@ -120,14 +123,14 @@ if not options["delete"] and viexists and not options["regen"]:
         database.row_factory=None
 
 with database:
-    database.execute('CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)')
-
-data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
+    database.execute(createstatement)
 
 if magicpresent:
     data["mime"] = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
+    data["whitelist"] = None
 else:
     data["mime"] = None
+    data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
 
 def genexisting():
     with database:
