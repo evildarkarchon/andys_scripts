@@ -19,7 +19,7 @@ args=argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conv
 video=args.add_argument_group(description="Video options:")
 audio=args.add_argument_group(description="Audio Options:")
 config=args.add_argument_group(description="Configuration/Testing options:")
-files=args.add_argument_group(description="Options for file manipulation:")
+fileargs=args.add_argument_group(description="Options for file manipulation:")
 
 video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
 video.add_argument("--video-bitrate", "-vb", help="Bitrate for the video codec.")
@@ -37,8 +37,8 @@ config.add_argument("--container", "-ct", help="Container format to put the vide
 config.add_argument("--no-sort", "-ns", action="store_true", help="Don't sort the list of file(s) to be encoded.")
 config.add_argument("--debug", "-d", action="store_true", help="Print variables and exit.")
 
-files.add_argument("--backup", "-b", help="Directory where files will be moved when encoded.")
-files.add_argument("--output-dir", "-o", dest="output", help="Directory to output the encoded file(s) to (defaults to previous directory unless you are in your home directory).")
+fileargs.add_argument("--backup", "-b", help="Directory where files will be moved when encoded.")
+fileargs.add_argument("--output-dir", "-o", dest="output", help="Directory to output the encoded file(s) to (defaults to previous directory unless you are in your home directory).")
 
 args.add_argument("files", nargs="*", help="Files to encode.")
 
