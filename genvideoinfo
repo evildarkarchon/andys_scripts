@@ -97,9 +97,9 @@ with database:
         db.execute(createstatement)
         pass
 
-missingcolumn=["container", "frame_rate"]
 if not options["delete"] and not options["regen"]:
     with database:
+        missingcolumn=["container", "frame_rate"]
         database.row_factory = sqlite3.Row
         db=database.cursor()
         db.execute("select * from videoinfo")
@@ -156,6 +156,19 @@ def genfilelist():
             for filepath in pathlib.Path.cwd().iterdir():
                 if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
                     yield filepath.name
+    with database:
+        missingcolumn=["container", "frame_rate"]
+        db=database.cursor()
+        for column in missingcolumn:
+            db.execute("select filename from videoinfo where ? is null or ? = ''", (column, column))
+            files=db.fetchall()
+            if files:
+                for filename in files:
+                    db.execute("delete from videoinfo where filename = ?", filename)
+                    if pathlib.Path(filename).resolve().exists():
+                        print("{} {} is empty for {}, adding to file list.".format(colors.mood("neutral"), column, filename))
+                        yield filename
+
 
 data["files"] = sortentries(list(genfilelist()))
 
@@ -202,10 +215,10 @@ else:
 
         video_dict["filename"]=filename
         video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"].get("duration")))))
-        video_dict["bitrate_total"]=naturalsize(jsondata["format"].get("bit_rate")).replace("B", "b/s")
+        video_dict["bitrate_total"]=naturalsize(jsondata["format"].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
         video_dict["container"]=jsondata["format"].get("format_name")
         try:
-            video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace("B", "b/s")
+            video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
         except (KeyError, IndexError):
             video_dict["bitrate_0"]=None
             pass
@@ -225,7 +238,7 @@ else:
         video_dict["codec_0"]=jsondata["streams"][0].get("codec_name")
 
         try:
-            video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace("B", "b/s")
+            video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace(' MB', "M").replace(' kB', "K")
         except (KeyError, IndexError):
             video_dict["bitrate_1"]=None
             pass
