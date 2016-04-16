@@ -91,21 +91,14 @@ with database:
     db=database.cursor()
     db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
     vi=db.fetchone()
-    global viexists
     try:
         vitemp=len(vi)
     except TypeError:
         db.execute(createstatement)
-        viexists=True
         pass
-    else:
-        if vitemp >=1:
-            viexists=True
-        else:
-            viexists=False
 
 missingcolumn=["container", "frame_rate"]
-if not options["delete"] and viexists and not options["regen"]:
+if not options["delete"] and not options["regen"]:
     with database:
         database.row_factory = sqlite3.Row
         db=database.cursor()
