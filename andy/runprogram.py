@@ -10,12 +10,10 @@ colors=Color()
 
 def runprogram(program, verify=True, use_sudo=False, user="root", stdinput=None, stdoutput=None, stderror=None, environment=None, workdir=None):
 
-    if type(program) in (tuple,):
+    if isinstance(program, (tuple, list)):
         command=deque(program)
-    elif type(program) in (str,):
+    elif isinstance(program, str):
         command=deque(shlex.split(program))
-    elif type(program) in (list,):
-        command=deque(program)
     else:
         print("{} program must be in the form of a string, tuple, or list")
 
