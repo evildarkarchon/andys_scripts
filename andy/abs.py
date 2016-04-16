@@ -48,23 +48,66 @@ class ABS:
 
         filepath=pathlib.Path(filename).resolve()
         outpath=self.outputpath.joinpath(filepath.with_suffix(container).name)
-
-        if self.database and not framerate and videocodec not in (None,"none","copy"):
-            print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
-            with self.database:
-                try:
-                    self.db.execute("select frame_rate from videoinfo where filename=?", (filepath.name,))
-                    framerate=self.db.fetchone()
-                except sqlite3.Error:
-                    print("{} Frame Rate not found in database, will rely on ffmpeg auto-detection.".format(colors.mood("neutral")))
-                    framerate=None
-                    pass
-
-        if not self.database and not framerate:
-            print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg audto-detection.".format(colors.mood("neutral")))
+        def frameratefilter():
+            if framerate:
+                return ["-filter:v", "fps={}".format(framerate)]
+            elif self.database and not framerate and videocodec not in (None,"none","copy"):
+                print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
+                with self.database:
+                    try:
+                        self.db.execute("select frame_rate from videoinfo where filename=?", (filepath.name,))
+                        fr=self.db.fetchone()
+                        return ["-filter:v", "fps={}".format(fr[0])]
+                    except (sqlite3.Error, IndexError):
+                        print("{} Frame Rate for {} not found in database, will rely on ffmpeg auto-detection.".format(colors.mood("neutral"), filename))
+                        return None
+                        pass
+            elif not self.database and not framerate:
+                print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg audto-detection.".format(colors.mood("neutral")))
+                return None
 
         if videocodec in ("copy", "none") or not videocodec:
             passes=1
+
+        def videobitrateguess():
+            with self.database:
+                db=self.database.cursor()
+                db.execute("select (bitrate_0, bitrate_1) from videoinfo where filename is ?", filename)
+                dbvb=db.fetchone()
+                if self.debug:
+                    print(dbvb)
+                try:
+                    if dbvb[0] >= dbvb[1]:
+                        return dbvb[0]
+                    else:
+                        return dbvb[1]
+                except IndexError:
+                    print("{} Could not guess Video bitrate from database.".format(colors.mood("sad")))
+                    raise IndexError
+
+        def audiobitrateguess():
+            with self.database:
+                db=self.database.cursor()
+                db.execute("select (bitrate_0, bitrate_1) from videoinfo where filename is ?", filename)
+                dbab=db.fetchone()
+                if self.debug:
+                    print(dbab)
+                try:
+                    if dbab[0] <= dbab[1]:
+                        return dbab[0]
+                    else:
+                        return dbab[1]
+                except IndexError:
+                    print("{} Could not guess Audio bitrate from database.".format(colors.mood("sad")))
+                    raise IndexError
+
+        if not videobitrate and self.database and videocodec not in (None, "none", "copy"):
+            print("{} Video bitrate not specified, attempting to guess bitrate from database.".format(colors.mood("neutral")))
+            videobitrate=videobitrateguess()
+
+        if not audiobitrate and self.database and audiocodec not in (None, "none", "copy"):
+            print("{} Audio bitrate not specified, attempting to guess bitrate from database.".format(colors.mood("neutral")))
+            audiobitrate=audiobitrateguess()
 
         def commandlist(passno=None, passmax=passes):
             if passno is None and passmax is 2:
@@ -90,12 +133,9 @@ class ABS:
 
             if videocodec not in (None, "none", "copy"):
                 biglist.append(videocodeclist)
-                if framerate:
-                    try:
-                        biglist.append(["-filter:v", "fps={}".format(framerate[0])])
-                    except IndexError:
-                        biglist.append(["-filter:v", "fps={}".format(framerate)])
-                        pass
+                fr=frameratefilter()
+                if fr:
+                    biglist.append(fr)
                 biglist.append(bitratelist)
 
             if passmax is 2:
@@ -137,7 +177,7 @@ class ABS:
             except (KeyboardInterrupt, subprocess.CalledProcessError):
                 if outpath.exists():
                     print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
-                    runprogram(["rm", str(outpath)])
+                    outpath.unlink()
             else:
                 if self.database:
                     with self.database and not self.converttest:
