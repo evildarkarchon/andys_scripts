@@ -63,7 +63,7 @@ class ABS:
                         return None
                         pass
             elif not self.database and not framerate:
-                print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg audto-detection.".format(colors.mood("neutral")))
+                print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg auto-detection.".format(colors.mood("neutral")))
                 return None
 
         if videocodec in ("copy", "none") or not videocodec:
