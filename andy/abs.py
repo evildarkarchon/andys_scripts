@@ -69,46 +69,6 @@ class ABS:
         if videocodec in ("copy", "none") or not videocodec:
             passes=1
 
-        def videobitrateguess():
-            with self.database:
-                db=self.database.cursor()
-                db.execute("select (bitrate_0, bitrate_1) from videoinfo where filename is ?", filename)
-                dbvb=db.fetchone()
-                if self.debug:
-                    print(dbvb)
-                try:
-                    if dbvb[0] >= dbvb[1]:
-                        return dbvb[0]
-                    else:
-                        return dbvb[1]
-                except IndexError:
-                    print("{} Could not guess Video bitrate from database.".format(colors.mood("sad")))
-                    raise IndexError
-
-        def audiobitrateguess():
-            with self.database:
-                db=self.database.cursor()
-                db.execute("select (bitrate_0, bitrate_1) from videoinfo where filename is ?", filename)
-                dbab=db.fetchone()
-                if self.debug:
-                    print(dbab)
-                try:
-                    if dbab[0] <= dbab[1]:
-                        return dbab[0]
-                    else:
-                        return dbab[1]
-                except IndexError:
-                    print("{} Could not guess Audio bitrate from database.".format(colors.mood("sad")))
-                    raise IndexError
-
-        if not videobitrate and self.database and videocodec not in (None, "none", "copy"):
-            print("{} Video bitrate not specified, attempting to guess bitrate from database.".format(colors.mood("neutral")))
-            videobitrate=videobitrateguess()
-
-        if not audiobitrate and self.database and audiocodec not in (None, "none", "copy"):
-            print("{} Audio bitrate not specified, attempting to guess bitrate from database.".format(colors.mood("neutral")))
-            audiobitrate=audiobitrateguess()
-
         def commandlist(passno=None, passmax=passes):
             if passno is None and passmax is 2:
                 print("{} You must specify a pass number if using 2-pass encoding.".format(colors.mood("sad")))
