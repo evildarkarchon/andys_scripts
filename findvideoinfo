@@ -11,8 +11,8 @@ filelist=[]
 for filename in fileglob:
     with magic.Magic() as m:
         filetype=m.id_filename(str(filename))
-        if filetype == "SQLite 3.x database":
-            filelist.append(str(filename))
+        if "SQLite 3.x database" in filetype:
+            filelist.append(str(filename.parent))
 
 filelist=sortentries(filelist)
 
