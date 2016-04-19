@@ -4,3 +4,4 @@ generate-json.py
 generate-abs-json.py
 __pycache__
 !.gitignore
+oldhashfile.py
