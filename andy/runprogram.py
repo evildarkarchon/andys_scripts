@@ -26,10 +26,7 @@ def runprogram(program, verify=True, use_sudo=False, user="root", stdinput=None,
         user=uid.pw_name
 
     if use_sudo:
-        #command.insert(0, "sudo")
-        #command.insert(1, "-u")
-        #command.insert(2, user)
-        command.extendleft([user, "-u", "sudo"]) #has to be backwords because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list.
+        command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list.
 
     if is_python_version((3,5,0)):
         subprocess.run(command, input=stdinput, stdout=stdoutput, stderr=stderror, env=environment, check=verify, cwd=workdir)
