@@ -85,7 +85,7 @@ with database:
         db.execute('vacuum')
     db.execute('pragma cache_size = -2000')
 
-createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)'
+createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)'
 
 with database:
     db=database.cursor()
@@ -110,8 +110,8 @@ if not options["delete"] and not options["regen"]:
             test2=test.keys()
             for column in missingcolumn:
                 if not {column}.issubset(test2):
-                    print("{} Column {} not found, resetting database.".format(colors.mood("neutral"), column))
-                    db.execute("drop table if exists videoinfo")
+                    print("{} Column {} not found, adding to table.".format(colors.mood("neutral"), column))
+                    db.execute("alter table videoinfo add column ?", column)
                     db.execute("vacuum")
         database.row_factory=None
 
@@ -140,22 +140,38 @@ def genfilelist():
             if options["files"]:
                 for filename in options["files"]:
                     filepath=pathlib.Path(filename)
-                    if m.id_filename(filename) in data["mime"] and filepath.is_file() and filepath not in existinghash:
-                        yield filepath.name
+                    if not options["debug"]:
+                        if m.id_filename(filename) in data["mime"] and filepath.is_file() and filepath not in existinghash:
+                            yield filepath.name
+                    else:
+                        if m.id_filename(filename) in data["mime"] and filepath.is_file():
+                            yield filepath.name
             else:
                 for filepath in pathlib.Path.cwd().iterdir():
-                    if m.id_filename(str(filepath)) in data["mime"] and filepath.is_file() and filepath.name not in existinghash:
-                        yield filepath.name
+                    if not options["debug"]:
+                        if m.id_filename(str(filepath)) in data["mime"] and filepath.is_file() and filepath.name not in existinghash:
+                            yield filepath.name
+                    else:
+                        if m.id_filename(str(filepath)) in data["mime"] and filepath.is_file():
+                            yield filepath.name
     else:
         if options["files"]:
             for filename in options["files"]:
                 filepath=pathlib.Path(filename)
-                if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
-                    yield filepath.name
+                if not options["debug"]:
+                    if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
+                        yield filepath.name
+                else:
+                    if filepath.suffix in data["whitelist"] and filepath.is_file():
+                        yield filepath.name
         else:
             for filepath in pathlib.Path.cwd().iterdir():
-                if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
-                    yield filepath.name
+                if not options["debug"]:
+                    if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
+                        yield filepath.name
+                else:
+                    if filepath.suffix in data["whitelist"] and filepath.is_file():
+                        yield filepath.name
     with database:
         missingcolumn=["container", "frame_rate"]
         db=database.cursor()
@@ -222,6 +238,22 @@ else:
         except (KeyError, IndexError):
             video_dict["bitrate_0"]=None
             pass
+        try:
+            video_dict["bitrate_0_raw"]=int(jsondata["streams"][0].get("bit_rate"))
+        except (KeyError, IndexError):
+            video_dict["bitrate_0_raw"]=None
+            pass
+
+        try:
+            video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace(' MB', "M").replace(' kB', "K")
+        except (KeyError, IndexError):
+            video_dict["bitrate_1"]=None
+            pass
+        try:
+            video_dict["bitrate_1_raw"]=int(jsondata["streams"][1].get("bit_rate"))
+        except (KeyError, IndexError):
+            video_dict["bitrate_1_raw"]=None
+            pass
 
         try:
             video_dict["height"]=jsondata["streams"][0].get("height")
@@ -237,11 +269,6 @@ else:
 
         video_dict["codec_0"]=jsondata["streams"][0].get("codec_name")
 
-        try:
-            video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace(' MB', "M").replace(' kB', "K")
-        except (KeyError, IndexError):
-            video_dict["bitrate_1"]=None
-            pass
         try:
             video_dict["codec_1"]=jsondata["streams"][1].get("codec_name")
         except (KeyError, IndexError):
@@ -287,10 +314,18 @@ else:
                     pass
             elif jsondata["streams"][1]["avg_frame_rate"] == "0":
                 video_dict["frame_rate"]=None
-            else:
-                video_dict["frame_rate"]=None
+        else:
+            video_dict["frame_rate"]=None
+
+        columns=', '.join(tuple(video_dict.keys()))
+        placeholders=':'+', :'.join(video_dict.keys())
+        query='insert into videoinfo ({}) values ({})'.format(columns, placeholders)
 
         if options["debug"]:
-            print(video_dict)
-        with database:
-            database.execute('insert into videoinfo (filename, duration, bitrate_total, bitrate_0, bitrate_1, codec_0, codec_1, container, width, height, frame_rate, hash) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (video_dict["filename"], video_dict["duration"], video_dict["bitrate_total"], video_dict["bitrate_0"], video_dict["bitrate_1"], video_dict["codec_0"], video_dict["codec_1"], video_dict["container"], video_dict["width"], video_dict["height"], video_dict["frame_rate"], video_dict["hash"]))
+            print("Dictionary Keys:", tuple(video_dict.keys()))
+            print("Dictionary Values:", tuple(video_dict.values()))
+            print("Number of keys in Dictionary:", len(video_dict.keys()))
+            print("SQL Query:", query)
+        else:
+            with database:
+                database.execute(query, video_dict)
