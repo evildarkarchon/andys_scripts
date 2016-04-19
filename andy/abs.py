@@ -106,8 +106,7 @@ class ABS:
 
             if passno is 1:
                 biglist.append(["-an", listsuffix, "-f", "matroska", "/dev/null"])
-
-            if passno is 2 or not passno:
+            else:
                 if audiocodec not in (None, "none"):
                     biglist.append(["-c:a", audiocodec])
                     if audiocodec is not "copy":
@@ -116,6 +115,8 @@ class ABS:
                             biglist.append(audiocodecopts)
                         if audiofilteropts:
                             biglist.append(["-af", audiofilteropts])
+                else:
+                    biglist.append("-an")
                 biglist.append([listsuffix, str(outpath)])
 
             #print(list(flatten(biglist))) #temporary for debugging purposes
