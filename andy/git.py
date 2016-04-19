@@ -14,27 +14,32 @@ class Git:
         self.directory=str(self.path)
         self.url=url
 
-        if use_sudo not in (True, False, None):
-            print("{} use_sudo must be True, False, or None".format(colors.mood("sad")))
-            raise ValueError
+        def sudocheck():
 
-        if use_sudo is None:
-            print("{} use_sudo variable is unset, reverting to manual detection".format(self.colors.mood("neutral")))
-            if sudo_user:
-                self.use_sudo=is_privileged(privuser=sudo_user)
-            else:
-                self.use_sudo=False
-                self.sudo_user=None
-        elif use_sudo and sudo_user:
-            self.use_sudo=use_sudo
-        elif use_sudo and not sudo_user:
-            self.use_sudo=use_sudo
-            self.sudo_user="root"
+            if use_sudo not in (True, False, None):
+                print("{} use_sudo must be True, False, or None".format(self.colors.mood("sad")))
+                raise ValueError
 
-        if sudo_user and use_sudo and not self.sudo_user:
-            self.sudo_user=sudo_user
-        else:
-            self.sudo_user=None
+            if use_sudo is None:
+                print("{} use_sudo variable is unset, reverting to manual detection".format(self.colors.mood("neutral")))
+                if sudo_user:
+                    us=is_privileged(privuser=sudo_user)
+                    su=sudo_user
+                else:
+                    us=False
+                    su=None
+            elif use_sudo and sudo_user:
+                us=use_sudo
+                su=sudo_user
+            elif use_sudo and not sudo_user:
+                us=use_sudo
+                su="root"
+
+            return us, su
+
+        sudo=sudocheck()
+        self.use_sudo=sudo[0]
+        self.sudo_user=sudo[1]
 
     def clean_lock(self):
         if self.path.joinpath(".git", "index.lock").exists():
