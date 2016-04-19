@@ -65,7 +65,7 @@ try:
         db.write(compress)
 except KeyboardInterrupt:
     pathlib.Path(filename).unlink()
-    raise KeyboardInterrupt
+    raise
 
 now=datetime.now()
 
