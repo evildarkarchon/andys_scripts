@@ -25,7 +25,7 @@ fileargs=args.add_argument_group(description="Options for file manipulation:")
 video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
 video.add_argument("--video-bitrate", "-vb", help="Bitrate for the video codec.")
 video.add_argument("--video-codec", "-vc", help="Video codec to use.")
-video.add_argument("--frame-rate", "-fr", dest="frame_rate", help="Frame Rate of the video (if ffmpeg has a problem detecting it automatically, especially helps with mpeg-1 files).")
+video.add_argument("--frame-rate", "-fr", dest="frame_rate", help="Frame Rate of the video for if ffmpeg has a problem detecting it automatically (especially helps with mpeg-1 files).")
 
 audio.add_argument("--audio-bitrate", "-ab", help="Bitrate for the audio codec.")
 audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
