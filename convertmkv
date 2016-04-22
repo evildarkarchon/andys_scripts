@@ -32,7 +32,7 @@ if not options["combine"]:
         print("{} Muxing {} into a matroska file.".format(colors.mood("happy"), filename))
         if filepath.exists():
             if options["ffmpeg"]:
-                runprogram(["ffmpeg", "-i", filename, "-c:v", "copy", "-c:a", "copy", "-f", "matroska", str(filepath.with_suffix(".mkv"))])
+                runprogram(["ffmpeg", "-i", filename, "-c", "copy", "-f", "matroska", str(filepath.with_suffix(".mkv"))])
             else:
                 runprogram(["mkvmerge", "-o", str(filepath.with_suffix(".mkv")), "=", filename])
 else:
