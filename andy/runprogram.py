@@ -17,11 +17,11 @@ def runprogram(program, verify=True, use_sudo=False, user="root", stdinput=None,
     else:
         print("{} program must be in the form of a string, tuple, or list")
 
-    if use_sudo and type(user) not in (str, int):
+    if use_sudo and not isinstance(user, (str, int)):
         print("{} User must be a string or integer.".format(colors.mood("sad")))
         raise TypeError
 
-    if use_sudo and type(user) in (int,):
+    if use_sudo and isinstance(user, int):
         uid=pwd.getpwuid(user)
         user=uid.pw_name
 
