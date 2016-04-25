@@ -13,7 +13,7 @@ args=argparse.ArgumentParser()
 args.add_argument("--ffmpeg", "-f", action="store_true", help="Use ffmpeg instead of mkvmerge. (Doesn't like mpeg-1 files)")
 args.add_argument("--combine", "-c", action="store_true", help="Combine multiple files into one mkv file.")
 args.add_argument("--output", "-o", help="Name of output file (for concatenation mode only).")
-args.add_argument("--no-sort", "-ns", help="Do not sort the file names to be used for the file list.")
+args.add_argument("--no-sort", "-ns", action="store_true", help="Do not sort the file names to be used for the file list.")
 args.add_argument("files", nargs="*", help="Files to be muxed.")
 
 options=vars(args.parse_args())
