@@ -47,7 +47,7 @@ cmdline=vars(args.parse_args())
 
 options=''
 
-if not 'config' in cmdline or not cmdline["config"] or not pathlib.Path(cmdline["config"]).exists():
+if (not 'config' in cmdline or not cmdline["config"]) or not pathlib.Path(cmdline["config"]).exists():
     print("{} Could not find configuration file or one was not specified, generating one with default values.".format(colors.mood("neutral")))
     defaultconfig={}
 
