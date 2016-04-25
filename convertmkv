@@ -27,16 +27,7 @@ if options["no_sort"]:
 else:
     filelist=sortentries(options["files"])
 
-if not options["combine"]:
-    for filename in filelist:
-        filepath=pathlib.Path(filename)
-        print("{} Muxing {} into a matroska file.".format(colors.mood("happy"), filename))
-        if filepath.exists():
-            if options["ffmpeg"]:
-                runprogram(["ffmpeg", "-i", filename, "-c", "copy", "-f", "matroska", str(filepath.with_suffix(".mkv"))])
-            else:
-                runprogram(["mkvmerge", "-o", str(filepath.with_suffix(".mkv")), "=", filename])
-else:
+if options["combine"]:
     if not options["output"]:
         print("{} Output file name has not been specified.".format(colors.mood("sad")))
         raise ValueError
@@ -50,3 +41,13 @@ else:
     else:
         files=" + ".join(filelist)
         runprogram("mkvmerge", "-o", options["output"], files)
+
+else:
+    for filename in filelist:
+        filepath=pathlib.Path(filename)
+        print("{} Muxing {} into a matroska file.".format(colors.mood("happy"), filename))
+        if filepath.exists():
+            if options["ffmpeg"]:
+                runprogram(["ffmpeg", "-i", filename, "-c", "copy", "-f", "matroska", str(filepath.with_suffix(".mkv"))])
+            else:
+                runprogram(["mkvmerge", "-o", str(filepath.with_suffix(".mkv")), "=", filename])
