@@ -125,7 +125,7 @@ if not options["delete"] and not options["regen"]:
             test2=test.keys()
             for column in data["missingcolumn"].keys():
                 if not {column}.issubset(test2):
-                    print("{} Column {} not found, adding to table.".format(colors.mood("neutral"), column))
+                    print("{} Column {} not found, regenerating database.".format(colors.mood("neutral"), column))
                     db.execute('drop table if exists videoinfo')
                     db.execute("vacuum")
                     break
