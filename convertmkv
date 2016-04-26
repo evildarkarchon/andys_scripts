@@ -2,6 +2,7 @@
 import tempfile
 import argparse
 import pathlib
+import sqlite3
 
 from andy.runprogram import runprogram
 from andy.colors import Color
@@ -15,6 +16,7 @@ args.add_argument("--ffmpeg", "-f", action="store_true", help="Use ffmpeg instea
 args.add_argument("--combine", "-c", action="store_true", help="Combine multiple files into one mkv file.")
 args.add_argument("--output", "-o", help="Name of output file (for concatenation mode only).")
 args.add_argument("--no-sort", "-ns", action="store_true", help="Do not sort the file names to be used for the file list.")
+args.add_argument("--database", "-d", help="Location of video info database.")
 args.add_argument("files", nargs="*", help="Files to be muxed.")
 
 options=vars(args.parse_args())
@@ -28,6 +30,17 @@ if options["no_sort"]:
 else:
     filelist=sortentries(options["files"])
 
+if options["ffmpeg"] and options["combine"]:
+    try:
+        if options["database"]:
+            database=sqlite3.connect(options["database"])
+        else:
+            database=sqlite3.connect(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+    except sqlite3.OperationalError:
+        print("{} No videoinfo database found, will not add duration info to ffconcat file.".format(colors.mood("neutral")))
+        database=None
+        pass
+
 if options["combine"]:
     if not options["output"]:
         print("{} Output file name has not been specified.".format(colors.mood("sad")))
@@ -40,6 +53,13 @@ if options["combine"]:
             with open(filelistfile, "a+") as mkvlist:
                 for filename in filelist:
                     mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
+                    if database:
+                        with database:
+                            db=database.cursor()
+                            db.execute('select duration_raw from videoinfo where filename = ?', (filename,))
+                            dur=db.fetchone()
+                            if dur:
+                                mkvlist.write("duration {}\n".format(dur[0]))
                     mkvlist.flush()
                 """mkvlist.seek(0)
                 print(mkvlist.read())
@@ -52,7 +72,7 @@ if options["combine"]:
         newnewlist=newlist.split()
         basecommand=["mkvmerge", "-o", options["output"], newnewlist]
         command=list(flatten(basecommand))
-        print(command)
+        """print(command)"""
         runprogram(command)
 
 else:
