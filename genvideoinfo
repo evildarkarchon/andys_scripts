@@ -42,7 +42,8 @@ args.add_argument("files", nargs="*", help="Files to get information from.")
 options=vars(args.parse_args())
 
 data={}
-
+data["missingcolumn"]={"container": "text", "frame_rate": "integer", "duration_raw": "real"}
+data["missingcolumnopt"]=[]
 if options["delete"] and not options["files"]:
     print("{} You must specify files to delete from the database.")
     raise ValueError
@@ -85,7 +86,7 @@ with database:
         db.execute('vacuum')
     db.execute('pragma cache_size = -2000')
 
-createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)'
+createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)'
 
 with database:
     db=database.cursor()
@@ -98,8 +99,7 @@ with database:
         pass
 
 if not options["delete"] and not options["regen"]:
-    with database:
-        missingcolumn=["container", "frame_rate"]
+    """with database:
         database.row_factory = sqlite3.Row
         db=database.cursor()
         db.execute("select * from videoinfo")
@@ -108,12 +108,28 @@ if not options["delete"] and not options["regen"]:
             print(type(test))
         if test:
             test2=test.keys()
-            for column in missingcolumn:
+            for column in data["missingcolumn"].keys():
                 if not {column}.issubset(test2):
                     print("{} Column {} not found, adding to table.".format(colors.mood("neutral"), column))
-                    db.execute("alter table videoinfo add column ?", column)
+                    db.execute('alter table videoinfo add column ? ?()', (column, data["missingcolumn"][column]))
                     db.execute("vacuum")
-        database.row_factory=None
+        database.row_factory=None""" #Code disabled until I figure out the syntax
+    with database:
+        database.row_factory = sqlite3.Row
+        db=database.cursor()
+        db.execute("select * from videoinfo")
+        test=db.fetchone()
+        if options["debug"]:
+            print(type(test))
+        if test:
+            test2=test.keys()
+            for column in data["missingcolumn"].keys():
+                if not {column}.issubset(test2):
+                    print("{} Column {} not found, adding to table.".format(colors.mood("neutral"), column))
+                    db.execute('drop table if exists videoinfo')
+                    db.execute("vacuum")
+                    break
+        database.row_factory=None #Resurrecting drop table on missing column code until I figure out how to get the alter table code to work.
 
 with database:
     database.execute(createstatement)
@@ -172,18 +188,19 @@ def genfilelist():
                 else:
                     if filepath.suffix in data["whitelist"] and filepath.is_file():
                         yield filepath.name
-    with database:
-        missingcolumn=["container", "frame_rate"]
+    """with database:
         db=database.cursor()
-        for column in missingcolumn:
-            db.execute("select filename from videoinfo where ? is null or ? = ''", (column, column))
+        for column in data["missingcolumn"].keys():
+            db.execute("select filename from videoinfo where :column is null or :column = ''", {"column": column})
             files=db.fetchall()
             if files:
                 for filename in files:
-                    db.execute("delete from videoinfo where filename = ?", filename)
+                    db.execute("delete from videoinfo where filename = ?", (filename,))
+                    if filename in existinghash.keys():
+                        existinghash.pop(filename)
                     if pathlib.Path(filename).resolve().exists():
                         print("{} {} is empty for {}, adding to file list.".format(colors.mood("neutral"), column, filename))
-                        yield filename
+                        yield filename""" #Also disabled due to table append code being disabled.
 
 
 data["files"] = sortentries(list(genfilelist()))
@@ -231,6 +248,7 @@ else:
 
         video_dict["filename"]=filename
         video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"].get("duration")))))
+        video_dict["duration_raw"]=float(jsondata["format"].get("duration"))
         video_dict["bitrate_total"]=naturalsize(jsondata["format"].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
         video_dict["container"]=jsondata["format"].get("format_name")
         try:
