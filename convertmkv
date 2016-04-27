@@ -66,6 +66,8 @@ if options["combine"]:
                 mkvlist.seek(0)"""
                 runprogram(["ffmpeg", "-f", "concat", '-safe', '0', "-i", filelistfile, "-c", "copy", "-hide_banner", "-y", options["output"]])
         """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
+        if database:
+            database.close()
     else:
         start=" + ".join(filelist)
         newlist=str(start)
