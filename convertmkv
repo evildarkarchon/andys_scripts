@@ -13,7 +13,7 @@ colors=Color()
 
 args=argparse.ArgumentParser()
 args.add_argument("--ffmpeg", "-f", action="store_true", help="Use ffmpeg instead of mkvmerge. (Doesn't like mpeg-1 files)")
-args.add_argument("--concat", "-c", action="store_true", help="Combine multiple files into one mkv file.")
+args.add_argument("--concat", "-c", dest="combine", action="store_true", help="Combine multiple files into one mkv file.")
 args.add_argument("--output", "-o", help="Name of output file (for concatenation mode only).")
 args.add_argument("--no-sort", "-ns", action="store_true", help="Do not sort the file names to be used for the file list.")
 args.add_argument("--database", "-d", help="Location of video info database. (only used in concatenation mode if ffmpeg is used as the concatenator)")
@@ -30,6 +30,9 @@ if options["no_sort"]:
 else:
     filelist=sortentries(options["files"])
 
+options["ffmpegdisable"]=False
+options["mkvmergedisable"]=False
+
 if options["ffmpeg"] and options["combine"]:
     try:
         if options["database"]:
@@ -40,42 +43,53 @@ if options["ffmpeg"] and options["combine"]:
         print("{} No videoinfo database found, will not add duration info to ffconcat file.".format(colors.mood("neutral")))
         database=None
         pass
+def ffmpegconcat():
+    with tempfile.TemporaryDirectory() as listdir:
+        filelistfile=str(pathlib.Path(listdir).joinpath("mkvlist"))
+        with open(filelistfile, "a+") as mkvlist:
+            for filename in filelist:
+                mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
+                if database:
+                    with database:
+                        db=database.cursor()
+                        db.execute('select duration_raw from videoinfo where filename = ?', (filename,))
+                        dur=db.fetchone()
+                        if dur:
+                            mkvlist.write("duration {}\n".format(dur[0]))
+                mkvlist.flush()
+            """mkvlist.seek(0)
+            print(mkvlist.read())
+            mkvlist.seek(0)"""
+            runprogram(["ffmpeg", "-f", "concat", '-safe', '0', "-i", filelistfile, "-c", "copy", "-hide_banner", "-y", options["output"]])
+    """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
+    if database:
+        database.close()
+def mkvmergeconcat():
+    start=" + ".join(filelist)
+    newlist=str(start)
+    newnewlist=newlist.split()
+    basecommand=["mkvmerge", "-o", options["output"], newnewlist]
+    command=list(flatten(basecommand))
+    """print(command)"""
+    runprogram(command)
 
 if options["combine"]:
     if not options["output"]:
         print("{} Output file name has not been specified.".format(colors.mood("sad")))
         raise ValueError
     print("{} Combining files into {}".format(colors.mood("happy"), options["output"]))
-
     if options["ffmpeg"]:
-        with tempfile.TemporaryDirectory() as listdir:
-            filelistfile=str(pathlib.Path(listdir).joinpath("mkvlist"))
-            with open(filelistfile, "a+") as mkvlist:
-                for filename in filelist:
-                    mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
-                    if database:
-                        with database:
-                            db=database.cursor()
-                            db.execute('select duration_raw from videoinfo where filename = ?', (filename,))
-                            dur=db.fetchone()
-                            if dur:
-                                mkvlist.write("duration {}\n".format(dur[0]))
-                    mkvlist.flush()
-                """mkvlist.seek(0)
-                print(mkvlist.read())
-                mkvlist.seek(0)"""
-                runprogram(["ffmpeg", "-f", "concat", '-safe', '0', "-i", filelistfile, "-c", "copy", "-hide_banner", "-y", options["output"]])
-        """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
-        if database:
-            database.close()
+        if options["ffmpegdisable"]:
+            print("{} {}, running mkvmerge instead".format(colors.mood("neutral"), options["ffmpegdisable"]))
+            mkvmergeconcat()
+        else:
+            ffmpegconcat()
     else:
-        start=" + ".join(filelist)
-        newlist=str(start)
-        newnewlist=newlist.split()
-        basecommand=["mkvmerge", "-o", options["output"], newnewlist]
-        command=list(flatten(basecommand))
-        """print(command)"""
-        runprogram(command)
+        if options["mkvmergedisable"]:
+            print("{} {}, running ffmpeg instead".format(colors.mood("neutral"), options["mkvmergedisable"]))
+            ffmpegconcat()
+        else:
+            mkvmergeconcat()
 
 else:
     for filename in filelist:
