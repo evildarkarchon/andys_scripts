@@ -80,13 +80,13 @@ if options["combine"]:
     print("{} Combining files into {}".format(colors.mood("happy"), options["output"]))
     if options["ffmpeg"]:
         if options["ffmpegdisable"]:
-            print("{} {}, running mkvmerge instead".format(colors.mood("neutral"), options["ffmpegdisable"]))
+            print("{} {}, running mkvmerge instead.".format(colors.mood("neutral"), options["ffmpegdisable"]))
             mkvmergeconcat()
         else:
             ffmpegconcat()
     else:
         if options["mkvmergedisable"]:
-            print("{} {}, running ffmpeg instead".format(colors.mood("neutral"), options["mkvmergedisable"]))
+            print("{} {}, running ffmpeg instead.".format(colors.mood("neutral"), options["mkvmergedisable"]))
             ffmpegconcat()
         else:
             mkvmergeconcat()
