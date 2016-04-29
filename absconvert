@@ -5,6 +5,7 @@ import locale
 import pathlib
 from collections import ChainMap, deque
 from andy.genjson import genjson
+import shlex
 
 from andy.abs import ABS
 from andy.colors import Color
@@ -29,7 +30,7 @@ video.add_argument("--frame-rate", "-fr", dest="frame_rate", help="Frame Rate of
 
 audio.add_argument("--audio-bitrate", "-ab", help="Bitrate for the audio codec.")
 audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
-audio.add_argument("--filter", "-f", help="Filter to be applied to the audio.")
+audio.add_argument("--filter", "-f", nargs="*", help="Filter to be applied to the audio.")
 
 config.add_argument("--database", "-db", help="Location of the video info database.")
 config.add_argument("--convert-test", dest="converttest", action="store_true", help="Conversion test, doesn't delete entrys from database.")
@@ -45,31 +46,34 @@ args.add_argument("files", nargs="*", help="Files to encode.")
 
 cmdline=vars(args.parse_args())
 
-options=''
 
-if (not 'config' in cmdline or not cmdline["config"]) or not pathlib.Path(cmdline["config"]).exists():
-    print("{} Could not find configuration file or one was not specified, generating one with default values.".format(colors.mood("neutral")))
-    defaultconfig={}
+def configdict():
+    if (not 'config' in cmdline or not cmdline["config"]) or not pathlib.Path(cmdline["config"]).exists():
+        print("{} Could not find configuration file or one was not specified, generating one with default values.".format(colors.mood("neutral")))
+        defaultconfig={}
 
-    defaultconfig["defaults"]={}
-    defaultconfig["defaults"]["video"]="libvpx-vp9"
-    defaultconfig["defaults"]["audio"]="libopus"
-    defaultconfig["defaults"]["container"]="mkv"
-    defaultconfig["defaults"]["passes"]=2
-    defaultconfig["defaults"]["audiofilter"]=["aresample=async=1:min_comp=0.001:first_pts=0"]
+        defaultconfig["defaults"]={}
+        defaultconfig["defaults"]["video"]="libvpx-vp9"
+        defaultconfig["defaults"]["audio"]="libopus"
+        defaultconfig["defaults"]["container"]="mkv"
+        defaultconfig["defaults"]["passes"]=2
+        defaultconfig["defaults"]["audiofilter"]=["aresample=async=1:min_comp=0.001:first_pts=0"]
 
-    defaultconfig["codecs"]={}
-    defaultconfig["codecs"]["libvpx-vp9"]=["-threads", "4", "-tile-columns", "6", "-frame-parallel", "1", "-speed", "1"]
+        defaultconfig["codecs"]={}
+        defaultconfig["codecs"]["libvpx-vp9"]=["-threads", "4", "-tile-columns", "6", "-frame-parallel", "1", "-speed", "1"]
 
-    if not cmdline["debug"]:
-        genjson(str(pathlib.Path.home().joinpath(".config", "absconvert.json")), defaultconfig)
+        if not cmdline["debug"]:
+            genjson(str(pathlib.Path.home().joinpath(".config", "absconvert.json")), defaultconfig)
 
-    options=ChainMap(cmdline, defaultconfig)
-else:
-    with open(cmdline["config"]) as jsonsource:
-        config=json.loads(jsonsource.read())
+        return ChainMap(cmdline, defaultconfig)
+    else:
+        with open(cmdline["config"]) as jsonsource:
+            config=json.loads(jsonsource.read())
 
-    options=ChainMap(cmdline, config)
+        return ChainMap(cmdline, config)
+options=configdict()
+
+assert (isinstance(options, ChainMap)), "Options Variable must be a ChainMap"
 
 if not "backup" in options:
     options["backup"]=None
@@ -104,6 +108,8 @@ if not options["audio_codec"]:
 
 if not options["filter"]:
     options["filter"]=options["defaults"]["audiofilter"]
+elif cmdline["filter"] and isinstance(cmdline["filter"], str):
+    options["filter"]=shlex.split(options["filter"])
 
 if options["audio_codec"] in options["codecs"]:
     options["audiocodecopts"]=options["codecs"][options["audio_codec"]]

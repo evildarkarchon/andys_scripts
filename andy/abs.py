@@ -82,6 +82,29 @@ class ABS:
                 print("{} is >=2 and the maximum number of passes is set to 1.".format(colors.mood("sad")))
                 raise ValueError
 
+            def auto_bitrates():
+                if self.database:
+                    with self.database:
+                        self.db.execute("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", (filepath.name,))
+                        bitrates=self.db.fetchone()
+                    #print(bitrates[0][1])
+                        return [bitrates[0], bitrates[1]]
+                else:
+                    return None
+            bitrates=auto_bitrates()
+            if self.debug:
+                print(bitrates)
+
+            if not 'videobitrate' in vars() and videocodec not in (None, "none", "copy") and bitrates:
+                videobitrate=str(max(bitrates))
+                if self.debug:
+                    print(videobitrate)
+
+            if not 'audiobitrate' in vars() and audiocodec not in (None, "none", "copy") and bitrates:
+                audiobitrate=str(min(bitrates))
+                if self.debug:
+                    print(audiobitrate)
+
             biglist=[]
             baselist=["ffmpeg", "-i", str(filepath)]
             videocodeclist=["-c:v", videocodec]
@@ -140,8 +163,8 @@ class ABS:
                     print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
                     outpath.unlink()
             else:
-                if self.database:
-                    with self.database and not self.converttest:
+                if self.database and not self.converttest:
+                    with self.database:
                         print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
                         self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
                 if self.backuppath and self.backuppath.exists():
