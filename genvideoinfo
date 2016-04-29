@@ -25,10 +25,7 @@ try:
     import magic
 except ImportError:
     print("{} Could not import filemagic module, reverting to extension-based whitelisting.".format(colors.mood("sad")))
-    magicpresent=False
     pass
-else:
-    magicpresent=True
 
 args=argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
 args.add_argument("--database", "-db", default="videoinfo.sqlite", help="Location of the sqlite database to save the information into.")
@@ -134,12 +131,6 @@ if not options["delete"] and not options["regen"]:
 with database:
     database.execute(createstatement)
 
-if magicpresent:
-    data["mime"] = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
-    data["whitelist"] = None
-else:
-    data["mime"] = None
-    data["whitelist"] = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
 
 def genexisting():
     with database:
@@ -151,13 +142,15 @@ def genexisting():
 existinghash=dict(genexisting())
 
 def genfilelist():
-    if magicpresent:
+    try:
+        whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
+        
         with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
             if options["files"]:
                 for filename in options["files"]:
                     filepath=pathlib.Path(filename)
                     if not options["debug"]:
-                        if m.id_filename(filename) in data["mime"] and filepath.is_file() and filepath not in existinghash:
+                        if m.id_filename(filename) in whitelist and filepath.is_file() and filepath not in existinghash:
                             yield filepath.name
                     else:
                         if m.id_filename(filename) in data["mime"] and filepath.is_file():
@@ -165,29 +158,31 @@ def genfilelist():
             else:
                 for filepath in pathlib.Path.cwd().iterdir():
                     if not options["debug"]:
-                        if m.id_filename(str(filepath)) in data["mime"] and filepath.is_file() and filepath.name not in existinghash:
+                        if m.id_filename(str(filepath)) in whitelist and filepath.is_file() and filepath.name not in existinghash:
                             yield filepath.name
                     else:
-                        if m.id_filename(str(filepath)) in data["mime"] and filepath.is_file():
+                        if m.id_filename(str(filepath)) in whitelist and filepath.is_file():
                             yield filepath.name
-    else:
+    except NameError:
+        whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
         if options["files"]:
             for filename in options["files"]:
                 filepath=pathlib.Path(filename)
                 if not options["debug"]:
-                    if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
+                    if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
                         yield filepath.name
                 else:
-                    if filepath.suffix in data["whitelist"] and filepath.is_file():
+                    if filepath.suffix in whitelist and filepath.is_file():
                         yield filepath.name
         else:
             for filepath in pathlib.Path.cwd().iterdir():
                 if not options["debug"]:
-                    if filepath.suffix in data["whitelist"] and filepath.is_file() and filepath.name not in existinghash:
+                    if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
                         yield filepath.name
                 else:
-                    if filepath.suffix in data["whitelist"] and filepath.is_file():
+                    if filepath.suffix in whitelist and filepath.is_file():
                         yield filepath.name
+        pass
     """with database:
         db=database.cursor()
         for column in data["missingcolumn"].keys():
