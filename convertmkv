@@ -3,6 +3,8 @@ import tempfile
 import argparse
 import pathlib
 import sqlite3
+import shutil
+import os
 
 from andy.runprogram import runprogram
 from andy.colors import Color
@@ -33,6 +35,8 @@ else:
 options["ffmpegdisable"]=False
 options["mkvmergedisable"]=False
 
+mkvpropedit=shutil.which("mkvpropedit", mode=os.X_OK)
+
 if options["ffmpeg"] and options["combine"]:
     try:
         if options["database"]:
@@ -61,6 +65,8 @@ def ffmpegconcat():
             print(mkvlist.read())
             mkvlist.seek(0)"""
             runprogram(["ffmpeg", "-f", "concat", '-safe', '0', "-i", filelistfile, "-c", "copy", "-hide_banner", "-y", options["output"]])
+            if mkvpropedit:
+                runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
     """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
     if database:
         database.close()
@@ -97,6 +103,8 @@ else:
         print("{} Muxing {} into a matroska file.".format(colors.mood("happy"), filename))
         if filepath.exists():
             if options["ffmpeg"]:
-                runprogram(["ffmpeg", "-i", filename, "-c", "copy", "-f", "matroska", str(filepath.with_suffix(".mkv"))])
+                runprogram(["ffmpeg", "-i", filename, "-c", "copy", "-f", "matroska", '-hide_banner', '-y', str(filepath.with_suffix(".mkv"))])
+                if mkvpropedit:
+                    runprogram([mkvpropedit, "--add-track-statistics-tags", str(filepath.with_suffix(".mkv"))])
             else:
                 runprogram(["mkvmerge", "-o", str(filepath.with_suffix(".mkv")), "=", filename])
