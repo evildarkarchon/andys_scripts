@@ -305,26 +305,27 @@ else:
 
         video_dict["hash"]=filehash.get(filename)
 
-        if jsondata["streams"][0]["avg_frame_rate"]:
-            if not jsondata["streams"][0]["avg_frame_rate"] == "0/0" and not jsondata["streams"][0]["avg_frame_rate"] == "0":
-                try:
-                    framerate=round(eval(jsondata["streams"][0]["avg_frame_rate"]), 2)
+        if jsondata["streams"][0].get("avg_frame_rate"):
+            try:
+                framerate=round(eval(jsondata["streams"][0].get("avg_frame_rate")), 2)
+                if framerate is not 0 and isinstance(framerate, (int, float)):
                     video_dict["frame_rate"]=framerate
-                except ZeroDivisionError:
+                else:
                     video_dict["frame_rate"]=None
-                    pass
-            elif jsondata["streams"][0]["avg_frame_rate"] == "0":
+            except ZeroDivisionError:
                 video_dict["frame_rate"]=None
-        elif jsondata["streams"][1]["avg_frame_rate"]:
-            if not jsondata["streams"][1]["avg_frame_rate"] == "0/0" and not jsondata["streams"][1]["avg_frame_rate"] == "0":
-                try:
-                    framerate=round(eval(jsondata["streams"][1]["avg_frame_rate"]), 2)
-                    video_dict["frame_rate"]=framerate
-                except ZeroDivisionError:
-                    video_dict["frame_rate"]=None
-                    pass
-            elif jsondata["streams"][1]["avg_frame_rate"] == "0":
+                pass
+        elif jsondata["streams"][1].get("avg_frame_rate"):
+            try:
+                framerate=round(eval(jsondata["streams"][1].get("avg_frame_rate")), 2)
+                if not "frame_rate" in video_dict and not video_dict["frame_rate"]:
+                    if framerate is not 0 and isinstance(framerate, (int, float)):
+                        video_dict["frame_rate"]=framerate
+                    else:
+                        video_dict["frame_rate"]=None
+            except ZeroDivisionError:
                 video_dict["frame_rate"]=None
+                pass
         else:
             video_dict["frame_rate"]=None
 
