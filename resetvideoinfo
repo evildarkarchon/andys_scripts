@@ -10,7 +10,7 @@ from andy.colors import Color
 colors=Color()
 
 args=argparse.ArgumentParser()
-args.add_argument("directory", default="/data/Private", nargs="*", help="Directory to look for videoinfo databases")
+args.add_argument("directory", default="/data/Private", help="Directory to look for videoinfo databases")
 location=vars(args.parse_args())
 
 fileglob=pathlib.Path(location["directory"]).rglob("videoinfo.sqlite")
@@ -24,7 +24,10 @@ for filename in fileglob:
             dirlist.append(str(filename.parent))
 
 dirlist=sortentries(dirlist)
-
+count=0
 for directory in dirlist:
+    if count > 0:
+        print('')
     print("{} Resetting videoinfo database in {}".format(colors.mood("happy"), str(directory)))
     runprogram(["genvideoinfo", "--regen"], workdir=str(directory))
+    count=count+1
