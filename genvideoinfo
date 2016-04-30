@@ -144,7 +144,7 @@ existinghash=dict(genexisting())
 def genfilelist():
     try:
         whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
-        
+
         with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
             if options["files"]:
                 for filename in options["files"]:
@@ -249,23 +249,23 @@ else:
         video_dict["container"]=jsondata["format"].get("format_name")
         try:
             video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             video_dict["bitrate_0"]=None
             pass
         try:
             video_dict["bitrate_0_raw"]=int(jsondata["streams"][0].get("bit_rate"))
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             video_dict["bitrate_0_raw"]=None
             pass
 
         try:
             video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace(' MB', "M").replace(' kB', "K")
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             video_dict["bitrate_1"]=None
             pass
         try:
             video_dict["bitrate_1_raw"]=int(jsondata["streams"][1].get("bit_rate"))
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
             video_dict["bitrate_1_raw"]=None
             pass
 
