@@ -91,19 +91,32 @@ class ABS:
                         return [bitrates[0], bitrates[1]]
                 else:
                     return None
-            bitrates=auto_bitrates()
-            if self.debug:
-                print(bitrates)
+            if ('videobitrate' not in vars() and 'audiobitrate' not in vars()) or (not videobitrate and not audiobitrate):
+                bitrates=auto_bitrates()
+                if len(bitrates) is not 2):
+                    print("{} Bitrates variable must have 2 entries.".format(colors.mood("sad")))
+                    raise ValueError
+                if self.debug:
+                    print(bitrates)
 
-            if not 'videobitrate' in vars() and videocodec not in (None, "none", "copy") and bitrates:
+            if not 'videobitrate' in vars() and videocodec not in (None, "none", "copy") and bitrates and len(bitrates) is 2:
                 videobitrate=str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
 
-            if not 'audiobitrate' in vars() and audiocodec not in (None, "none", "copy") and bitrates:
+            if not 'audiobitrate' in vars() and audiocodec not in (None, "none", "copy") and bitrates and len(bitrates) is 2:
                 audiobitrate=str(min(bitrates))
                 if self.debug:
                     print(audiobitrate)
+
+            if 'audiobitrate' in vars() and audiocodec not in (None, "none", "copy"):
+                if not len(audiobitrate) >= 1:
+                    print("{} Audio bitrate variable can not be empty if assigned.".format(colors.mood("sad")))
+                    raise ValueError
+            if 'videobitrate' in vars() and videocodec not in (None, "none", "copy"):
+                if not len(videobitrate) >= 1):
+                    print("{} Video bitrate variable can not be empty if assigned.".format(colors.mood("sad")))
+                    raise ValueError
 
             biglist=[]
             baselist=["ffmpeg", "-i", str(filepath)]
