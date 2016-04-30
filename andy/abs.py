@@ -44,6 +44,9 @@ class ABS:
 
         self.converttest=converttest
 
+        self.autocount=0
+        self.frcount=0
+
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
 
         filepath=pathlib.Path(filename).resolve()
@@ -52,7 +55,9 @@ class ABS:
             if framerate:
                 return ["-filter:v", "fps={}".format(framerate)]
             elif self.database and not framerate and videocodec not in (None,"none","copy"):
-                print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
+                while self.frcount == 0:
+                    print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
+                    self.frcount=self.frcount+1
                 with self.database:
                     try:
                         self.db.execute("select frame_rate from videoinfo where filename=?", (filepath.name,))
@@ -69,6 +74,7 @@ class ABS:
         if videocodec in ("copy", "none") or not videocodec:
             passes=1
 
+
         def commandlist(passno=None, passmax=passes):
             if passno is None and passmax is 2:
                 print("{} You must specify a pass number if using 2-pass encoding.".format(colors.mood("sad")))
@@ -84,16 +90,19 @@ class ABS:
 
             def auto_bitrates():
                 if self.database:
+                    while self.autocount == 0:
+                        print("{} Bit-rates not specified, attempting to guess from database entries.".format(colors.mood("neutral")))
+                        self.autocount=self.autocount+1
                     with self.database:
                         self.db.execute("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", (filepath.name,))
                         bitrates=self.db.fetchone()
-                    #print(bitrates[0][1])
                         return [bitrates[0], bitrates[1]]
                 else:
                     return None
             if ('videobitrate' not in vars() and 'audiobitrate' not in vars()) or (not videobitrate and not audiobitrate):
                 bitrates=auto_bitrates()
-                if len(bitrates) is not 2):
+                """print(bitrates)"""
+                if len(bitrates) is not 2:
                     print("{} Bitrates variable must have 2 entries.".format(colors.mood("sad")))
                     raise ValueError
                 if self.debug:
@@ -114,7 +123,7 @@ class ABS:
                     print("{} Audio bitrate variable can not be empty if assigned.".format(colors.mood("sad")))
                     raise ValueError
             if 'videobitrate' in vars() and videocodec not in (None, "none", "copy"):
-                if not len(videobitrate) >= 1):
+                if not len(videobitrate) >= 1:
                     print("{} Video bitrate variable can not be empty if assigned.".format(colors.mood("sad")))
                     raise ValueError
 
