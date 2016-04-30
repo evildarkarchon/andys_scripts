@@ -39,7 +39,7 @@ args.add_argument("files", nargs="*", help="Files to get information from.")
 options=vars(args.parse_args())
 
 data={}
-data["missingcolumn"]={"container": "text", "frame_rate": "integer", "duration_raw": "real"}
+data["missingcolumn"]={"container": "text", "frame_rate": "real", "duration_raw": "real"}
 data["missingcolumnopt"]=[]
 
 if options["delete"] and not options["files"]:
@@ -84,7 +84,7 @@ with database:
         db.execute('vacuum')
     db.execute('pragma cache_size = -2000')
 
-createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate integer, hash text unique)'
+createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'
 
 with database:
     db=database.cursor()
@@ -309,8 +309,6 @@ else:
             if not jsondata["streams"][0]["avg_frame_rate"] == "0/0" and not jsondata["streams"][0]["avg_frame_rate"] == "0":
                 try:
                     framerate=round(eval(jsondata["streams"][0]["avg_frame_rate"]), 2)
-                    if framerate.is_integer():
-                        framerate=int(framerate)
                     video_dict["frame_rate"]=framerate
                 except ZeroDivisionError:
                     video_dict["frame_rate"]=None
@@ -321,8 +319,6 @@ else:
             if not jsondata["streams"][1]["avg_frame_rate"] == "0/0" and not jsondata["streams"][1]["avg_frame_rate"] == "0":
                 try:
                     framerate=round(eval(jsondata["streams"][1]["avg_frame_rate"]), 2)
-                    if framerate.is_integer():
-                        framerate=int(framerate)
                     video_dict["frame_rate"]=framerate
                 except ZeroDivisionError:
                     video_dict["frame_rate"]=None
