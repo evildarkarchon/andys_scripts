@@ -1,0 +1,30 @@
+#!/usr/bin/python3.5
+import pathlib
+import magic
+import argparse
+
+from andy.sortentries import sortentries
+from andy.runprogram import runprogram
+from andy.colors import Color
+
+colors=Color()
+
+args=argparse.ArgumentParser()
+args.add_argument("directory", default="/data/Private", nargs="*", help="Directory to look for videoinfo databases")
+location=vars(args.parse_args())
+
+fileglob=pathlib.Path(location["directory"]).rglob("videoinfo.sqlite")
+
+dirlist=[]
+
+for filename in fileglob:
+    with magic.Magic() as m:
+        filetype=m.id_filename(str(filename))
+        if "SQLite 3.x database" in filetype:
+            dirlist.append(str(filename.parent))
+
+dirlist=sortentries(dirlist)
+
+for directory in dirlist:
+    print("{} Resetting videoinfo database in {}".format(colors.mood("happy"), str(directory)))
+    runprogram(["genvideoinfo", "--regen"], workdir=str(directory))
