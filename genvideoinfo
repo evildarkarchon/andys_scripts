@@ -41,6 +41,7 @@ options=vars(args.parse_args())
 data={}
 data["missingcolumn"]={"container": "text", "frame_rate": "integer", "duration_raw": "real"}
 data["missingcolumnopt"]=[]
+
 if options["delete"] and not options["files"]:
     print("{} You must specify files to delete from the database.")
     raise ValueError
