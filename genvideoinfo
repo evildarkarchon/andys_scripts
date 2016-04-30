@@ -39,7 +39,7 @@ args.add_argument("files", nargs="*", help="Files to get information from.")
 options=vars(args.parse_args())
 
 data={}
-data["missingcolumn"]={"container": "text", "frame_rate": "real", "duration_raw": "real"}
+data["missingcolumn"]={"container": "text", "frame_rate": "real", "duration_raw": "real", "streams": "integer"}
 data["missingcolumnopt"]=[]
 
 if options["delete"] and not options["files"]:
@@ -84,7 +84,7 @@ with database:
         db.execute('vacuum')
     db.execute('pragma cache_size = -2000')
 
-createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'
+createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, streams integer, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'
 
 with database:
     db=database.cursor()
@@ -248,24 +248,37 @@ else:
         video_dict["duration_raw"]=float(jsondata["format"].get("duration"))
         video_dict["bitrate_total"]=naturalsize(jsondata["format"].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
         video_dict["container"]=jsondata["format"].get("format_name")
+        video_dict["streams"]=jsondata["format"].get("nb_streams")
         try:
-            video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
+            if "tags" in jsondata["streams"][0] and not "bit_rate" in jsondata["streams"][0] and "BPS" in jsondata["streams"][0]["tags"]:
+                video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0]["tags"].get("BPS")).replace(" MB", "M").replace(" kB", "K")
+            else:
+                video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
         except (KeyError, IndexError, TypeError):
             video_dict["bitrate_0"]=None
             pass
         try:
-            video_dict["bitrate_0_raw"]=int(jsondata["streams"][0].get("bit_rate"))
+            if "tags" in jsondata["streams"][0] and not "bit_rate" in jsondata["streams"][0] and "BPS" in jsondata["streams"][0]["tags"]:
+                video_dict["bitrate_0_raw"]=int(jsondata["streams"][0]["tags"].get("BPS"))
+            else:
+                video_dict["bitrate_0_raw"]=int(jsondata["streams"][0].get("bit_rate"))
         except (KeyError, IndexError, TypeError):
             video_dict["bitrate_0_raw"]=None
             pass
 
         try:
-            video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace(' MB', "M").replace(' kB', "K")
+            if "tags" in jsondata["streams"][1] and not "bitrate" in jsondata["streams"][1] and "BPS" in jsondata["streams"][1]["tags"]:
+                video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1]["tags"].get("BPS")).replace(" MB", "M").replace(" kB", "K")
+            else:
+                video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
         except (KeyError, IndexError, TypeError):
             video_dict["bitrate_1"]=None
             pass
         try:
-            video_dict["bitrate_1_raw"]=int(jsondata["streams"][1].get("bit_rate"))
+            if "tags" in jsondata["streams"][1] and not "bitrate" in jsondata["streams"][1] and "BPS" in jsondata["streams"][1]["tags"]:
+                video_dict["bitrate_1_raw"]=int(jsondata["streams"][1]["tags"].get("BPS"))
+            else:
+                video_dict["bitrate_1_raw"]=int(jsondata["streams"][1].get("bit_rate"))
         except (KeyError, IndexError, TypeError):
             video_dict["bitrate_1_raw"]=None
             pass
