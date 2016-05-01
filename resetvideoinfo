@@ -10,7 +10,7 @@ from andy.colors import Color
 colors=Color()
 
 args=argparse.ArgumentParser()
-args.add_argument("directory", default="/data/Private", help="Directory to look for videoinfo databases")
+args.add_argument("directory", default="/data/Private", nargs="?", help="Directory to look for videoinfo databases")
 location=vars(args.parse_args())
 
 fileglob=pathlib.Path(location["directory"]).rglob("videoinfo.sqlite")
