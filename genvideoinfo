@@ -60,7 +60,7 @@ database=sqlite3.connect(options["database"])
 atexit.register(database.close)
 
 if options["reset_json"]:
-    print("{} Erasing all entries in the json table.")
+    print("{} Erasing all entries in the json table.".format(colors.mood("happy")))
     with database:
         db=database.cursor()
         db.execute('delete from videojson')
