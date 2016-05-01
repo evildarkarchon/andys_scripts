@@ -4,6 +4,7 @@ import pathlib
 import shutil
 import sqlite3
 import subprocess
+import os
 from collections import deque
 
 from andy.colors import Color
@@ -47,6 +48,10 @@ class ABS:
         self.autocount=0
         self.frcount=0
 
+        self.nocodec=(None, "none", "copy")
+
+        self.mkvpropedit=shutil.which("mkvpropedit", mode=os.X_OK)
+
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
 
         filepath=pathlib.Path(filename).resolve()
@@ -54,7 +59,7 @@ class ABS:
         def frameratefilter():
             if framerate:
                 return ["-filter:v", "fps={}".format(framerate)]
-            elif self.database and not framerate and videocodec not in (None,"none","copy"):
+            elif self.database and not framerate and videocodec not in self.nocodec:
                 while self.frcount == 0:
                     print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
                     self.frcount=self.frcount+1
@@ -71,7 +76,7 @@ class ABS:
                 print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg auto-detection.".format(colors.mood("neutral")))
                 return None
 
-        if videocodec in ("copy", "none") or not videocodec:
+        if videocodec in self.nocodec or not videocodec:
             passes=1
 
 
@@ -94,38 +99,42 @@ class ABS:
                         print("{} Bit-rates not specified, attempting to guess from database entries.".format(colors.mood("neutral")))
                         self.autocount=self.autocount+1
                     with self.database:
+                        self.db.execute("select streams from videoinfo where filename=?", (filepath.name,))
+                        streams=self.db.fetchone()[0]
                         self.db.execute("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", (filepath.name,))
                         bitrates=self.db.fetchone()
-                        return [bitrates[0], bitrates[1]]
+                        if streams is 2:
+                            return [bitrates[0], bitrates[1]]
+                        elif streams is 1:
+                            return bitrates
                 else:
                     return None
             if ('videobitrate' not in vars() and 'audiobitrate' not in vars()) or (not videobitrate and not audiobitrate):
                 bitrates=auto_bitrates()
                 """print(bitrates)"""
-                if len(bitrates) is not 2:
+                """if len(bitrates) is not 2:
                     print("{} Bitrates variable must have 2 entries.".format(colors.mood("sad")))
-                    raise ValueError
+                    raise ValueError"""
                 if self.debug:
                     print(bitrates)
 
-            if not 'videobitrate' in vars() and videocodec not in (None, "none", "copy") and bitrates and len(bitrates) is 2:
+            if (not 'videobitrate' in vars() or not videobitrate) and videocodec and videocodec not in self.nocodec and len(bitrates) is 2:
                 videobitrate=str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
+            elif not 'videobitrate' in vars() and videocodec not in self.nocodec and (not 'audiocodec' in vars() or not audiocodec) and len(bitrates) is 1:
+                videobitrate=str(bitrates)
+                if self.debug:
+                    print(videobitrate)
 
-            if not 'audiobitrate' in vars() and audiocodec not in (None, "none", "copy") and bitrates and len(bitrates) is 2:
+            if not 'audiobitrate' in vars() and audiocodec not in self.nocodec and len(bitrates) is 2:
                 audiobitrate=str(min(bitrates))
                 if self.debug:
                     print(audiobitrate)
-
-            if 'audiobitrate' in vars() and audiocodec not in (None, "none", "copy"):
-                if not len(audiobitrate) >= 1:
-                    print("{} Audio bitrate variable can not be empty if assigned.".format(colors.mood("sad")))
-                    raise ValueError
-            if 'videobitrate' in vars() and videocodec not in (None, "none", "copy"):
-                if not len(videobitrate) >= 1:
-                    print("{} Video bitrate variable can not be empty if assigned.".format(colors.mood("sad")))
-                    raise ValueError
+            elif not 'audiobitrate' in vars() and audiocodec not in self.nocodec and len(bitrates) is 1:
+                audiobitrate=str(bitrates)
+                if self.debug:
+                    print(audiobitrate)
 
             biglist=[]
             baselist=["ffmpeg", "-i", str(filepath)]
@@ -136,7 +145,7 @@ class ABS:
 
             biglist.append(baselist)
 
-            if videocodec not in (None, "none", "copy"):
+            if videocodec not in self.nocodec:
                 biglist.append(videocodeclist)
                 fr=frameratefilter()
                 if fr:
@@ -168,6 +177,19 @@ class ABS:
 
             return list(flatten(biglist))
 
+        def convertdone():
+            if self.database and not self.converttest:
+                with self.database:
+                    print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
+                    self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
+            if self.backuppath and self.backuppath.exists():
+                print("{} Moving {} to {}".format(colors.mood("happy"), filepath.name, self.backup))
+                shutil.move(str(filepath), self.backup)
+
+            if ("mkv" in container or "mka" in container) and self.mkvpropedit:
+                print("{} Adding statistics tags to output file.".format(colors.mood("happy")))
+                runprogram([self.mkvpropedit, "--add-track-statistics-tags", str(outpath)])
+
         if self.debug:
             print('')
             if passes is 2:
@@ -185,13 +207,7 @@ class ABS:
                     print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
                     outpath.unlink()
             else:
-                if self.database and not self.converttest:
-                    with self.database:
-                        print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
-                        self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
-                if self.backuppath and self.backuppath.exists():
-                    print("{} Moving {} to {}".format(colors.mood("happy"), filepath.name, self.backup))
-                    shutil.move(str(filepath), self.backup)
+                convertdone()
             finally:
                 if pathlib.Path(filename.replace(filepath.suffix, "-0.log")).exists():
                     print("{} Removing 1st pass log file.".format(colors.mood("neutral")))
@@ -202,14 +218,7 @@ class ABS:
                 runprogram(commandlist(passmax=1))
             except (KeyboardInterrupt, subprocess.CalledProcessError):
                 if outpath.exists():
-                    print("\n{} Removing unfinished file.".format(colors.mood("neutral")))
+                    print("{} Removing unfinished file.".format(colors.mood("neutral")))
                     outpath.unlink()
             else:
-                if self.database and not self.converttest:
-                    with self.database:
-                        #db=self.database.cursor()
-                        print("{} Removing {} from the database".format(colors.mood("happy"), filepath.name))
-                        self.db.execute('delete from videoinfo where filename = ?', (filepath.name,))
-                if self.backuppath and self.backuppath.exists():
-                    print("{} Moving {} to {}".format(colors.mood("happy"), filepath.name, self.backup))
-                    shutil.move(str(filepath), self.backup)
+                convertdone()
