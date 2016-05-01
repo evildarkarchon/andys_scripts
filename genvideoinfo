@@ -59,13 +59,6 @@ if databasepath.exists():
 database=sqlite3.connect(options["database"])
 atexit.register(database.close)
 
-if options["reset_json"]:
-    print("{} Erasing all entries in the json table.".format(colors.mood("happy")))
-    with database:
-        db=database.cursor()
-        db.execute('delete from videojson')
-    sys.exit(0)
-
 if options["regen"] and not options["delete"]:
     with database:
         print("{} Deleting existing videoinfo table.".format(colors.mood("neutral")))
@@ -110,6 +103,13 @@ with database:
         vitemp=len(vj)
     except TypeError:
         db.execute(createstatementjson)
+
+if options["reset_json"]:
+    print("{} Purging the JSON cache.".format(colors.mood("happy")))
+    with database:
+        db=database.cursor()
+        db.execute('delete from videojson')
+    sys.exit(0)
 
 if not options["delete"] and not options["regen"]:
     """with database:
