@@ -10,10 +10,22 @@ from andy.colors import Color
 colors=Color()
 
 args=argparse.ArgumentParser()
+args.add_argument("--reset-json", "-rj", action="store_true", help="Reset the JSON cache instead of the videoinfo table.")
+args.add_argument("--reset-all", "-r", action="store_true", help="Reset both the JSON cache and the videoinfo table.")
 args.add_argument("directory", default="/data/Private", nargs="?", help="Directory to look for videoinfo databases")
-location=vars(args.parse_args())
+options=vars(args.parse_args())
 
-fileglob=pathlib.Path(location["directory"]).rglob("videoinfo.sqlite")
+if pathlib.Path(options["directory"]).is_dir():
+    pass
+else:
+    if not pathlib.Path(options["directory"]).exists():
+        print("{} Specified directory does not exist.")
+        raise FileNotFoundError
+    else:
+        print("{} Specified location is not a directory.")
+        raise NotADirectoryError
+
+fileglob=pathlib.Path(options["directory"]).rglob("videoinfo.sqlite")
 
 dirlist=[]
 
@@ -25,11 +37,15 @@ for filename in fileglob:
 
 dirlist=sortentries(dirlist)
 
-count=0
+newline=False
 
 for directory in dirlist:
-    if count > 0:
+    if newline:
         print('')
+    if newline is False:
+        newline=True
     print("{} Resetting videoinfo database in {}".format(colors.mood("happy"), str(directory)))
-    runprogram(["genvideoinfo", "--regen"], workdir=str(directory))
-    count=count+1
+    if options["reset_json"] or options["reset_all"]:
+        runprogram(["genvideoinfo", "--reset-json"], workdir=str(directory))
+    if not options["reset_json"]:
+        runprogram(["genvideoinfo", "--regen"], workdir=str(directory))
