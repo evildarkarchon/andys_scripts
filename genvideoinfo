@@ -258,12 +258,12 @@ def returnjson(videofile):
             db.execute('select jsondata from videojson where filename = ?', (videofile,))
             if options["debug"]:
                 print("Using Database")
-            jsondata=db.fetchone()[0]
+            return db.fetchone()[0]
         else:
             if options["debug"]:
                 print("Extracting Data")
-            jsondata=returninfo(["ffprobe", "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
-        return jsondata
+            return returninfo(["ffprobe", "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
+
 if options["delete"]:
     for filename in options["files"]:
         with database:
