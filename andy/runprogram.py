@@ -14,8 +14,11 @@ def runprogram(program, verify=True, use_sudo=False, user="root", stdinput=None,
         command=deque(program)
     elif isinstance(program, str):
         command=deque(shlex.split(program))
+    elif isinstance(program, deque):
+        command=program
     else:
-        print("{} program must be in the form of a string, tuple, or list")
+        print("{} program must be in the form of a string, tuple, list or deque")
+        raise TypeError
 
     if use_sudo and not isinstance(user, (str, int)):
         print("{} User must be a string or integer.".format(colors.mood("sad")))
@@ -26,8 +29,9 @@ def runprogram(program, verify=True, use_sudo=False, user="root", stdinput=None,
         user=uid.pw_name
 
     if use_sudo:
-        command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list.
-
+        """command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list."""
+        sudo=deque(["sudo", "-u", user])
+        command=sudo+command
     if is_python_version((3,5,0)):
         subprocess.run(command, input=stdinput, stdout=stdoutput, stderr=stderror, env=environment, check=verify, cwd=workdir)
     else:
