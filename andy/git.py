@@ -8,14 +8,13 @@ from andy.runprogram import runprogram
 
 
 class Git:
-    def __init__(self, directory, use_sudo=None, sudo_user="root", url=None):
+    def __init__(self, directory, use_sudo=None, sudo_user=None, url=None):
         self.colors=Color()
         self.path=pathlib.Path(directory).resolve()
         self.directory=str(self.path)
         self.url=url
 
         def sudocheck():
-
             if use_sudo not in (True, False, None):
                 print("{} use_sudo must be True, False, or None".format(self.colors.mood("sad")))
                 raise ValueError
@@ -23,19 +22,13 @@ class Git:
             if use_sudo is None:
                 print("{} use_sudo variable is unset, reverting to manual detection".format(self.colors.mood("neutral")))
                 if sudo_user:
-                    us=is_privileged(privuser=sudo_user)
-                    su=sudo_user
+                    return is_privileged(privuser=sudo_user), sudo_user
                 else:
-                    us=False
-                    su=None
+                    return False, None
             elif use_sudo and sudo_user:
-                us=use_sudo
-                su=sudo_user
+                return use_sudo, sudo_user
             elif use_sudo and not sudo_user:
-                us=use_sudo
-                su="root"
-
-            return us, su
+                return use_sudo, "root"
 
         sudo=sudocheck()
         self.use_sudo=sudo[0]
@@ -52,7 +45,7 @@ class Git:
         if not self.url:
             print("{} url not defined.".format(colors.mood("sad")))
             raise ValueError
-        runprogram(["git", "clone", self.url], workdir=self.directory, use_sudo=self.use_sudo, user=self.sudo_user)
+        runprogram(["git", "clone", self.url, self.directory], use_sudo=self.use_sudo, user=self.sudo_user)
 
     def gc(self, aggressive=False):
         gccmd=deque(["git", "gc"])
