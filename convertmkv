@@ -75,14 +75,16 @@ def ffmpegconcat():
     if database:
         database.close()
 def mkvmergeconcat():
+    def concatlist():
+        basecommand=[mkvmerge, "-o", options["output"]]
+        concatfilelist=' + '.join(filelist).split()
+        """newlist=str(start)
+        newnewlist=newlist.split()"""
+        return basecommand+concatfilelist
     if mkvmerge:
-        start=" + ".join(filelist)
-        newlist=str(start)
-        newnewlist=newlist.split()
-        basecommand=[mkvmerge, "-o", options["output"], newnewlist]
-        command=list(flatten(basecommand))
+        """command=concatlist()"""
         """print(command)"""
-        runprogram(command)
+        runprogram(concatlist())
     else:
         print("{} mkvmerge not found.".format(colors.mood("sad")))
         raise FileNotFoundError
