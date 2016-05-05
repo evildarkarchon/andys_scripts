@@ -32,12 +32,14 @@ if options["no_sort"]:
 else:
     filelist=sortentries(options["files"])
 
-options["ffmpegdisable"]=False #These are for extreme circumstances
+options["ffmpegdisable"]=False #These are for extreme circumstances, reason for disabling goes in the variable.
 options["mkvmergedisable"]=False
 
 mkvpropedit=shutil.which("mkvpropedit", mode=os.X_OK)
 ffmpeg=shutil.which("ffmpeg", mode=os.X_OK)
 mkvmerge=shutil.which("mkvmerge", mode=os.X_OK)
+
+peshow=True
 
 if options["ffmpeg"] and options["combine"]:
     try:
@@ -71,6 +73,10 @@ def ffmpegconcat():
             raise FileNotFoundError
         if mkvpropedit:
             runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
+        else:
+            if peshow is True:
+                print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
+                peshow=False
     """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
     if database:
         database.close()
@@ -121,6 +127,10 @@ else:
 
                 if mkvpropedit:
                     runprogram([mkvpropedit, "--add-track-statistics-tags", str(filepath.with_suffix(".mkv"))])
+                else:
+                    if peshow is True:
+                        print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
+                        peshow=False
             else:
                 if mkvmerge:
                     runprogram([mkvmerge, "-o", str(filepath.with_suffix(".mkv")), "=", filename])
