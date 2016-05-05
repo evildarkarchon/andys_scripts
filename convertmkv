@@ -32,10 +32,12 @@ if options["no_sort"]:
 else:
     filelist=sortentries(options["files"])
 
-options["ffmpegdisable"]=False
+options["ffmpegdisable"]=False #These are for extreme circumstances
 options["mkvmergedisable"]=False
 
 mkvpropedit=shutil.which("mkvpropedit", mode=os.X_OK)
+ffmpeg=shutil.which("ffmpeg", mode=os.X_OK)
+mkvmerge=shutil.which("mkvmerge", mode=os.X_OK)
 
 if options["ffmpeg"] and options["combine"]:
     try:
@@ -48,36 +50,42 @@ if options["ffmpeg"] and options["combine"]:
         database=None
         pass
 def ffmpegconcat():
-    with tempfile.TemporaryDirectory() as listdir:
-        filelistfile=str(pathlib.Path(listdir).joinpath("mkvlist"))
-        with open(filelistfile, "a+") as mkvlist:
-            for filename in filelist:
-                mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
-                if database:
-                    with database:
-                        db=database.cursor()
-                        db.execute('select duration_raw from videoinfo where filename = ?', (filename,))
-                        dur=db.fetchone()
-                        if dur:
-                            mkvlist.write("duration {}\n".format(dur[0]))
-                mkvlist.flush()
-            """mkvlist.seek(0)
-            print(mkvlist.read())
-            mkvlist.seek(0)"""
-            runprogram(["ffmpeg", "-f", "concat", '-safe', '0', "-i", filelistfile, "-c", "copy", "-hide_banner", "-y", options["output"]])
-            if mkvpropedit:
-                runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
+    with tempfile.NamedTemporaryFile("a+") as mkvlist:
+        for filename in filelist:
+            mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
+            if database:
+                with database:
+                    db=database.cursor()
+                    db.execute('select duration_raw from videoinfo where filename = ?', (filename,))
+                    dur=db.fetchone()
+                    if dur:
+                        mkvlist.write("duration {}\n".format(dur[0]))
+            mkvlist.flush()
+        """mkvlist.seek(0)
+        print(mkvlist.read())
+        mkvlist.seek(0)"""
+        if ffmpeg:
+            runprogram([ffmpeg, "-f", "concat", '-safe', '0', "-i", mkvlist.name, "-c", "copy", "-hide_banner", "-y", options["output"]])
+        else:
+            print("{} ffmpeg not found.".format(colors.mood("sad")))
+            raise FileNotFoundError
+        if mkvpropedit:
+            runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
     """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
     if database:
         database.close()
 def mkvmergeconcat():
-    start=" + ".join(filelist)
-    newlist=str(start)
-    newnewlist=newlist.split()
-    basecommand=["mkvmerge", "-o", options["output"], newnewlist]
-    command=list(flatten(basecommand))
-    """print(command)"""
-    runprogram(command)
+    if mkvmerge:
+        start=" + ".join(filelist)
+        newlist=str(start)
+        newnewlist=newlist.split()
+        basecommand=[mkvmerge, "-o", options["output"], newnewlist]
+        command=list(flatten(basecommand))
+        """print(command)"""
+        runprogram(command)
+    else:
+        print("{} mkvmerge not found.".format(colors.mood("sad")))
+        raise FileNotFoundError
 
 if options["combine"]:
     if not options["output"]:
@@ -103,8 +111,17 @@ else:
         print("{} Muxing {} into a matroska file.".format(colors.mood("happy"), filename))
         if filepath.exists():
             if options["ffmpeg"]:
-                runprogram(["ffmpeg", "-i", filename, "-c", "copy", "-f", "matroska", '-hide_banner', '-y', str(filepath.with_suffix(".mkv"))])
+                if ffmpeg:
+                    runprogram([ffmpeg, "-i", filename, "-c", "copy", "-f", "matroska", '-hide_banner', '-y', str(filepath.with_suffix(".mkv"))])
+                else:
+                    print("{} ffmpeg not found.".format(colors.mood("sad")))
+                    raise FileNotFoundError
+
                 if mkvpropedit:
                     runprogram([mkvpropedit, "--add-track-statistics-tags", str(filepath.with_suffix(".mkv"))])
             else:
-                runprogram(["mkvmerge", "-o", str(filepath.with_suffix(".mkv")), "=", filename])
+                if mkvmerge:
+                    runprogram([mkvmerge, "-o", str(filepath.with_suffix(".mkv")), "=", filename])
+                else:
+                    print("{} mkvmerge not found.".format(colors.mood("sad")))
+                    raise FileNotFoundError
