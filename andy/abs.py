@@ -45,12 +45,16 @@ class ABS:
 
         self.converttest=converttest
 
-        self.autocount=0
-        self.frcount=0
+        self.auto=False
+        self.fr=False
 
         self.nocodec=(None, "none", "copy")
 
         self.mkvpropedit=shutil.which("mkvpropedit", mode=os.X_OK)
+        self.ffmpeg=shutil.which("ffmpeg", mode=os.X_OK)
+        if not self.ffmpeg:
+            print("{} ffmpeg not found, exiting.")
+            raise FileNotFoundError
 
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
 
@@ -60,9 +64,9 @@ class ABS:
             if framerate:
                 return ["-filter:v", "fps={}".format(framerate)]
             elif self.database and not framerate and videocodec not in self.nocodec:
-                while self.frcount == 0:
+                if self.fr is False:
                     print("{} Frame Rate not specified, attempting to read from the database.".format(colors.mood("neutral")))
-                    self.frcount=self.frcount+1
+                    self.frcount=True
                 with self.database:
                     try:
                         self.db.execute("select frame_rate from videoinfo where filename=?", (filepath.name,))
@@ -95,9 +99,9 @@ class ABS:
 
             def auto_bitrates():
                 if self.database:
-                    while self.autocount == 0:
+                    if self.auto is False:
                         print("{} Bit-rates not specified, attempting to guess from database entries.".format(colors.mood("neutral")))
-                        self.autocount=self.autocount+1
+                        self.auto=True
                     with self.database:
                         self.db.execute("select streams from videoinfo where filename=?", (filepath.name,))
                         streams=self.db.fetchone()[0]
@@ -118,7 +122,7 @@ class ABS:
                 if self.debug:
                     print(bitrates)
 
-            if (not 'videobitrate' in vars() or not videobitrate) and videocodec and videocodec not in self.nocodec and len(bitrates) is 2:
+            if (not 'videobitrate' in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) is 2:
                 videobitrate=str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
@@ -137,7 +141,7 @@ class ABS:
                     print(audiobitrate)
 
             biglist=[]
-            baselist=["ffmpeg", "-i", str(filepath)]
+            baselist=[self.ffmpeg, "-i", str(filepath)]
             videocodeclist=["-c:v", videocodec]
             bitratelist=["-b:v", videobitrate]
             passlist=["-pass", str(passno), "-passlogfile", str(filepath.with_suffix(""))]
