@@ -6,3 +6,4 @@ __pycache__
 !.gitignore
 oldhashfile.py
 findvideoinfo
+*_videoutil
