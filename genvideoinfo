@@ -5,7 +5,6 @@ import sqlite3
 import argparse
 from humanize.filesize import naturalsize
 import sys
-import subprocess
 import time
 import atexit
 import locale
@@ -13,9 +12,6 @@ import locale
 from andy.colors import Color
 from andy.sortentries import sortentries
 from andy.hashfile import hashfile
-from andy.flatten import flatten
-from andy.runprogram import runprogram
-from andy.prettylist import prettylist
 from andy.returninfo import returninfo
 
 colors=Color()
