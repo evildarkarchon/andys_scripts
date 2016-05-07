@@ -9,7 +9,6 @@ import os
 from andy.runprogram import runprogram
 from andy.colors import Color
 from andy.sortentries import sortentries
-from andy.flatten import flatten
 
 colors=Color()
 

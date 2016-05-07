@@ -1,7 +1,6 @@
 #!/usr/bin/python3.5
 import pathlib
 from datetime import datetime
-from datetime import timedelta
 
 from andy.colors import Color
 from andy.sortentries import sortentries
