@@ -18,20 +18,15 @@ try:
 except ImportError:
     pass
 
-from andy.colors import Color
-from andy.flatten import flatten
-from andy.runprogram import runprogram
-from andy.sortentries import sortentries
-from andy.flatten import flatten
-from andy.prettylist import prettylist
-from andy.returninfo import returninfo
-from andy.hashfile import hashfile
+from andy.util import Color, Util, Program
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
 class VideoUtil:
     def __init__(self, database=None, dboptional=True):
         self.colors=Color()
+        self.util=Util()
+        self.program=Program()
         if database:
             try:
                 self.database=sqlite3.connect(database)
@@ -50,6 +45,7 @@ class VideoUtil:
         self.mkvpropedit=shutil.which("mkvpropedit", mode=os.X_OK)
         self.ffmpeg=shutil.which("ffmpeg", mode=os.X_OK)
         self.mkvmerge=shutil.which("mkvmerge", mode=os.X_OK)
+        self.ffprobe=shutil.which("ffprobe", mode=os.X_OK)
 
 class ABS(VideoUtil):
     def __init__(self, database=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), debug=None, backup=None, output=None, converttest=False):
@@ -206,7 +202,7 @@ class ABS(VideoUtil):
 
             #print(list(flatten(biglist))) #temporary for debugging purposes
 
-            return list(flatten(biglist))
+            return list(self.util.flatten(biglist))
 
         def convertdone():
             if self.database and not self.converttest:
@@ -219,7 +215,7 @@ class ABS(VideoUtil):
 
             if ("mkv" in container or "mka" in container) and self.mkvpropedit:
                 print("{} Adding statistics tags to output file.".format(self.colors.mood("happy")))
-                runprogram([self.mkvpropedit, "--add-track-statistics-tags", output])
+                self.program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", output])
 
         if self.debug:
             print('')
@@ -231,8 +227,8 @@ class ABS(VideoUtil):
 
         if passes is 2 and not self.debug:
             try:
-                runprogram(commandlist(passno=1, passmax=2))
-                runprogram(commandlist(passno=2, passmax=2))
+                self.program.runprogram(commandlist(passno=1, passmax=2))
+                self.program.runprogram(commandlist(passno=2, passmax=2))
             except (KeyboardInterrupt, subprocess.CalledProcessError):
                 if outpath.exists():
                     print("\n{} Removing unfinished file.".format(self.colors.mood("neutral")))
@@ -242,11 +238,11 @@ class ABS(VideoUtil):
             finally:
                 if pathlib.Path(filename.replace(filepath.suffix, "-0.log")).exists():
                     print("{} Removing 1st pass log file.".format(self.colors.mood("neutral")))
-                    runprogram(["rm", filename.replace(filepath.suffix, "-0.log")])
+                    self.program.runprogram(["rm", filename.replace(filepath.suffix, "-0.log")])
 
         elif passes is 1 and not self.debug:
             try:
-                runprogram(commandlist(passmax=1))
+                self.program.runprogram(commandlist(passmax=1))
             except (KeyboardInterrupt, subprocess.CalledProcessError):
                 if outpath.exists():
                     print("{} Removing unfinished file.".format(self.colors.mood("neutral")))
@@ -255,14 +251,282 @@ class ABS(VideoUtil):
                 convertdone()
 
 class VideoInfo(VideoUtil):
+    def __init__(self, dbfile=None):
+        if dbfile:
+            VideoUtil.__init__(database=dbfile, dboptional=False)
+        else:
+            VideoUtil.__init__()
+        self.createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, streams integer, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'
+        self.createstatementjson='CREATE TABLE IF NOT EXISTS videojson (id INTEGER UNIQUE, filename TEXT UNIQUE, jsondata JSON)'
+
+    def resetjson(self, dbfile=None):
+        if self.database:
+            with self.database:
+                print("{} Purging JSON cache from {}".format(self.colors.mood("happy"), pathlib.Path(databasefile).resolve()))
+                self.db.execute('delete from videojson')
+        else:
+            database=sqlite3.connect(dbfile)
+            with database:
+                db=database.cursor()
+                print("{} Purging JSON cache from {}".format(self.colors.mood("happy"), pathlib.Path(databasefile).resolve()))
+                db.execute('delete from videojson')
+
+    def resetvideoinfo(self, dbfile=None):
+        if self.database:
+            with self.database:
+                print("{} Regenerating the videoinfo table for {}.".format(self.colors.mood("happy"), pathlib.Path(databasefile).resolve()))
+                self.db.execute('drop table if exists videoinfo')
+                self.db.execute(self.createstatement)
+        else:
+            database=sqlite3.connect(dbfile)
+        with database:
+            print("{} Regenerating the videoinfo table for {}.".format(self.colors.mood("happy"), pathlib.Path(databasefile).resolve()))
+
+    def deleteentry(self, table, criteria, value, dbfile=None):
+        if self.database:
+            with self.database:
+                print("{} Deleting {} from {}".format(self.colors.mood("happy"), value, table))
+                self.db.execute('delete from ? where ?=?', (table, criteria, value))
+        else:
+            database=sqlite3.connect(dbfile)
+            with database:
+                db=database.cursor()
+                db.execute('delete from ? where ?=?', (table, criteria, value))
 
 class GenVideoInfo(VideoUtil, VideoInfo):
-    def __init__(self, database=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), delete=False, debug=False, reset_json=False):
-        VideoUtil.__init__(database=database, dboptional=False)
+    def __init__(self, databasefile=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), delete=False, debug=False):
+        # VideoUtil.__init__(database=databasefile, dboptional=False)
+        VideoInfo.__init__(dbfile=databasefile)
+        self.debug=debug
+        self.delete=delete
+        self.reset_json=reset_json
+        self.filehash={}
 
-    def generate(self, files):
+    def genhashlist(self, files, existinghash=None):
+        for filename in files:
+            if filename not in existinghash:
+                print("{} Calculating hash for {}".format(self.colors.mood("happy"), filename))
+                yield filename, hashfile(filename)
 
-class FindVideoInfo(VideoUtil, VideoInfo):
+    def genexisting(self):
+        with self.database:
+            self.db.execute("select filename, hash from videoinfo")
+            for filename, hashval in self.db.fetchall():
+                yield filename, hashval
+
+    def genfilelist(self, filelist=None, existinghash=None):
+        try:
+            whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
+
+            with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
+                if filelist:
+                    if isinstance(filelist, str) and pathlib.Path(filelist).is_dir():
+                        paths=pathlib.Path(filelist).iterdir()
+                        for filepath in paths:
+                            if not self.debug:
+                                if m.id_filename(filepath.name) in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                                    yield str(filepath)
+                            else:
+                                if m.id_filename(filepath.name) in whitelist and filepath.is_file():
+                                    yield str(filepath)
+                    else:
+                        for filename in filelist:
+                            filepath=pathlib.Path(filename)
+                            if not self.debug:
+                                if m.id_filename(filename) in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                                    yield filepath.name
+                            else:
+                                if m.id_filename(filename) in whitelist and filepath.is_file():
+                                    yield filepath.name
+                else:
+                    for filepath in pathlib.Path.cwd().iterdir():
+                        if not self.debug:
+                            if m.id_filename(str(filepath)) in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                                yield filepath.name
+                        else:
+                            if m.id_filename(str(filepath)) in whitelist and filepath.is_file():
+                                yield filepath.name
+        except NameError:
+            whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
+            if filelist:
+                if isinstance(filelist, str) and pathlib.Path(filelist).is_dir():
+                    paths=pathlib.Path(filelist).iterdir()
+                    for filepath in paths:
+                        if not self.debug:
+                            if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                                yield str(filepath)
+                        else:
+                            if filepath.suffix in whitelist and filepath.is_file():
+                                yield str(filepath)
+
+                for filename in filelist:
+                    filepath=pathlib.Path(filename)
+                    if not self.debug:
+                        if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                            yield str(filepath)
+                    else:
+                        if filepath.suffix in whitelist and filepath.is_file():
+                            yield str(filepath)
+            else:
+                for filepath in pathlib.Path.cwd().iterdir():
+                    if not self.debug:
+                        if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                            yield str(filepath)
+                    else:
+                        if filepath.suffix in whitelist and filepath.is_file():
+                            yield str(filepath)
+            pass
+
+    def gvigenjson(self, videofile):
+        with self.database:
+            self.db.execute('select filename from videojson where filename = ?', (videofile,))
+            try:
+                entryexists=self.db.fetchone()[0]
+            except (TypeError, IndexError, KeyError):
+                entryexists=False
+                pass
+            if entryexists:
+                self.db.execute('select jsondata from videojson where filename = ?', (videofile,))
+                if self.debug:
+                    print("{} Using Database".format(self.colors.mood("neutral")))
+                return self.db.fetchone()[0]
+            else:
+                if self.debug:
+                    print("Extracting Data")
+                return self.program.returninfo(["ffprobe", "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
+
+    def generate(self, videofile, hash=self.filehash):
+        print("{} Extracting metadata for {}".format(self.colors.mood("happy"), videofile))
+        video_dict={}
+        jsondata=json.loads(GenVideoInfo.gvigenjson(videofile))
+
+        video_dict["filename"]=pathlib.Path(videofile).name
+        video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"].get("duration")))))
+        video_dict["duration_raw"]=float(jsondata["format"].get("duration"))
+        video_dict["bitrate_total"]=naturalsize(jsondata["format"].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
+        video_dict["container"]=jsondata["format"].get("format_name")
+        video_dict["streams"]=jsondata["format"].get("nb_streams")
+        try:
+            if "tags" in jsondata["streams"][0] and not "bit_rate" in jsondata["streams"][0] and "BPS" in jsondata["streams"][0]["tags"]:
+                video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0]["tags"].get("BPS")).replace(" MB", "M").replace(" kB", "K")
+            else:
+                video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
+        except (KeyError, IndexError, TypeError):
+            video_dict["bitrate_0"]=None
+            pass
+        try:
+            if "tags" in jsondata["streams"][0] and not "bit_rate" in jsondata["streams"][0] and "BPS" in jsondata["streams"][0]["tags"]:
+                video_dict["bitrate_0_raw"]=int(jsondata["streams"][0]["tags"].get("BPS"))
+            else:
+                video_dict["bitrate_0_raw"]=int(jsondata["streams"][0].get("bit_rate"))
+        except (KeyError, IndexError, TypeError):
+            video_dict["bitrate_0_raw"]=None
+            pass
+
+        try:
+            if "tags" in jsondata["streams"][1] and not "bitrate" in jsondata["streams"][1] and "BPS" in jsondata["streams"][1]["tags"]:
+                video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1]["tags"].get("BPS")).replace(" MB", "M").replace(" kB", "K")
+            else:
+                video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
+        except (KeyError, IndexError, TypeError):
+            video_dict["bitrate_1"]=None
+            pass
+        try:
+            if "tags" in jsondata["streams"][1] and not "bitrate" in jsondata["streams"][1] and "BPS" in jsondata["streams"][1]["tags"]:
+                video_dict["bitrate_1_raw"]=int(jsondata["streams"][1]["tags"].get("BPS"))
+            else:
+                video_dict["bitrate_1_raw"]=int(jsondata["streams"][1].get("bit_rate"))
+        except (KeyError, IndexError, TypeError):
+            video_dict["bitrate_1_raw"]=None
+            pass
+
+        try:
+            video_dict["height"]=jsondata["streams"][0].get("height")
+        except (KeyError, IndexError):
+            video_dict["height"]=None
+            pass
+
+        try:
+            video_dict["width"]=jsondata["streams"][0].get("width")
+        except (KeyError, IndexError):
+            video_dict["width"]=None
+            pass
+
+        video_dict["codec_0"]=jsondata["streams"][0].get("codec_name")
+
+        try:
+            video_dict["codec_1"]=jsondata["streams"][1].get("codec_name")
+        except (KeyError, IndexError):
+            video_dict["codec_1"]=None
+            pass
+
+        if not video_dict["height"]:
+            try:
+                video_dict["height"]=jsondata["streams"][1].get("height")
+            except (KeyError, IndexError):
+                video_dict["height"]=None
+                pass
+        if not video_dict["width"]:
+            try:
+                video_dict["width"]=jsondata["streams"][1].get("width")
+            except (KeyError, IndexError):
+                video_dict["width"]=None
+                pass
+
+        video_dict["hash"]=hash
+
+        if jsondata["streams"][0].get("avg_frame_rate"):
+            try:
+                framerate=round(eval(jsondata["streams"][0].get("avg_frame_rate")), 2)
+                if framerate is not 0 and isinstance(framerate, (int, float)):
+                    video_dict["frame_rate"]=framerate
+                else:
+                    video_dict["frame_rate"]=None
+            except ZeroDivisionError:
+                video_dict["frame_rate"]=None
+                pass
+        elif jsondata["streams"][1].get("avg_frame_rate"):
+            try:
+                framerate=round(eval(jsondata["streams"][1].get("avg_frame_rate")), 2)
+                if not "frame_rate" in video_dict and not video_dict["frame_rate"]:
+                    if framerate is not 0 and isinstance(framerate, (int, float)):
+                        video_dict["frame_rate"]=framerate
+                    else:
+                        video_dict["frame_rate"]=None
+            except ZeroDivisionError:
+                video_dict["frame_rate"]=None
+                pass
+        else:
+            video_dict["frame_rate"]=None
+        return video_dict
+    def write(self, videodict):
+        columns=', '.join(tuple(videodict.keys()))
+        placeholders=':'+', :'.join(videodict.keys())
+        query='insert into videoinfo ({}) values ({})'.format(columns, placeholders)
+
+        if self.debug:
+            print("Dictionary Keys:", tuple(video_dict.keys()))
+            print("Dictionary Values:", tuple(video_dict.values()))
+            print("Number of keys in Dictionary:", len(video_dict.keys()))
+            print("SQL Query:", query)
+        else:
+            with self.database:
+                db=self.database.cursor()
+                db.execute(query, video_dict)
+
+                db.execute('select filename from videojson where filename = ?', (video_dict["filename"],))
+                try:
+                    entryexists=db.fetchone()[0]
+                except(TypeError, KeyError, IndexError):
+                    entryexists=False
+                    pass
+                if not entryexists:
+                    print("{} Caching a copy of the json data for {}".format(self.colors.mood("happy"), video_dict["filename"]))
+                    db.execute('select id from videoinfo where filename = ?', (video_dict["filename"],))
+                    dbid=db.fetchone()[0]
+                    db.execute('insert into videojson values(?, ?, ?)', (dbid, video_dict["filename"], json.dumps(jsondata)))
+
+class FindVideoInfo(VideoUtil):
     def __init__(self, directory):
         VideoUtil.__init__()
         try:
@@ -287,13 +551,13 @@ class FindVideoInfo(VideoUtil, VideoInfo):
                 if "SQLite 3.x database" in filetype:
                     yield str(filename.parent)
 
-class ResetVideoInfo(VideoUtil, VideoInfo, FindVideoInfo, GenVideoInfo):
+class ResetVideoInfo(VideoUtil, FindVideoInfo, GenVideoInfo, VideoInfo):
     def __init__(self, directory, reset_json=False, reset_videoinfo=True):
         VideoUtil.__init__()
-        self.vi=VideoInfo()
         self.fvi=FindVideoInfo(directory)
+        self.gvi=GenVideoInfo()
 
-        self.directories=sortentries(list(self.fvi.find()))
+        self.directories=Util.sortentries(list(self.fvi.find()))
 
         self.reset_json=reset_json
         self.reset_videoinfo=reset_videoinfo
@@ -303,12 +567,12 @@ class ResetVideoInfo(VideoUtil, VideoInfo, FindVideoInfo, GenVideoInfo):
 
         for directory in self.directories:
             dbpath=pathlib.Path(directory).joinpath("videoinfo.sqlite")
-            gvi=GenVideoInfo(database=str(dbpath))
+            vi=VideoInfo(vidatabase=str(dbpath))
+            gvi=GenVideoInfo(databasefile=str(dbpath))
             if dbpath.exists():
                 database=sqlite3.connect(str(dbpath))
             else:
-                print("{} No database file found.".format(self.colors.mood("sad")))
-                raise FileNotFoundError
+                continue
             if newline:
                 print('')
             if newline is False:
@@ -317,7 +581,7 @@ class ResetVideoInfo(VideoUtil, VideoInfo, FindVideoInfo, GenVideoInfo):
 
             with database:
                 if self.reset_json:
-                    db.execute('delete from videojson')
+                    self.db.execute('delete from videojson')
                 if self.reset_videoinfo:
-                    db.execute('drop table videoinfo')
-            gvi.generate(directory)
+                    self.db.execute('drop table videoinfo')
+            for files in GenVideoInfo.genfilelist(filelist=directory):
