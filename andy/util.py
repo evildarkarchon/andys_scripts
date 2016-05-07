@@ -3,10 +3,11 @@ import collections
 import json
 import pathlib
 import shlex
-import shutil
 import pwd
 import sys
 import hashlib
+import os
+import subprocess
 
 try:
     from natsort import humansorted
@@ -36,7 +37,7 @@ class Util(Color):
     def flatten(self, lst):
         for elem in lst:
             if isinstance(elem, (tuple, list, collections.deque)):
-                for i in flatten(elem):
+                for i in elem:
                     yield i
             else:
                 yield elem
@@ -44,9 +45,9 @@ class Util(Color):
     def genjson(self, filename, dictionary, printdata=False):
         jsonpath=pathlib.Path(filename).resolve()
     #    print(dictionary)
-            if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
-                print("{} Second argument must be a dictionary.".format(self.colors.mood("sad")))
-                raise TypeError
+        if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
+            print("{} Second argument must be a dictionary.".format(self.colors.mood("sad")))
+            raise TypeError
         if not printdata:
             if jsonpath.exists():
                 print("{} Backing up {} to {}".format(self.colors.mood("happy"), str(jsonpath), str(jsonpath).replace(".json", ".json.bak")))
@@ -121,6 +122,7 @@ class Util(Color):
 class Program(Util, Color):
     def __init__(self):
         self.colors=Color()
+        self.util=Util()
 
     def runprogram(self, program, verify=True, use_sudo=False, user="root", stdinput=None, stdoutput=None, stderror=None, environment=None, workdir=None):
         if isinstance(program, collections.deque):
@@ -145,7 +147,7 @@ class Program(Util, Color):
             """command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list."""
             sudo=collections.deque(["sudo", "-u", user])
             command=sudo+command
-        if Util.is_python_version((3,5,0)):
+        if self.util.is_python_version((3,5,0)):
             subprocess.run(command, input=stdinput, stdout=stdoutput, stderr=stderror, env=environment, check=verify, cwd=workdir)
         else:
             if verify:
