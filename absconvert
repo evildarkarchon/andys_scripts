@@ -4,16 +4,15 @@ import json
 import locale
 import pathlib
 from collections import ChainMap
-from andy.genjson import genjson
 import shlex
 
-from andy.abs import ABS
-from andy.colors import Color
-from andy.sortentries import sortentries
+from andy.videoutil import ABS
+from andy.util import Color, Util
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
 colors=Color()
+util=Util()
 
 args=argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -47,7 +46,7 @@ cmdline=vars(args.parse_args())
 
 
 def configdict():
-    if (not 'config' in cmdline or not cmdline["config"]) or not pathlib.Path(cmdline["config"]).exists():
+    if ('config' not in cmdline or not cmdline["config"]) or not pathlib.Path(cmdline["config"]).exists():
         print("{} Could not find configuration file or one was not specified, generating one with default values.".format(colors.mood("neutral")))
         defaultconfig={}
 
@@ -62,7 +61,7 @@ def configdict():
         defaultconfig["codecs"]["libvpx-vp9"]=["-threads", "4", "-tile-columns", "6", "-frame-parallel", "1", "-speed", "1"]
 
         if not cmdline["debug"]:
-            genjson(str(pathlib.Path.home().joinpath(".config", "absconvert.json")), defaultconfig)
+            util.genjson(str(pathlib.Path.home().joinpath(".config", "absconvert.json")), defaultconfig)
 
         return ChainMap(cmdline, defaultconfig)
     else:
@@ -124,7 +123,7 @@ if not options["passes"]:
     options["passes"]=options["defaults"]["passes"]
 
 if not options["no_sort"]:
-    options["files"]=sortentries(options["files"])
+    options["files"]=util.sortentries(options["files"])
 
 if "frame_rate" not in options:
     options["frame_rate"]=None
