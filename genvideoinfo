@@ -5,7 +5,7 @@ import locale
 import sys
 
 from andy.videoutil import VideoInfo, GenVideoInfo
-from andy.util import Color
+from andy.util import Color, Util
 
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
@@ -23,6 +23,7 @@ options=vars(args.parse_args())
 vi=VideoInfo(options["database"])
 gvi=GenVideoInfo(options["database"], debug=options["debug"])
 colors=Color()
+util=Util()
 
 if options["regen"]:
     vi.resetvideoinfo()
@@ -36,15 +37,18 @@ if options["maintainence"]:
     vi.maintainence()
     sys.exit(0)
 
-if not options["files"]:
-    temp1=pathlib.Path.cwd().iterdir()
+if not options["files"] or pathlib.Path(options["files"]).is_dir():
+    if not options["files"]:
+        temp1=pathlib.Path.cwd().iterdir()
+    elif options["files"] and pathlib.Path(options["files"]).is_dir():
+        temp1=pathlib.Path(options["files"]).iterdir()
     options["files"]=[]
     for path in temp1:
         options["files"].append(str(path))
 
 if not options["delete"] and not options["reset_json"] and not options["maintainence"]:
     existinghashes=dict(gvi.genexisting())
-    filelist=list(gvi.genfilelist(options["files"], existinghashes))
+    filelist=util.sortentries(list(gvi.genfilelist(options["files"], existinghashes)))
     print(filelist)
 
     if len(filelist) is 0:

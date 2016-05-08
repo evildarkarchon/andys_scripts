@@ -135,22 +135,18 @@ class ABS(VideoUtil):
                         streams=self.db.fetchone()[0]
                         self.db.execute("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", (filepath.name,))
                         bitrates=self.db.fetchone()
-                        if streams is 2:
+                        if streams >= 2:
                             return [bitrates[0], bitrates[1]]
                         elif streams is 1:
-                            return bitrates
+                            return bitrates[0]
                 else:
                     return None
             if ('videobitrate' not in vars() and 'audiobitrate' not in vars()) or (not videobitrate and not audiobitrate):
                 bitrates=auto_bitrates()
-                """print(bitrates)"""
-                """if len(bitrates) is not 2:
-                    print("{} Bitrates variable must have 2 entries.".format(self.colors.mood("sad")))
-                    raise ValueError"""
                 if self.debug:
                     print(bitrates)
 
-            if (not 'videobitrate' in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) is 2:
+            if ('videobitrate' not in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) is 2:
                 videobitrate=str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
@@ -581,4 +577,3 @@ class FindVideoInfo(VideoUtil):
             self.files=files
 
         def ffmpegconcat(self):"""
-    
