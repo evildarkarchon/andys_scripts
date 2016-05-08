@@ -569,8 +569,16 @@ class FindVideoInfo(VideoUtil):
                 if "SQLite 3.x database" in filetype:
                     yield str(filename.parent)
 
-class ConvertMKV (VideoInfo):
-        def __init__(self, databasefile=None):
+"""class ConvertMKV (VideoInfo):
+        def __init__(self, files, databasefile=None,):
             if databasefile:
-                VideoInfo.__init__()
-        
+                VideoInfo.__init__(databasefile)
+            else:
+                self.ffmpeg=shutil.which("ffmpeg", mode=os.X_OK)
+                self.mkvmerge=shutil.which("mkvmerge", mode=os.X_OK)
+                self.mkvpropedit=shutil.which("mkvpropedit", mode=os.X_OK)
+                self.database=None
+            self.files=files
+
+        def ffmpegconcat(self):"""
+    
