@@ -48,8 +48,8 @@ class VideoUtil:
         self.ffprobe=shutil.which("ffprobe", mode=os.X_OK)
 
 class ABS(VideoUtil):
-    def __init__(self, database=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), debug=None, backup=None, output=None, converttest=False):
-        VideoUtil.__init__(self, database=database)
+    def __init__(self, dbfile=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), debug=None, backup=None, output=None, converttest=False):
+        VideoUtil.__init__(self, database=dbfile)
 
         self.debug=debug
 
@@ -275,21 +275,54 @@ class VideoInfo(VideoUtil):
             self.db.execute('drop table if exists videoinfo')
             self.db.execute(self.createstatement)
 
-    def deleteentry(self, table, criteria, value):
+    def deleteentry(self, value):
         with self.database:
-            print("{} Deleting {} from {}".format(self.colors.mood("happy"), value, table))
-            self.db.execute('delete from ? where ?=?', (table, criteria, value))
+            print("{} Deleting {} from videoinfo".format(self.colors.mood("happy"), value))
+            self.db.execute('delete from videoinfo where filename=?', (value,))
 
-    def viewvideoinfo(self, ):
+    def maintainence(self):
+        with self.database:
+            print("{} Vacuuming Database.")
+            self.db.execute('vacuum')
+
+    def queryvideoinfo(self, query, *values):
+        self.db.execute(query, values)
 
 class GenVideoInfo(VideoUtil, VideoInfo):
     def __init__(self, databasefile, debug=False):
         # VideoUtil.__init__(database=databasefile, dboptional=False)
-        VideoInfo.__init__(self, dbfile=databasefile)
+        VideoInfo.__init__(self, databasefile)
         self.debug=debug
-        self.delete=delete
         self.reset_json=reset_json
-        self.filehash={}
+
+        with self.database:
+            self.db.execute('pragma auto_vacuum')
+            av=self.db.fetchone()
+            if av[0] is not 1:
+                self.db.execute('pragma auto_vacuum = 1')
+                self.db.execute('vacuum')
+
+            self.db.execute('pragma page_size')
+            pgsize=self.db.fetchone()
+            if pgsize[0] is not 4096:
+                self.db.execute('pragma page_size = 4096')
+                self.db.execute('vacuum')
+            self.db.execute('pragma cache_size = -2000')
+
+            self.db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
+            vi=self.db.fetchone()
+            try:
+                vitemp=len(vi)
+            except TypeError:
+                self.db.execute(self.createstatement)
+                pass
+
+            self.db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videojson';")
+            vj=self.db.fetchone()
+            try:
+                vitemp=len(vj)
+            except TypeError:
+                self.db.execute(self.createstatementjson)
 
     def genhashlist(self, files, existinghash=None):
         for filename in files:
@@ -303,34 +336,36 @@ class GenVideoInfo(VideoUtil, VideoInfo):
             for filename, hashval in self.db.fetchall():
                 yield filename, hashval
 
-    def genfilelist(self, filelist=None, existinghash=None):
+    def genfilelist(self, filelist, existinghash=None):
+        if isinstance(filelist, (tuple, list)) and pathlib.Path(filelist[0]).is_dir() and len(filelist) > 1:
+            print("{} Multiple directories are not supported at this time.".format(self.colors.mood("sad")))
+            raise ValueError
         try:
             whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
 
             with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
-                if filelist:
-                    if isinstance(filelist, str) and pathlib.Path(filelist).is_dir():
-                        paths=pathlib.Path(filelist).iterdir()
-                        for filepath in paths:
-                            if not self.debug:
-                                if m.id_filename(filepath.name) in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                                    yield str(filepath)
-                            else:
-                                if m.id_filename(filepath.name) in whitelist and filepath.is_file():
-                                    yield str(filepath)
-                    else:
-                        for filename in filelist:
-                            filepath=pathlib.Path(filename)
-                            if not self.debug:
-                                if m.id_filename(filename) in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                                    yield filepath.name
-                            else:
-                                if m.id_filename(filename) in whitelist and filepath.is_file():
-                                    yield filepath.name
+                if pathlib.Path(filelist).is_dir():
+                    paths=pathlib.Path(filelist).iterdir()
+                    for filepath in paths:
+                        if not self.debug:
+                            if m.id_filename(filepath.name) in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                                yield str(filepath)
+                        else:
+                            if m.id_filename(filepath.name) in whitelist and filepath.is_file():
+                                yield str(filepath)
+                else:
+                    for filename in filelist:
+                        filepath=pathlib.Path(filename)
+                        if not self.debug:
+                            if m.id_filename(filename) in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                                yield str(filepath)
+                        else:
+                            if m.id_filename(filename) in whitelist and filepath.is_file():
+                                yield str(filepath)
         except NameError:
             whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
             if filelist:
-                if isinstance(filelist, str) and pathlib.Path(filelist).is_dir():
+                if pathlib.Path(filelist).is_dir():
                     paths=pathlib.Path(filelist).iterdir()
                     for filepath in paths:
                         if not self.debug:
@@ -351,6 +386,7 @@ class GenVideoInfo(VideoUtil, VideoInfo):
             pass
 
     def gvigenjson(self, videofile):
+        print("{} Extracting metadata for {}".format(self.colors.mood("happy"), videofile))
         with self.database:
             self.db.execute('select filename from videojson where filename = ?', (videofile,))
             try:
@@ -365,13 +401,12 @@ class GenVideoInfo(VideoUtil, VideoInfo):
                 return self.db.fetchone()[0]
             else:
                 if self.debug:
-                    print("Extracting Data")
+                    print("{} Extracting Data from file.")
                 return self.program.returninfo(["ffprobe", "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
 
-    def generate(self, videofile, hash=self.filehash):
-        print("{} Extracting metadata for {}".format(self.colors.mood("happy"), videofile))
+    def generate(self, videofile, jsoninfo, filehash):
         video_dict={}
-        jsondata=json.loads(GenVideoInfo.gvigenjson(videofile))
+        jsondata=jsoninfo
 
         video_dict["filename"]=pathlib.Path(videofile).name
         video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"].get("duration")))))
@@ -446,7 +481,7 @@ class GenVideoInfo(VideoUtil, VideoInfo):
                 video_dict["width"]=None
                 pass
 
-        video_dict["hash"]=hash
+        video_dict["hash"]=filehash
 
         if jsondata["streams"][0].get("avg_frame_rate"):
             try:
@@ -472,31 +507,32 @@ class GenVideoInfo(VideoUtil, VideoInfo):
         else:
             video_dict["frame_rate"]=None
         return video_dict
-    def write(self, videodict, fn):
+
+    def write(self, videodict):
         columns=', '.join(tuple(videodict.keys()))
         placeholders=':'+', :'.join(videodict.keys())
         query='insert into videoinfo ({}) values ({})'.format(columns, placeholders)
 
         if self.debug:
-            print("Dictionary Keys:", tuple(video_dict.keys()))
-            print("Dictionary Values:", tuple(video_dict.values()))
-            print("Number of keys in Dictionary:", len(video_dict.keys()))
+            print("Dictionary Keys:", tuple(videodict.keys()))
+            print("Dictionary Values:", tuple(videodict.values()))
+            print("Number of keys in Dictionary:", len(videodict.keys()))
             print("SQL Query:", query)
         else:
             with self.database:
                 self.db.execute(query, video_dict)
 
-                self.db.execute('select filename from videojson where filename = ?', (fn,))
+                self.db.execute('select filename from videojson where filename = ?', (videodict["filename"],))
                 try:
                     entryexists=self.db.fetchone()[0]
                 except(TypeError, KeyError, IndexError):
                     entryexists=False
                     pass
                 if not entryexists:
-                    print("{} Caching a copy of the json data for {}".format(self.colors.mood("happy"), fn))
-                    self.db.execute('select id from videoinfo where filename = ?', (video_dict["filename"],))
+                    print("{} Caching a copy of the json data for {}".format(self.colors.mood("happy"), videodict["filename"]))
+                    self.db.execute('select id from videoinfo where filename = ?', (videodict["filename"],))
                     dbid=self.db.fetchone()[0]
-                    self.db.execute('insert into videojson values(?, ?, ?)', (dbid, fn, json.dumps(jsondata)))
+                    self.db.execute('insert into videojson values(?, ?, ?)', (dbid, videodict["filename"], json.dumps(jsondata)))
 
 class FindVideoInfo(VideoUtil):
     def __init__(self, directory):
