@@ -1,13 +1,12 @@
 #!/usr/bin/python3.5
 import pathlib
-import magic
 import argparse
 
-from andy.sortentries import sortentries
-from andy.runprogram import runprogram
-from andy.colors import Color
+from andy.util import Color, Util
+from andy.videoutil import VideoInfo, GenVideoInfo, FindVideoInfo
 
 colors=Color()
+util=Util()
 
 args=argparse.ArgumentParser()
 args.add_argument("--reset-json", "-rj", action="store_true", help="Reset the JSON cache instead of the videoinfo table.")
@@ -15,37 +14,25 @@ args.add_argument("--reset-all", "-r", action="store_true", help="Reset both the
 args.add_argument("directory", default="/data/Private", nargs="?", help="Directory to look for videoinfo databases")
 options=vars(args.parse_args())
 
-if pathlib.Path(options["directory"]).is_dir():
-    pass
-else:
-    if not pathlib.Path(options["directory"]).exists():
-        print("{} Specified directory does not exist.")
-        raise FileNotFoundError
-    else:
-        print("{} Specified location is not a directory.")
-        raise NotADirectoryError
+fvi=FindVideoInfo()
 
-fileglob=pathlib.Path(options["directory"]).rglob("videoinfo.sqlite")
+directories=list(fvi.find(options["directory"]))
 
-dirlist=[]
+for directory in directories:
+    vi=VideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
+    gvi=GenVideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
+    path=pathlib.Path(directory).resolve()
+    files=[]
+    for filename in path.iterdir():
+        files.append(str(filename))
 
-for filename in fileglob:
-    with magic.Magic() as m, open(str(filename), "rb") as f:
-        filetype=m.id_buffer(f.read())
-        if "SQLite 3.x database" in filetype:
-            dirlist.append(str(filename.parent))
-
-dirlist=sortentries(dirlist)
-
-newline=False
-
-for directory in dirlist:
-    if newline:
-        print('')
-    if newline is False:
-        newline=True
-    print("{} Resetting videoinfo database in {}".format(colors.mood("happy"), str(directory)))
     if options["reset_json"] or options["reset_all"]:
-        runprogram(["genvideoinfo", "--reset-json"], workdir=str(directory))
+        vi.resetjson()
+
     if not options["reset_json"]:
-        runprogram(["genvideoinfo", "--regen"], workdir=str(directory))
+        vi.resetvideoinfo()
+        filelist=list(gvi.genfilelist(files))
+        hashes=dict(gvi.genhashlist(filelist))
+        for filename in filelist:
+            jsondump=gvi.gvigenjson(filename)
+            gvi.write(gvi.generate(filename, jsondump, hashes[filename]), jsondump)

@@ -1,33 +1,18 @@
 #!/usr/bin/python3.5
 import pathlib
-import json
-import sqlite3
 import argparse
-from humanize.filesize import naturalsize
-import sys
-import time
-import atexit
 import locale
+import sys
 
-from andy.colors import Color
-from andy.sortentries import sortentries
-from andy.hashfile import hashfile
-from andy.returninfo import returninfo
+from andy.videoutil import VideoInfo, GenVideoInfo
+from andy.util import Color
 
-colors=Color()
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
-try:
-    import magic
-except ImportError:
-    print("{} Could not import filemagic module, reverting to extension-based whitelisting.".format(colors.mood("sad")))
-    pass
-
 args=argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
-args.add_argument("--database", "-db", default="videoinfo.sqlite", help="Location of the sqlite database to save the information into.")
+args.add_argument("--database", "-db", default=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), help="Location of the sqlite database to save the information into.")
 args.add_argument("--debug", "-d", action="store_true", help="Run in debug mode.")
 args.add_argument("--delete", "-del", action="store_true", help="Delete the files specified from the database")
-args.add_argument("--test", "-t", action="store_true", help="Run in test mode.")
 args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
 args.add_argument("--regen", "-r", action="store_true", help="Regenerate the videoinfo table of the database.")
 args.add_argument("--reset-json", "-rj", action="store_true", help="Resets the videojson table.")
@@ -35,366 +20,44 @@ args.add_argument("files", nargs="*", help="Files to get information from.")
 
 options=vars(args.parse_args())
 
-data={}
-data["missingcolumn"]={"container": "text", "frame_rate": "real", "duration_raw": "real", "streams": "integer"}
-data["missingcolumnopt"]=[]
+vi=VideoInfo(options["database"])
+gvi=GenVideoInfo(options["database"], debug=options["debug"])
+colors=Color()
 
-createstatement='CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, streams integer, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'
-createstatementjson='CREATE TABLE IF NOT EXISTS videojson (id INTEGER UNIQUE, filename TEXT UNIQUE, jsondata JSON)'
-
-if options["delete"] and not options["files"]:
-    print("{} You must specify files to delete from the database.")
-    raise ValueError
-
-databasepath=pathlib.Path(options["database"])
-if databasepath.exists():
-    databasepath=databasepath.resolve()
-    with open(str(databasepath), "rb") as source, open(str(databasepath).replace(databasepath.suffix, "{}{}".format(databasepath.suffix, ".bak")), "wb") as dest:
-        dest.write(bytes(source.read()))
-
-database=sqlite3.connect(options["database"])
-atexit.register(database.close)
-
-if options["regen"] and not options["delete"]:
-    with database:
-        print("{} Deleting existing videoinfo table.".format(colors.mood("neutral")))
-        database.execute("drop table if exists videoinfo")
-        database.execute("vacuum")
-
-if options["maintainence"]:
-    with database:
-        database.execute('vacuum')
-    sys.exit(0)
-
-with database:
-    db=database.cursor()
-    db.execute('pragma auto_vacuum')
-    av=db.fetchone()
-    if av[0] is not 1:
-        db.execute('pragma auto_vacuum = 1')
-        db.execute('vacuum')
-
-
-with database:
-    db=database.cursor()
-    db.execute('pragma page_size')
-    pgsize=db.fetchone()
-    if pgsize[0] is not 4096:
-        db.execute('pragma page_size = 4096')
-        db.execute('vacuum')
-    db.execute('pragma cache_size = -2000')
-
-with database:
-    db=database.cursor()
-    db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
-    vi=db.fetchone()
-    try:
-        vitemp=len(vi)
-    except TypeError:
-        db.execute(createstatement)
-        pass
-    db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='videojson';")
-    vj=db.fetchone()
-    try:
-        vitemp=len(vj)
-    except TypeError:
-        db.execute(createstatementjson)
+if options["regen"]:
+    vi.resetvideoinfo()
 
 if options["reset_json"]:
-    print("{} Purging the JSON cache.".format(colors.mood("happy")))
-    with database:
-        db=database.cursor()
-        db.execute('delete from videojson')
+    vi.resetjson()
+    if not options["regen"]:
+        sys.exit(0)
+
+if options["maintainence"]:
+    vi.maintainence()
     sys.exit(0)
 
-if not options["delete"] and not options["regen"]:
-    """with database:
-        database.row_factory = sqlite3.Row
-        db=database.cursor()
-        db.execute("select * from videoinfo")
-        test=db.fetchone()
-        if options["debug"]:
-            print(type(test))
-        if test:
-            test2=test.keys()
-            for column in data["missingcolumn"].keys():
-                if not {column}.issubset(test2):
-                    print("{} Column {} not found, adding to table.".format(colors.mood("neutral"), column))
-                    db.execute('alter table videoinfo add column ? ?()', (column, data["missingcolumn"][column]))
-                    db.execute("vacuum")
-        database.row_factory=None""" #Code disabled until I figure out the syntax
-    with database:
-        database.row_factory = sqlite3.Row
-        db=database.cursor()
-        db.execute("select * from videoinfo")
-        test=db.fetchone()
-        if options["debug"]:
-            print(type(test))
-        if test:
-            test2=test.keys()
-            for column in data["missingcolumn"].keys():
-                if not {column}.issubset(test2):
-                    print("{} Column {} not found, regenerating database.".format(colors.mood("neutral"), column))
-                    db.execute('drop table if exists videoinfo')
-                    db.execute("vacuum")
-                    break
-        database.row_factory=None #Resurrecting drop table on missing column code until I figure out how to get the alter table code to work.
+if not options["files"]:
+    temp1=pathlib.Path.cwd().iterdir()
+    options["files"]=[]
+    for path in temp1:
+        options["files"].append(str(path))
 
-with database:
-    database.execute(createstatement)
+if not options["delete"] and not options["reset_json"] and not options["maintainence"]:
+    existinghashes=dict(gvi.genexisting())
+    filelist=list(gvi.genfilelist(options["files"], existinghashes))
+    print(filelist)
 
+    if len(filelist) is 0:
+        print("{} All files are already in the database or there are no files.".format(colors.mood("happy")))
+        sys.exit(0)
 
-def genexisting():
-    with database:
-        db=database.cursor()
-        db.execute("select filename, hash from videoinfo")
-        for filename, hashval in db.fetchall():
-            yield filename, hashval
-
-existinghash=dict(genexisting())
-
-def genfilelist():
-    try:
-        whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
-
-        with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
-            if options["files"]:
-                for filename in options["files"]:
-                    filepath=pathlib.Path(filename)
-                    if not options["debug"]:
-                        if m.id_filename(filename) in whitelist and filepath.is_file() and filepath not in existinghash:
-                            yield filepath.name
-                    else:
-                        if m.id_filename(filename) in data["mime"] and filepath.is_file():
-                            yield filepath.name
-            else:
-                for filepath in pathlib.Path.cwd().iterdir():
-                    if not options["debug"]:
-                        if m.id_filename(str(filepath)) in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                            yield filepath.name
-                    else:
-                        if m.id_filename(str(filepath)) in whitelist and filepath.is_file():
-                            yield filepath.name
-    except NameError:
-        whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
-        if options["files"]:
-            for filename in options["files"]:
-                filepath=pathlib.Path(filename)
-                if not options["debug"]:
-                    if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                        yield filepath.name
-                else:
-                    if filepath.suffix in whitelist and filepath.is_file():
-                        yield filepath.name
-        else:
-            for filepath in pathlib.Path.cwd().iterdir():
-                if not options["debug"]:
-                    if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                        yield filepath.name
-                else:
-                    if filepath.suffix in whitelist and filepath.is_file():
-                        yield filepath.name
-        pass
-    """with database:
-        db=database.cursor()
-        for column in data["missingcolumn"].keys():
-            db.execute("select filename from videoinfo where :column is null or :column = ''", {"column": column})
-            files=db.fetchall()
-            print(files)
-            if files:
-                for filename in files:
-                    print("{} Removing {} from the database.".format(colors.mood("neutral"), filename))
-                    db.execute("delete from videoinfo where filename = ?", (filename,))
-                    if filename in existinghash.keys():
-                        print("{} Removing {} from the existinghash dictionary.".format(colors.mood("neutral"), filename))
-                        existinghash.pop(filename)
-                        yield filename""" #Also disabled due to table append code being disabled.
-
-
-data["files"] = sortentries(list(genfilelist()))
-
-if len(data["files"]) is 0 and not options["delete"]:
-    print("{} All files are already in the database or there are no files.".format(colors.mood("happy")))
-    sys.exit(0)
-
-def genhashlist():
-    for filename in data["files"]:
-        if filename not in existinghash:
-            print("{} Calculating hash for {}".format(colors.mood("happy"), filename))
-            yield filename, hashfile(filename)
-
-if not options["delete"]:
-    filehash=dict(genhashlist())
-
-    for filename in filehash.keys():
-        if filehash[filename] in existinghash:
-            with database:
-                db=database.cursor()
-                db.execute("select filename from videoinfo where hash=?", (filehash[filename],))
-                existingnames=database.fetchall()
-                print("{} Hash for {} was found in the database.".format(colors.mood("neutral"), filename))
-
-                print("{} Filenames of conflicting files are:".format(colors.mood("neutral")))
-                for filenames in existingnames:
-                    print(colors.mood("neutral"), ''.join(filenames))
-                    print("{} Removing {} from file list.".format(colors.mood("neutral"), filename))
-                    data["files"].remove(filename)
-                    filehash.pop(filename)
-                    continue
-def returnjson(videofile):
-    with database:
-        db=database.cursor()
-        db.execute('select filename from videojson where filename = ?', (videofile,))
-        try:
-            entryexists=db.fetchone()[0]
-        except (TypeError, IndexError, KeyError):
-            entryexists=False
-            pass
-        if entryexists:
-            db.execute('select jsondata from videojson where filename = ?', (videofile,))
-            if options["debug"]:
-                print("Using Database")
-            return db.fetchone()[0]
-        else:
-            if options["debug"]:
-                print("Extracting Data")
-            return returninfo(["ffprobe", "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
+    hashes=dict(gvi.genhashlist(filelist, existinghashes))
 
 if options["delete"]:
     for filename in options["files"]:
-        with database:
-            print("{} Deleting {} from database.".format(colors.mood("happy"), filename))
-            database.execute("delete from videoinfo where filename=?", (filename,))
-            database.execute("delete from videojson where filename=?", (filename,))
-            database.execute("vacuum")
-else:
-    video_dict={}
-    for filename in data["files"]:
-        print("{} Extracting metadata for {}".format(colors.mood("happy"), filename))
+        vi.deleteentry(filename)
 
-        jsondata=json.loads(returnjson(filename))
-
-        video_dict["filename"]=filename
-        video_dict["duration"]=time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"].get("duration")))))
-        video_dict["duration_raw"]=float(jsondata["format"].get("duration"))
-        video_dict["bitrate_total"]=naturalsize(jsondata["format"].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
-        video_dict["container"]=jsondata["format"].get("format_name")
-        video_dict["streams"]=jsondata["format"].get("nb_streams")
-        try:
-            if "tags" in jsondata["streams"][0] and not "bit_rate" in jsondata["streams"][0] and "BPS" in jsondata["streams"][0]["tags"]:
-                video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0]["tags"].get("BPS")).replace(" MB", "M").replace(" kB", "K")
-            else:
-                video_dict["bitrate_0"]=naturalsize(jsondata["streams"][0].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
-        except (KeyError, IndexError, TypeError):
-            video_dict["bitrate_0"]=None
-            pass
-        try:
-            if "tags" in jsondata["streams"][0] and not "bit_rate" in jsondata["streams"][0] and "BPS" in jsondata["streams"][0]["tags"]:
-                video_dict["bitrate_0_raw"]=int(jsondata["streams"][0]["tags"].get("BPS"))
-            else:
-                video_dict["bitrate_0_raw"]=int(jsondata["streams"][0].get("bit_rate"))
-        except (KeyError, IndexError, TypeError):
-            video_dict["bitrate_0_raw"]=None
-            pass
-
-        try:
-            if "tags" in jsondata["streams"][1] and not "bitrate" in jsondata["streams"][1] and "BPS" in jsondata["streams"][1]["tags"]:
-                video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1]["tags"].get("BPS")).replace(" MB", "M").replace(" kB", "K")
-            else:
-                video_dict["bitrate_1"]=naturalsize(jsondata["streams"][1].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
-        except (KeyError, IndexError, TypeError):
-            video_dict["bitrate_1"]=None
-            pass
-        try:
-            if "tags" in jsondata["streams"][1] and not "bitrate" in jsondata["streams"][1] and "BPS" in jsondata["streams"][1]["tags"]:
-                video_dict["bitrate_1_raw"]=int(jsondata["streams"][1]["tags"].get("BPS"))
-            else:
-                video_dict["bitrate_1_raw"]=int(jsondata["streams"][1].get("bit_rate"))
-        except (KeyError, IndexError, TypeError):
-            video_dict["bitrate_1_raw"]=None
-            pass
-
-        try:
-            video_dict["height"]=jsondata["streams"][0].get("height")
-        except (KeyError, IndexError):
-            video_dict["height"]=None
-            pass
-
-        try:
-            video_dict["width"]=jsondata["streams"][0].get("width")
-        except (KeyError, IndexError):
-            video_dict["width"]=None
-            pass
-
-        video_dict["codec_0"]=jsondata["streams"][0].get("codec_name")
-
-        try:
-            video_dict["codec_1"]=jsondata["streams"][1].get("codec_name")
-        except (KeyError, IndexError):
-            video_dict["codec_1"]=None
-            pass
-
-        if not video_dict["height"]:
-            try:
-                video_dict["height"]=jsondata["streams"][1].get("height")
-            except (KeyError, IndexError):
-                video_dict["height"]=None
-                pass
-        if not video_dict["width"]:
-            try:
-                video_dict["width"]=jsondata["streams"][1].get("width")
-            except (KeyError, IndexError):
-                video_dict["width"]=None
-                pass
-
-        video_dict["hash"]=filehash.get(filename)
-
-        if jsondata["streams"][0].get("avg_frame_rate"):
-            try:
-                framerate=round(eval(jsondata["streams"][0].get("avg_frame_rate")), 2)
-                if framerate is not 0 and isinstance(framerate, (int, float)):
-                    video_dict["frame_rate"]=framerate
-                else:
-                    video_dict["frame_rate"]=None
-            except ZeroDivisionError:
-                video_dict["frame_rate"]=None
-                pass
-        elif jsondata["streams"][1].get("avg_frame_rate"):
-            try:
-                framerate=round(eval(jsondata["streams"][1].get("avg_frame_rate")), 2)
-                if not "frame_rate" in video_dict and not video_dict["frame_rate"]:
-                    if framerate is not 0 and isinstance(framerate, (int, float)):
-                        video_dict["frame_rate"]=framerate
-                    else:
-                        video_dict["frame_rate"]=None
-            except ZeroDivisionError:
-                video_dict["frame_rate"]=None
-                pass
-        else:
-            video_dict["frame_rate"]=None
-
-        columns=', '.join(tuple(video_dict.keys()))
-        placeholders=':'+', :'.join(video_dict.keys())
-        query='insert into videoinfo ({}) values ({})'.format(columns, placeholders)
-
-        if options["debug"]:
-            print("Dictionary Keys:", tuple(video_dict.keys()))
-            print("Dictionary Values:", tuple(video_dict.values()))
-            print("Number of keys in Dictionary:", len(video_dict.keys()))
-            print("SQL Query:", query)
-        else:
-            with database:
-                db=database.cursor()
-                db.execute(query, video_dict)
-
-                db.execute('select filename from videojson where filename = ?', (video_dict["filename"],))
-                try:
-                    entryexists=db.fetchone()[0]
-                except(TypeError, KeyError, IndexError):
-                    entryexists=False
-                    pass
-                if not entryexists:
-                    print("{} Caching a copy of the json data for {}".format(colors.mood("happy"), video_dict["filename"]))
-                    db.execute('select id from videoinfo where filename = ?', (video_dict["filename"],))
-                    dbid=db.fetchone()[0]
-                    db.execute('insert into videojson values(?, ?, ?)', (dbid, video_dict["filename"], json.dumps(jsondata)))
+if not options["delete"] and not options["maintainence"]:
+    for filename in filelist:
+        jsondump=gvi.gvigenjson(filename)
+        gvi.write(gvi.generate(filename, jsondump, hashes[filename]), jsondump)
