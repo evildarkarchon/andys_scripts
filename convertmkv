@@ -2,11 +2,11 @@
 import tempfile
 import argparse
 import pathlib
-import sqlite3
 import shutil
 import os
 
 from andy.util import Color, Program, Util
+from andy.videoutil import VideoInfo
 
 
 colors=Color()
@@ -42,26 +42,20 @@ mkvmerge=shutil.which("mkvmerge", mode=os.X_OK)
 peshow=True
 
 if options["ffmpeg"] and options["combine"]:
-    try:
-        if options["database"]:
-            database=sqlite3.connect(options["database"])
-        else:
-            database=sqlite3.connect(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
-    except sqlite3.OperationalError:
-        print("{} No videoinfo database found, will not add duration info to ffconcat file.".format(colors.mood("neutral")))
-        database=None
-        pass
+    if options["database"]:
+        vi=VideoInfo(options["database"])
+    elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
+        vi=VideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+    else:
+        vi=None
 def ffmpegconcat():
     with tempfile.NamedTemporaryFile("a+") as mkvlist:
         for filename in filelist:
             mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
-            if database:
-                with database:
-                    db=database.cursor()
-                    db.execute('select duration_raw from videoinfo where filename = ?', (filename,))
-                    dur=db.fetchone()
-                    if dur:
-                        mkvlist.write("duration {}\n".format(dur[0]))
+            if vi:
+                dur=vi.queryvideoinfosr('select duration_raw from videoinfo where filename = ?', filename)
+                if dur:
+                     mkvlist.write("duration {}\n".format(dur[0]))
             mkvlist.flush()
         """mkvlist.seek(0)
         print(mkvlist.read())
@@ -78,8 +72,6 @@ def ffmpegconcat():
                 print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
                 peshow=False
     """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
-    if database:
-        database.close()
 def mkvmergeconcat():
     def mkvconcat():
         basecommand=[mkvmerge, "-o", options["output"]]
