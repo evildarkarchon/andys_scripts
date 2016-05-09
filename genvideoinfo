@@ -16,6 +16,7 @@ args.add_argument("--delete", "-del", action="store_true", help="Delete the file
 args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
 args.add_argument("--regen", "-r", action="store_true", help="Regenerate the videoinfo table of the database.")
 args.add_argument("--reset-json", "-rj", action="store_true", help="Resets the videojson table.")
+args.add_argument("--reset-all", "-ra", action="store_true", help="Reset both the videojson and videoinfo table.")
 args.add_argument("files", nargs="*", help="Files to get information from.")
 
 options=vars(args.parse_args())
@@ -30,12 +31,15 @@ if options["regen"]:
 
 if options["reset_json"]:
     vi.resetjson()
-    if not options["regen"]:
-        sys.exit(0)
+    sys.exit(0)
 
 if options["maintainence"]:
     vi.maintainence()
     sys.exit(0)
+
+if options["reset_all"]:
+    vi.resetvideoinfo()
+    vi.resetjson()
 
 if not options["files"] or pathlib.Path(options["files"]).is_dir():
     if not options["files"]:
