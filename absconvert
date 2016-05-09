@@ -6,7 +6,7 @@ import pathlib
 from collections import ChainMap
 import shlex
 
-from andy.videoutil import ABS
+from andy.abs import ABS
 from andy.util import Color, Util
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
