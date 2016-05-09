@@ -6,14 +6,14 @@ import shutil
 import os
 
 from andy.util import Color, Program, Util
-from andy.videoutil import VideoInfo
+from andy.videoinfo import VideoInfo
 
 
-colors=Color()
-program=Program()
-util=Util()
+colors = Color()
+program = Program()
+util = Util()
 
-args=argparse.ArgumentParser()
+args = argparse.ArgumentParser()
 args.add_argument("--ffmpeg", "-f", action="store_true", help="Use ffmpeg instead of mkvmerge. (Doesn't like mpeg-1 files)")
 args.add_argument("--concat", "-c", dest="combine", action="store_true", help="Combine multiple files into one mkv file.")
 args.add_argument("--output", "-o", help="Name of output file (for concatenation mode only).")
@@ -21,41 +21,43 @@ args.add_argument("--no-sort", "-ns", action="store_true", help="Do not sort the
 args.add_argument("--database", "-d", help="Location of video info database. (only used in concatenation mode if ffmpeg is used as the concatenator)")
 args.add_argument("files", nargs="*", help="Files to be muxed.")
 
-options=vars(args.parse_args())
+options = vars(args.parse_args())
 
 if not options["files"]:
     print("{} No files specified.".format(colors.mood("sad")))
     raise ValueError
 
 if options["no_sort"]:
-    filelist=options["files"]
+    filelist = options["files"]
 else:
-    filelist=util.sortentries(options["files"])
+    filelist = util.sortentries(options["files"])
 
-options["ffmpegdisable"]=False #These are for extreme circumstances, reason for disabling goes in the variable.
-options["mkvmergedisable"]=False
+options["ffmpegdisable"] = False  # These are for extreme circumstances, reason for disabling goes in the variable.
+options["mkvmergedisable"] = False
 
-mkvpropedit=shutil.which("mkvpropedit", mode=os.X_OK)
-ffmpeg=shutil.which("ffmpeg", mode=os.X_OK)
-mkvmerge=shutil.which("mkvmerge", mode=os.X_OK)
+mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
+ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
+mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
 
-peshow=True
+peshow = True
 
 if options["ffmpeg"] and options["combine"]:
     if options["database"]:
-        vi=VideoInfo(options["database"])
+        vi = VideoInfo(options["database"])
     elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
-        vi=VideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+        vi = VideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
     else:
-        vi=None
+        vi = None
+
+
 def ffmpegconcat():
     with tempfile.NamedTemporaryFile("a+") as mkvlist:
         for filename in filelist:
             mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
             if vi:
-                dur=vi.queryvideoinfosr('select duration_raw from videoinfo where filename = ?', filename)
+                dur = vi.queryvideoinfosr('select duration_raw from videoinfo where filename = ?', filename)
                 if dur:
-                     mkvlist.write("duration {}\n".format(dur[0]))
+                    mkvlist.write("duration {}\n".format(dur[0]))
             mkvlist.flush()
         """mkvlist.seek(0)
         print(mkvlist.read())
@@ -70,15 +72,17 @@ def ffmpegconcat():
         else:
             if peshow is True:
                 print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
-                peshow=False
+                peshow = False
     """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
+
+
 def mkvmergeconcat():
     def mkvconcat():
-        basecommand=[mkvmerge, "-o", options["output"]]
-        concatfilelist=' + '.join(filelist).split()
+        basecommand = [mkvmerge, "-o", options["output"]]
+        concatfilelist = ' + '.join(filelist).split()
         """newlist=str(start)
         newnewlist=newlist.split()"""
-        return basecommand+concatfilelist
+        return basecommand + concatfilelist
     if mkvmerge:
         """command=concatlist()"""
         """print(command)"""
@@ -107,7 +111,7 @@ if options["combine"]:
 
 else:
     for filename in filelist:
-        filepath=pathlib.Path(filename)
+        filepath = pathlib.Path(filename)
         print("{} Muxing {} into a matroska file.".format(colors.mood("happy"), filename))
         if filepath.exists():
             if options["ffmpeg"]:
@@ -122,7 +126,7 @@ else:
                 else:
                     if peshow is True:
                         print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
-                        peshow=False
+                        peshow = False
             else:
                 if mkvmerge:
                     program.runprogram([mkvmerge, "-o", str(filepath.with_suffix(".mkv")), "=", filename])
