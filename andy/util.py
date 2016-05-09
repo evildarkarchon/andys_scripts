@@ -34,14 +34,6 @@ class Util(Color):
     def __init__(self):
         self.colors=Color()
 
-    def flatten(self, lst):
-        for elem in lst:
-            if isinstance(elem, (tuple, list, collections.deque)):
-                for i in elem:
-                    yield i
-            else:
-                yield elem
-
     def genjson(self, filename, dictionary, printdata=False):
         jsonpath=pathlib.Path(filename).resolve()
     #    print(dictionary)
