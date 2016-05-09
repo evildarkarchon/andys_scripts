@@ -4,32 +4,34 @@ import pathlib
 import datetime
 import argparse
 
-from andy.colors import Color
+from andy.util import Color, Util, Program
 from andy.git import Git
-from andy.runprogram import runprogram
-from andy.privileged import is_privileged
 
-args=argparse.ArgumentParser()
+args = argparse.ArgumentParser()
 args.add_argument("--aggressive", help="Run garbage collection in aggressive mode")
-options=vars(args.parse_args())
+options = vars(args.parse_args())
 
-colors=Color()
+colors = Color()
+util = Util()
+program = Program()
 
-ttrss=Git("/data/web/feeds", use_sudo=True, sudo_user="nginx", url="https://tt-rss.org/gitlab/fox/tt-rss.git")
+ttrss = Git("/data/web/feeds", use_sudo=True, sudo_user="nginx", url="https://tt-rss.org/gitlab/fox/tt-rss.git")
 
 atexit.register(ttrss.clean_lock)
 
+
 def ttrssgcfile():
-    if not is_privileged():
-        runprogram(["touch", "/var/cache/ttrssgc"], use_sudo=True, sudo_user="root")
+    if not util.is_privileged():
+        program.runprogram(["touch", "/var/cache/ttrssgc"], use_sudo=True, sudo_user="root")
     else:
         pathlib.Path("/var/cache/ttrssgc").touch()
 
 if not pathlib.path("/var/cache/ttrssgc").is_file():
     ttrssgcfile()
 
+
 def ttrssgc(now, then):
-    diff=now-then
+    diff = now - then
     if diff.days > 30:
         ttrss.gc(aggressive=options["aggressive"])
         ttrssgcfile()
@@ -42,7 +44,7 @@ elif pathlib.Path("/data/web/feeds").exists() and not pathlib.Path("/data/web/fe
     raise FileNotFoundError
 elif pathlib.Path("/data/web/feeds").is_file():
     print("{} Target location is a file, renaming and cloning repository.".format(colors.mood("neutral")))
-    runprogram(["mv", "/data/web/feeds", "/data/web/feeds.bad"], use_sudo=True, sudo_user="nginx")
+    program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.bad"], use_sudo=True, sudo_user="nginx")
     ttrss.clone()
 else:
     print("{} Target location does not exist, cloning repository.".format(colors.mood("neutral")))
