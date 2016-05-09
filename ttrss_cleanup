@@ -2,19 +2,19 @@
 import pathlib
 from datetime import datetime
 
-from andy.colors import Color
-from andy.sortentries import sortentries
+from andy.util import Color, Util
 
-colors=Color()
+colors = Color()
+util = Util()
 
-now=datetime.now()
+now = datetime.now()
 
-files=sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
-#print(sortentries(files))
+files = util.sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
+# print(sortentries(files))
 
 for filepath in files:
-    then=datetime.fromtimestamp(filepath.stat().st_mtime)
-    filetime=now-then
+    then = datetime.fromtimestamp(filepath.stat().st_mtime)
+    filetime = now - then
     if filetime.days > 14:
         print("{} Removing {} from backup directory.".format(colors.mood("neutral"), filepath.name))
         filepath.unlink()
