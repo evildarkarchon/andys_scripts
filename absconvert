@@ -11,15 +11,15 @@ from andy.util import Color, Util
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
-colors=Color()
-util=Util()
+colors = Color()
+util = Util()
 
-args=argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+args = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-video=args.add_argument_group(description="Video options:")
-audio=args.add_argument_group(description="Audio Options:")
-config=args.add_argument_group(description="Configuration/Testing options:")
-fileargs=args.add_argument_group(description="Options for file manipulation:")
+video = args.add_argument_group(description="Video options:")
+audio = args.add_argument_group(description="Audio Options:")
+config = args.add_argument_group(description="Configuration/Testing options:")
+fileargs = args.add_argument_group(description="Options for file manipulation:")
 
 video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
 video.add_argument("--video-bitrate", "-vb", help="Bitrate for the video codec.")
@@ -42,23 +42,23 @@ fileargs.add_argument("--output-dir", "-o", dest="output", help="Directory to ou
 
 args.add_argument("files", nargs="*", help="Files to encode.")
 
-cmdline=vars(args.parse_args())
+cmdline = vars(args.parse_args())
 
 
 def configdict():
     if ('config' not in cmdline or not cmdline["config"]) or not pathlib.Path(cmdline["config"]).exists():
         print("{} Could not find configuration file or one was not specified, generating one with default values.".format(colors.mood("neutral")))
-        defaultconfig={}
+        defaultconfig = {}
 
-        defaultconfig["defaults"]={}
-        defaultconfig["defaults"]["video"]="libvpx-vp9"
-        defaultconfig["defaults"]["audio"]="libopus"
-        defaultconfig["defaults"]["container"]="mkv"
-        defaultconfig["defaults"]["passes"]=2
-        defaultconfig["defaults"]["audiofilter"]=["aresample=async=1:min_comp=0.001:first_pts=0"]
+        defaultconfig["defaults"] = {}
+        defaultconfig["defaults"]["video"] = "libvpx-vp9"
+        defaultconfig["defaults"]["audio"] = "libopus"
+        defaultconfig["defaults"]["container"] = "mkv"
+        defaultconfig["defaults"]["passes"] = 2
+        defaultconfig["defaults"]["audiofilter"] = ["aresample=async=1:min_comp=0.001:first_pts=0"]
 
-        defaultconfig["codecs"]={}
-        defaultconfig["codecs"]["libvpx-vp9"]=["-threads", "4", "-tile-columns", "6", "-frame-parallel", "1", "-speed", "1"]
+        defaultconfig["codecs"] = {}
+        defaultconfig["codecs"]["libvpx-vp9"] = ["-threads", "4", "-tile-columns", "6", "-frame-parallel", "1", "-speed", "1"]
 
         if not cmdline["debug"]:
             util.genjson(str(pathlib.Path.home().joinpath(".config", "absconvert.json")), defaultconfig)
@@ -66,67 +66,67 @@ def configdict():
         return ChainMap(cmdline, defaultconfig)
     else:
         with open(cmdline["config"]) as jsonsource:
-            config=json.loads(jsonsource.read())
+            config = json.loads(jsonsource.read())
 
         return ChainMap(cmdline, config)
-options=configdict()
+options = configdict()
 
 assert (isinstance(options, ChainMap)), "Options Variable must be a ChainMap"
 
 if not "backup" in options:
-    options["backup"]=None
+    options["backup"] = None
 
 if not options["output"]:
     if str(pathlib.Path.cwd()) == str(pathlib.Path.home()):
-        options["output"]=str(pathlib.Path.home())
+        options["output"] = str(pathlib.Path.home())
     else:
-        options["output"]=str(pathlib.Path("..").resolve())
+        options["output"] = str(pathlib.Path("..").resolve())
 
 if not options["database"]:
     if pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
-        options["database"]=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite"))
+        options["database"] = str(pathlib.Path.cwd().joinpath("videoinfo.sqlite"))
     else:
-        options["database"]=None
+        options["database"] = None
 
-abs=ABS(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
+abs = ABS(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
 
 if options["debug"]:
     print(options)
 
 if options["container"]:
-    options["container"]=".{}".format(options["container"])
+    options["container"] = ".{}".format(options["container"])
 elif not options["container"]:
-    options["container"]=".{}".format(options["defaults"]["container"])
+    options["container"] = ".{}".format(options["defaults"]["container"])
 
 if not options["video_codec"]:
-    options["video_codec"]=options["defaults"]["video"]
+    options["video_codec"] = options["defaults"]["video"]
 
 if not options["audio_codec"]:
-    options["audio_codec"]=options["defaults"]["audio"]
+    options["audio_codec"] = options["defaults"]["audio"]
 
 if not options["filter"]:
-    options["filter"]=options["defaults"]["audiofilter"]
+    options["filter"] = options["defaults"]["audiofilter"]
 elif cmdline["filter"] and isinstance(cmdline["filter"], str):
-    options["filter"]=shlex.split(options["filter"])
+    options["filter"] = shlex.split(options["filter"])
 
 if options["audio_codec"] in options["codecs"]:
-    options["audiocodecopts"]=options["codecs"][options["audio_codec"]]
+    options["audiocodecopts"] = options["codecs"][options["audio_codec"]]
 else:
-    options["audiocodecopts"]=None
+    options["audiocodecopts"] = None
 
 if options["video_codec"] in options["codecs"]:
-    options["videocodecopts"]=options["codecs"][options["video_codec"]]
+    options["videocodecopts"] = options["codecs"][options["video_codec"]]
 else:
-    options["videocodecopts"]=None
+    options["videocodecopts"] = None
 
 if not options["passes"]:
-    options["passes"]=options["defaults"]["passes"]
+    options["passes"] = options["defaults"]["passes"]
 
 if not options["no_sort"]:
-    options["files"]=util.sortentries(options["files"])
+    options["files"] = util.sortentries(options["files"])
 
 if "frame_rate" not in options:
-    options["frame_rate"]=None
+    options["frame_rate"] = None
 
 for files in options["files"]:
     abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"], audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"], audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"], framerate=options["frame_rate"])
