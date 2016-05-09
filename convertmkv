@@ -19,6 +19,7 @@ args.add_argument("--concat", "-c", dest="combine", action="store_true", help="C
 args.add_argument("--output", "-o", help="Name of output file (for concatenation mode only).")
 args.add_argument("--no-sort", "-ns", action="store_true", help="Do not sort the file names to be used for the file list.")
 args.add_argument("--database", "-d", help="Location of video info database. (only used in concatenation mode if ffmpeg is used as the concatenator)")
+args.add_argument("--backup", "-b", help="Location to move the original file.")
 args.add_argument("files", nargs="*", help="Files to be muxed.")
 
 options = vars(args.parse_args())
@@ -73,7 +74,6 @@ def ffmpegconcat():
             if peshow is True:
                 print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
                 peshow = False
-    """print("{} ffmpeg code is temporarily disabled until I figure out why the file list isn't working.".format(colors.mood("neutral")))"""
 
 
 def mkvmergeconcat():
@@ -109,6 +109,10 @@ if options["combine"]:
         else:
             mkvmergeconcat()
 
+    if options["backup"] and pathlib.Path(options["backup"]).is_dir():
+        for filename in filelist:
+            shutil.move(filename, options["backup"])
+
 else:
     for filename in filelist:
         filepath = pathlib.Path(filename)
@@ -133,3 +137,6 @@ else:
                 else:
                     print("{} mkvmerge not found.".format(colors.mood("sad")))
                     raise FileNotFoundError
+
+            if options["backup"] and pathlib.Path(options["backup"]).is_dir():
+                shutil.move(filename, options["backup"])
