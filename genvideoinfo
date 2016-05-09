@@ -9,7 +9,7 @@ from andy.util import Color, Util
 
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
-args=argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
+args = argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
 args.add_argument("--database", "-db", default=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), help="Location of the sqlite database to save the information into.")
 args.add_argument("--debug", "-d", action="store_true", help="Run in debug mode.")
 args.add_argument("--delete", "-del", action="store_true", help="Delete the files specified from the database")
@@ -19,12 +19,12 @@ args.add_argument("--reset-json", "-rj", action="store_true", help="Resets the v
 args.add_argument("--reset-all", "-ra", action="store_true", help="Reset both the videojson and videoinfo table.")
 args.add_argument("files", nargs="*", help="Files to get information from.")
 
-options=vars(args.parse_args())
+options = vars(args.parse_args())
 
-vi=VideoInfo(options["database"])
-gvi=GenVideoInfo(options["database"], debug=options["debug"])
-colors=Color()
-util=Util()
+vi = VideoInfo(options["database"])
+gvi = GenVideoInfo(options["database"], debug=options["debug"])
+colors = Color()
+util = Util()
 
 if options["regen"]:
     vi.resetvideoinfo()
@@ -43,16 +43,16 @@ if options["reset_all"]:
 
 if not options["files"] or pathlib.Path(options["files"]).is_dir():
     if not options["files"]:
-        temp1=pathlib.Path.cwd().iterdir()
+        temp1 = pathlib.Path.cwd().iterdir()
     elif options["files"] and pathlib.Path(options["files"]).is_dir():
-        temp1=pathlib.Path(options["files"]).iterdir()
-    options["files"]=[]
+        temp1 = pathlib.Path(options["files"]).iterdir()
+    options["files"] = []
     for path in temp1:
         options["files"].append(str(path))
 
 if not options["delete"] and not options["reset_json"] and not options["maintainence"]:
-    existinghashes=dict(gvi.genexisting())
-    filelist=util.sortentries(list(gvi.genfilelist(options["files"], existinghashes)))
+    existinghashes = dict(gvi.genexisting())
+    filelist = util.sortentries(list(gvi.genfilelist(options["files"], existinghashes)))
     if options["debug"]:
         print(filelist)
 
@@ -60,7 +60,7 @@ if not options["delete"] and not options["reset_json"] and not options["maintain
         print("{} All files are already in the database or there are no files.".format(colors.mood("happy")))
         sys.exit(0)
 
-    hashes=dict(gvi.genhashlist(filelist, existinghashes))
+    hashes = dict(gvi.genhashlist(filelist, existinghashes))
 
 if options["delete"]:
     for filename in options["files"]:
@@ -68,5 +68,5 @@ if options["delete"]:
 
 if not options["delete"] and not options["maintainence"]:
     for filename in filelist:
-        jsondump=gvi.gvigenjson(filename)
+        jsondump = gvi.gvigenjson(filename)
         gvi.write(gvi.generate(filename, jsondump, hashes[filename]), jsondump)
