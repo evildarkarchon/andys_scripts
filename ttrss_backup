@@ -9,20 +9,21 @@ import locale
 from datetime import datetime
 import os
 
-from andy.colors import Color
-from andy.returninfo import returninfo
-from andy.sortentries import sortentries
+from andy.util import Color, Program, Util
 
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
-pgdump=shutil.which("pg_dump", mode=os.X_OK)
+program = Program()
+util = Util()
 
-args=argparse.ArgumentParser()
+pgdump = shutil.which("pg_dump", mode=os.X_OK)
+
+args = argparse.ArgumentParser()
 args.add_argument("--cron", "-c", action="store_true", help="Activate this program in cron mode.")
-options=(vars(args.parse_args()))
+options = (vars(args.parse_args()))
 
 if not options["cron"]:
-    colors=Color()
+    colors = Color()
 
 if options["cron"]:
     logformat = '%(asctime)-15s %(message)s'
@@ -37,8 +38,8 @@ if not pgdump:
     print("{} pg_dump could not be found or is not executable.".format(colors.mood("sad")))
     raise FileNotFoundError
 
-database="feeds"
-filename=str(pathlib.Path("/data/ttrssbackup").joinpath("feeds-{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz")))
+database = "feeds"
+filename = str(pathlib.Path("/data/ttrssbackup").joinpath("feeds-{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz")))
 
 try:
     with open(filename, mode="wb") as db:
@@ -47,13 +48,13 @@ try:
         else:
             print("{} Dumping Database.".format(colors.mood("happy")))
 
-        data=returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
+        data = program.returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
 
         if options["cron"]:
             log.info("Compressing Data.")
         else:
             print("{} Compressing Data.".format(colors.mood("happy")))
-        compress=lzma.compress(data)
+        compress = lzma.compress(data)
         if options["cron"]:
             log.info("Writing File: {}.".format(filename))
         else:
@@ -63,13 +64,13 @@ except KeyboardInterrupt:
     pathlib.Path(filename).unlink()
     raise
 
-now=datetime.now()
+now = datetime.now()
 
-files=sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
+files = util.sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
 
 for filepath in files:
-    then=datetime.fromtimestamp(filepath.stat().st_mtime)
-    filetime=now-then
+    then = datetime.fromtimestamp(filepath.stat().st_mtime)
+    filetime = now - then
     if filetime.days > 14:
         if options["cron"]:
             log.info("Removing {} from backup directory.".format(filepath.name))
