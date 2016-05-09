@@ -5,24 +5,24 @@ import argparse
 from andy.util import Color, Util
 from andy.videoinfo import VideoInfo, GenVideoInfo, FindVideoInfo
 
-colors=Color()
-util=Util()
+colors = Color()
+util = Util()
 
-args=argparse.ArgumentParser()
+args = argparse.ArgumentParser()
 args.add_argument("--reset-json", "-rj", action="store_true", help="Reset the JSON cache instead of the videoinfo table.")
 args.add_argument("--reset-all", "-r", action="store_true", help="Reset both the JSON cache and the videoinfo table.")
 args.add_argument("directory", default="/data/Private", nargs="?", help="Directory to look for videoinfo databases")
-options=vars(args.parse_args())
+options = vars(args.parse_args())
 
-fvi=FindVideoInfo()
+fvi = FindVideoInfo()
 
-directories=list(fvi.find(options["directory"]))
+directories = list(fvi.find(options["directory"]))
 
 for directory in directories:
-    vi=VideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
-    gvi=GenVideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
-    path=pathlib.Path(directory).resolve()
-    files=[]
+    vi = VideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
+    gvi = GenVideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
+    path = pathlib.Path(directory).resolve()
+    files = []
     for filename in path.iterdir():
         files.append(str(filename))
 
@@ -31,8 +31,8 @@ for directory in directories:
 
     if not options["reset_json"]:
         vi.resetvideoinfo()
-        filelist=util.sortentries(list(gvi.genfilelist(files)))
-        hashes=dict(gvi.genhashlist(filelist))
+        filelist = util.sortentries(list(gvi.genfilelist(files)))
+        hashes = dict(gvi.genhashlist(filelist))
         for filename in filelist:
-            jsondump=gvi.gvigenjson(filename)
+            jsondump = gvi.gvigenjson(filename)
             gvi.write(gvi.generate(filename, jsondump, hashes[filename]), jsondump)
