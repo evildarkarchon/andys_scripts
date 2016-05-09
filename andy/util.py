@@ -16,7 +16,9 @@ except ImportError:
 
 from termcolor import colored
 
+
 class Color:
+
     def mood(self, currentmood):
         if platform.system is "Windows":
             return "*"
@@ -30,12 +32,14 @@ class Color:
             else:
                 return "*"
 
+
 class Util(Color):
+
     def __init__(self):
-        self.colors=Color()
+        self.colors = Color()
 
     def genjson(self, filename, dictionary, printdata=False):
-        jsonpath=pathlib.Path(filename).resolve()
+        jsonpath = pathlib.Path(filename).resolve()
     #    print(dictionary)
         if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
             print("{} Second argument must be a dictionary.".format(self.colors.mood("sad")))
@@ -58,7 +62,7 @@ class Util(Color):
             raise TypeError
 
         if isinstance(query, (list, collections.deque)):
-            query=tuple(query)
+            query = tuple(query)
 
         if sys.version_info[:len(query)] >= query:
             return True
@@ -67,7 +71,7 @@ class Util(Color):
 
     def is_privileged(self, privuser="root"):
         if isinstance(privuser, str):
-            user=pwd.getpwnam(privuser)
+            user = pwd.getpwnam(privuser)
             if user.pw_uid == os.geteuid():
                 return True
             else:
@@ -99,8 +103,8 @@ class Util(Color):
                 pass
 
     def hashfile(self, filename):
-        hasher=hashlib.sha256()
-        filepath=pathlib.Path(filename).resolve()
+        hasher = hashlib.sha256()
+        filepath = pathlib.Path(filename).resolve()
         with open(str(filepath), "rb", 200000000) as afile:
             hasher.update(afile.read())
         return hasher.hexdigest()
@@ -111,18 +115,20 @@ class Util(Color):
         else:
             return sep.join(str(e) for e in text)
 
+
 class Program(Util, Color):
+
     def __init__(self):
-        self.colors=Color()
-        self.util=Util()
+        self.colors = Color()
+        self.util = Util()
 
     def runprogram(self, program, verify=True, use_sudo=False, user="root", stdinput=None, stdoutput=None, stderror=None, environment=None, workdir=None):
         if isinstance(program, collections.deque):
-            command=program
+            command = program
         elif isinstance(program, (tuple, list)):
-            command=collections.deque(program)
+            command = collections.deque(program)
         elif isinstance(program, str):
-            command=collections.deque(shlex.split(program))
+            command = collections.deque(shlex.split(program))
         else:
             print("{} program must be in the form of a string, tuple, list or deque".format(self.colors.mood("sad")))
             raise TypeError
@@ -132,14 +138,14 @@ class Program(Util, Color):
             raise TypeError
 
         if use_sudo and isinstance(user, int):
-            uid=pwd.getpwuid(user)
-            user=uid.pw_name
+            uid = pwd.getpwuid(user)
+            user = uid.pw_name
 
         if use_sudo:
             """command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list."""
-            sudo=collections.deque(["sudo", "-u", user])
-            command=sudo+command
-        if self.util.is_python_version((3,5,0)):
+            sudo = collections.deque(["sudo", "-u", user])
+            command = sudo + command
+        if self.util.is_python_version((3, 5, 0)):
             subprocess.run(command, input=stdinput, stdout=stdoutput, stderr=stderror, env=environment, check=verify, cwd=workdir)
         else:
             if verify:
@@ -149,8 +155,8 @@ class Program(Util, Color):
 
     def returninfo(self, source, string=True, stdinput=None):
         if isinstance(source, str):
-            source=shlex.split(source)
-        data=subprocess.Popen(source, stdin=stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            source = shlex.split(source)
+        data = subprocess.Popen(source, stdin=stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         if string:
             return data.communicate()[0].decode("utf-8")
         else:
