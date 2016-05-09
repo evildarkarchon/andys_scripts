@@ -70,11 +70,17 @@ class VideoInfo:
             self.db.execute('vacuum')
 
     def queryvideoinfomr(self, query, *values):
+        if "select" not in query:
+            print("{} query is not a select query, use execviquery or execviquerynp instead.")
+            raise ValueError
         with self.database:
             self.db.execute(query, values)
             return self.db.fetchall()
 
     def queryvideoinfosr(self, query, *values):
+        if "select" not in query:
+            print("{} query is not a select query, use execviquery or execviquerynp instead.")
+            raise ValueError
         with self.database:
             self.db.execute(query, values)
             return self.db.fetchone()
@@ -82,6 +88,7 @@ class VideoInfo:
     def execviquery(self, query, *values):
         with self.database:
             self.db.execute(query, values)
+
     def execviquerynp(self, query, dictionary):
         with self.database:
             self.db.execute(query, dictionary)
