@@ -70,11 +70,17 @@ class VideoInfo:
             self.db.execute('vacuum')
 
     def queryvideoinfomr(self, query, *values):
+        if "select" not in query and "pragma" not in query and "SELECT" not in query and "PRAGMA" not in query:
+            print("{} Query is not a SELECT or PRAGMA query, use execviquery or execviquerynp instead.")
+            raise ValueError
         with self.database:
             self.db.execute(query, values)
             return self.db.fetchall()
 
     def queryvideoinfosr(self, query, *values):
+        if "select" not in query and "pragma" not in query and "SELECT" not in query and "PRAGMA" not in query:
+            print("{} Query is not a SELECT or PRAGMA query, use execviquery or execviquerynp instead.")
+            raise ValueError
         with self.database:
             self.db.execute(query, values)
             return self.db.fetchone()
