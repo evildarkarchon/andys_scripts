@@ -3,7 +3,7 @@ import pathlib
 import argparse
 
 from andy.util import Color, Util
-from andy.videoutil import VideoInfo, GenVideoInfo, FindVideoInfo
+from andy.videoinfo import VideoInfo, GenVideoInfo, FindVideoInfo
 
 colors=Color()
 util=Util()
