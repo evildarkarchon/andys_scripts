@@ -61,10 +61,16 @@ class VideoInfo:
             self.db.execute(self.createstatement)
             self.db.execute('vacuum')
 
-    def deleteentry(self, value):
+    def deleteentry(self, criteria, value):
         with self.database:
             print("{} Deleting {} from videoinfo".format(self.colors.mood("happy"), value))
-            self.db.execute('delete from videoinfo where filename=?', (value,))
+            self.db.execute('delete from videoinfo where ? = ?', (criteria, value))
+            self.db.execute('vacuum')
+
+    def deletefileentry(self, value):
+        with self.database:
+            print("{} Deleting {} from videoinfo".format(self.colors.mood("happy"), value))
+            self.db.execute('delete from videoinfo where filename = ?', (value,))
             self.db.execute('vacuum')
 
     def maintainence(self):
