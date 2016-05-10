@@ -6,7 +6,7 @@ import shutil
 import os
 
 from andy.util import Color, Program, Util
-from andy.videoinfo import VideoInfo
+from andy.videoinfo import VideoInfo, GenVideoInfo
 
 
 colors = Color()
@@ -18,7 +18,7 @@ args.add_argument("--ffmpeg", "-f", action="store_true", help="Use ffmpeg instea
 args.add_argument("--concat", "-c", dest="combine", action="store_true", help="Combine multiple files into one mkv file.")
 args.add_argument("--output", "-o", help="Name of output file (for concatenation mode only).")
 args.add_argument("--no-sort", "-ns", action="store_true", help="Do not sort the file names to be used for the file list.")
-args.add_argument("--database", "-d", help="Location of video info database. (only used in concatenation mode if ffmpeg is used as the concatenator)")
+args.add_argument("--database", "-d", help="Location of video info database.")
 args.add_argument("--backup", "-b", help="Location to move the original file.")
 args.add_argument("files", nargs="*", help="Files to be muxed.")
 
@@ -42,13 +42,32 @@ mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
 
 peshow = True
 
-if options["ffmpeg"] and options["combine"]:
-    if options["database"]:
-        vi = VideoInfo(options["database"])
-    elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
-        vi = VideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
-    else:
-        vi = None
+if options["database"] and pathlib.Path(options["database"]).exists():
+    vi = VideoInfo(options["database"])
+    gvi = GenVideoInfo(options["database"])
+elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
+    vi = VideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+    gvi = GenVideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+else:
+    vi = None
+    gvi = None
+
+
+def backup(videoname):
+    if options["backup"] and pathlib.Path(options["backup"]).is_dir():
+        filepath = pathlib.Path(videoname)
+        newname = str(filepath.with_suffix(".mkv"))
+        print("{} Moving {} to {}".format(colors.mood("happy"), videoname, options["backup"]))
+        shutil.move(filename, options["backup"])
+        if vi:
+            print("{} Removing original file metadata from the videoinfo database.".format(colors.mood("happy")))
+            entry = vi.queryvideoinfosr('select filename from videoinfo where filename = ?', videoname)
+            if entry:
+                vi.deletefileentry(videoname)
+            if gvi:
+                jsondump = gvi.gvigenjson(newname)
+                orighash = util.hashfile(newname)
+                gvi.write(gvi.generate(newname, jsondump, orighash), jsondump)
 
 
 def ffmpegconcat():
@@ -69,6 +88,7 @@ def ffmpegconcat():
             print("{} ffmpeg not found.".format(colors.mood("sad")))
             raise FileNotFoundError
         if mkvpropedit:
+            print("{} Adding track statistics metadata to {}".format(colors.mood("happy"), options["output"]))
             program.runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
         else:
             if peshow is True:
@@ -109,9 +129,9 @@ if options["combine"]:
         else:
             mkvmergeconcat()
 
-    if options["backup"] and pathlib.Path(options["backup"]).is_dir():
+    if options["backup"]:
         for filename in filelist:
-            shutil.move(filename, options["backup"])
+            backup(filename)
 
 else:
     for filename in filelist:
@@ -126,6 +146,7 @@ else:
                     raise FileNotFoundError
 
                 if mkvpropedit:
+                    print("{} Adding track statistics to {}".format(colors.mood("happy"), str(filepath.with_suffix(".mkv"))))
                     program.runprogram([mkvpropedit, "--add-track-statistics-tags", str(filepath.with_suffix(".mkv"))])
                 else:
                     if peshow is True:
@@ -137,6 +158,5 @@ else:
                 else:
                     print("{} mkvmerge not found.".format(colors.mood("sad")))
                     raise FileNotFoundError
-
-            if options["backup"] and pathlib.Path(options["backup"]).is_dir():
-                shutil.move(filename, options["backup"])
+            if options["backup"]:
+                backup(filename)
