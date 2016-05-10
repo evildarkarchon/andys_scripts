@@ -48,6 +48,7 @@ if options["database"] and pathlib.Path(options["database"]).exists():
 elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
     vi = VideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
     gvi = GenVideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+    options["database"] = str(pathlib.Path.cwd().joinpath("videoinfo.sqlite"))
 else:
     vi = None
     gvi = None
@@ -65,9 +66,11 @@ def backup(videoname):
             if entry:
                 vi.deletefileentry(videoname)
             if gvi:
-                jsondump = gvi.gvigenjson(newname)
+                print("{} Calculating hash for {}".format(colors.mood("happy"), filepath.with_suffix(".mkv").name))
                 orighash = util.hashfile(newname)
-                gvi.write(gvi.generate(newname, jsondump, orighash), jsondump)
+                print("{} Extracting Metadata from {}".format)
+                jsondump = gvi.gvigenjson(newname)
+                gvi.write(gvi.generate(newname, jsondump, orighash))
 
 
 def ffmpegconcat():
