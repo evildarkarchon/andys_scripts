@@ -41,18 +41,26 @@ if options["reset_all"]:
     vi.resetvideoinfo()
     vi.resetjson()
 
-if not options["files"] or pathlib.Path(options["files"]).is_dir():
-    if not options["files"]:
-        temp1 = pathlib.Path.cwd().iterdir()
-    elif options["files"] and pathlib.Path(options["files"]).is_dir():
-        temp1 = pathlib.Path(options["files"]).iterdir()
-    options["files"] = []
-    for path in temp1:
-        options["files"].append(str(path))
+
+def geninitfilelist(filelist=options["files"]):
+    if filelist:
+        for entry in filelist:
+            path = pathlib.Path(entry)
+            if path.is_dir():
+                for paths in path.iterdir():
+                    yield str(paths)
+            else:
+                yield str(path)
+    else:
+        paths = pathlib.Path.cwd().iterdir()
+        for path in paths:
+            yield str(path)
+
+initfilelist = list(geninitfilelist())
 
 if not options["delete"] and not options["reset_json"] and not options["maintainence"]:
     existinghashes = dict(gvi.genexisting())
-    filelist = util.sortentries(list(gvi.genfilelist(options["files"], existinghashes)))
+    filelist = util.sortentries(list(gvi.genfilelist(initfilelist, existinghashes)))
     if options["debug"]:
         print(filelist)
 
@@ -64,7 +72,8 @@ if not options["delete"] and not options["reset_json"] and not options["maintain
 
 if options["delete"]:
     for filename in options["files"]:
-        vi.deleteentry(filename)
+        for filename in options["files"]:
+            vi.deletefileentry(filename)
 
 if not options["delete"] and not options["maintainence"]:
     for filename in filelist:
