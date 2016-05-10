@@ -16,7 +16,7 @@ util = Util()
 args = argparse.ArgumentParser()
 args.add_argument("--ffmpeg", "-f", action="store_true", help="Use ffmpeg instead of mkvmerge. (Doesn't like mpeg-1 files)")
 args.add_argument("--concat", "-c", dest="combine", action="store_true", help="Combine multiple files into one mkv file.")
-args.add_argument("--output", "-o", help="Name of output file (for concatenation mode only).")
+args.add_argument("--output", "-o", help="Name of output file (for concatenation mode) or directory (for normal mode).")
 args.add_argument("--no-sort", "-ns", action="store_true", help="Do not sort the file names to be used for the file list.")
 args.add_argument("--database", "-d", help="Location of video info database.")
 args.add_argument("--backup", "-b", help="Location to move the original file.")
@@ -136,25 +136,31 @@ if options["combine"]:
 else:
     for filename in filelist:
         filepath = pathlib.Path(filename)
+        if options["output"] and pathlib.Path(options["output"]).is_dir():
+            outdir = pathlib.Path(options["output"]).resolve()
+        else:
+            outdir = pathlib.Path.cwd()
+        fileoutpath = outdir.joinpath(filepath.with_suffix(".mkv").name)
+        fileoutname = str(fileoutpath)
         print("{} Muxing {} into a matroska file.".format(colors.mood("happy"), filename))
         if filepath.exists():
             if options["ffmpeg"]:
                 if ffmpeg:
-                    program.runprogram([ffmpeg, "-i", filename, "-c", "copy", "-f", "matroska", '-hide_banner', '-y', str(filepath.with_suffix(".mkv"))])
+                    program.runprogram([ffmpeg, "-i", filename, "-c", "copy", "-f", "matroska", '-hide_banner', '-y', fileoutname])
                 else:
                     print("{} ffmpeg not found.".format(colors.mood("sad")))
                     raise FileNotFoundError
 
                 if mkvpropedit:
-                    print("{} Adding track statistics to {}".format(colors.mood("happy"), str(filepath.with_suffix(".mkv"))))
-                    program.runprogram([mkvpropedit, "--add-track-statistics-tags", str(filepath.with_suffix(".mkv"))])
+                    print("{} Adding track statistics to {}".format(colors.mood("happy"), fileoutname))
+                    program.runprogram([mkvpropedit, "--add-track-statistics-tags", fileoutname])
                 else:
                     if peshow is True:
                         print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
                         peshow = False
             else:
                 if mkvmerge:
-                    program.runprogram([mkvmerge, "-o", str(filepath.with_suffix(".mkv")), "=", filename])
+                    program.runprogram([mkvmerge, "-o", fileoutname, "=", filename])
                 else:
                     print("{} mkvmerge not found.".format(colors.mood("sad")))
                     raise FileNotFoundError
