@@ -73,7 +73,7 @@ options = configdict()
 
 assert (isinstance(options, ChainMap)), "Options Variable must be a ChainMap"
 
-if not "backup" in options:
+if "backup" not in options:
     options["backup"] = None
 
 if not options["output"]:
