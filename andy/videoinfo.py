@@ -320,31 +320,31 @@ class GenVideoInfo(VideoInfo):
                 pass
         else:
             video_dict["frame_rate"] = None
-        return video_dict
+        return video_dict, jsoninfo
 
-    def write(self, videodict, jsondata):
-        columns = ', '.join(tuple(videodict.keys()))
-        placeholders = ':' + ', :'.join(videodict.keys())
+    def write(self, videodict):
+        columns = ', '.join(tuple(videodict[0].keys()))
+        placeholders = ':' + ', :'.join(videodict[0].keys())
         viquery = 'insert into videoinfo ({}) values ({})'.format(columns, placeholders)
-        jsoninfo = json.loads(jsondata)
-        jsoninfo["format"]["filename"] = videodict["filename"]
+        jsoninfo = json.loads(videodict[1])
+        jsoninfo["format"]["filename"] = videodict[0]["filename"]
 
         if self.debug:
-            print("Dictionary Keys:", tuple(videodict.keys()))
-            print("Dictionary Values:", tuple(videodict.values()))
-            print("Number of keys in Dictionary:", len(videodict.keys()))
+            print("Dictionary Keys:", tuple(videodict[0].keys()))
+            print("Dictionary Values:", tuple(videodict[0].values()))
+            print("Number of keys in Dictionary:", len(videodict[0].keys()))
             print("SQL Query:", viquery)
         else:
-            self.vi.execviquerynp(viquery, videodict)
+            self.vi.execviquerynp(viquery, videodict[0])
 
             try:
-                entryexists = self.vi.queryvideoinfosr('select filename from videojson where filename = ?', videodict["filename"])[0]
+                entryexists = self.vi.queryvideoinfosr('select filename from videojson where filename = ?', videodict[0]["filename"])[0]
             except (TypeError, KeyError, IndexError):
                 entryexists = False
                 pass
             if not entryexists:
-                print("{} Caching a copy of the json data for {}".format(self.colors.mood("happy"), videodict["filename"]))
-                self.vi.execviquery('insert into videojson (filename, jsondata) values(?, ?)', videodict["filename"], json.dumps(jsoninfo))
+                print("{} Caching a copy of the json data for {}".format(self.colors.mood("happy"), videodict[0]["filename"]))
+                self.vi.execviquery('insert into videojson (filename, jsondata) values(?, ?)', videodict[0]["filename"], json.dumps(jsoninfo))
 
 
 class FindVideoInfo:
