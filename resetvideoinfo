@@ -35,4 +35,4 @@ for directory in directories:
         hashes = dict(gvi.genhashlist(filelist))
         for filename in filelist:
             jsondump = gvi.gvigenjson(filename)
-            gvi.write(gvi.generate(filename, jsondump, hashes[filename]), jsondump)
+            gvi.write(gvi.generate(filename, jsondump, hashes[filename]))

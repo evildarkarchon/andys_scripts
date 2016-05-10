@@ -78,4 +78,4 @@ if options["delete"]:
 if not options["delete"] and not options["maintainence"]:
     for filename in filelist:
         jsondump = gvi.gvigenjson(filename)
-        gvi.write(gvi.generate(filename, jsondump, hashes[filename]), jsondump)
+        gvi.write(gvi.generate(filename, jsondump, hashes[filename]))
