@@ -170,7 +170,7 @@ class ABS(VideoInfo, VideoUtil):
         def convertdone():
             if self.vi and not self.converttest:
                 print("{} Removing {} from the database".format(self.colors.mood("happy"), filepath.name))
-                self.vi.deleteentry(filepath.name)
+                self.vi.deletefileentry(filepath.name)
             if self.backuppath and self.backuppath.exists():
                 print("{} Moving {} to {}".format(self.colors.mood("happy"), filepath.name, self.backup))
                 shutil.move(str(filepath), self.backup)
