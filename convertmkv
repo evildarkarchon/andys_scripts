@@ -77,8 +77,12 @@ def genvi(videoname):
     elif not options["combine"] and options["output"] and not options["output_database"]\
             and str(pathlib.Path(options["database"]).parent) != options["output"] and options["output"] != str(pathlib.Path.cwd()):
                 ogvi = GenVideoInfo(str(pathlib.Path(options["output"]).joinpath("videoinfo.sqlite")))
+    elif options["combine"] and pathlib.Path(options["output"]).parent.is_dir() and\
+            str(pathlib.Path(options["output"]).parent) != str(pathlib.Path.cwd()):
+                ogvi = GenVideoInfo(str(pathlib.Path(options["output"]).parent).joinpath("videoinfo.sqlite"))
     else:
         ogvi = None
+
     filepath = pathlib.Path(videoname)
     print("{} Calculating hash for videoname for {}".format(colors.mood("happy"), filepath.name))
     outhash = util.hashfile(videoname)
