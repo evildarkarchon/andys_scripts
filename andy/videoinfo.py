@@ -113,7 +113,7 @@ class GenVideoInfo(VideoInfo):
         av = self.vi.queryvideoinfosr('pragma auto_vacuum')
         if av[0] is not 1:
             self.vi.execviquery('pragma auto_vacuum = 1')
-            self.db.execute('vacuum')
+            self.vi.execviquery('vacuum')
 
         pgsize = self.vi.queryvideoinfosr('pragma page_size')
         if pgsize[0] is not 4096:
@@ -142,10 +142,9 @@ class GenVideoInfo(VideoInfo):
 
     def genhashlist(self, files, existinghash=None):
         for filename in files:
-            if existinghash:
-                if filename not in existinghash:
-                    print("{} Calculating hash for {}".format(self.colors.mood("happy"), pathlib.Path(filename).name))
-                    yield filename, self.util.hashfile(filename)
+            if existinghash and filename not in existinghash:
+                print("{} Calculating hash for {}".format(self.colors.mood("happy"), pathlib.Path(filename).name))
+                yield filename, self.util.hashfile(filename)
             else:
                 print("{} Calculating hash for {}".format(self.colors.mood("happy"), pathlib.Path(filename).name))
                 yield filename, self.util.hashfile(filename)
@@ -160,43 +159,23 @@ class GenVideoInfo(VideoInfo):
 
             with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
                 for filename in filelist:
-                    if pathlib.Path(filename).is_dir():
-                        paths = pathlib.Path(filename).iterdir()
-                        for filepath in paths:
-                            if not self.debug and existinghash:
-                                if m.id_filename(filepath.name) in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                                    yield str(filepath)
-                            elif self.debug or not existinghash:
-                                if m.id_filename(filepath.name) in whitelist and filepath.is_file():
-                                    yield str(filepath)
-                    else:
-                        filepath = pathlib.Path(filename)
-                        if not self.debug and existinghash:
-                            if m.id_filename(filename) in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                                yield str(filepath)
-                        elif self.debug or not existinghash:
-                            if m.id_filename(filename) in whitelist and filepath.is_file():
-                                yield str(filepath)
+                    filepath = pathlib.Path(filename)
+                    if not self.debug and existinghash:
+                        if m.id_filename(filename) in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                            yield str(filepath)
+                    elif self.debug or not existinghash:
+                        if m.id_filename(filename) in whitelist and filepath.is_file():
+                            yield str(filepath)
         except NameError:
             whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
             for filename in filelist:
-                if pathlib.Path(filelist).is_dir():
-                    paths = pathlib.Path(filelist).iterdir()
-                    for filepath in paths:
-                        if not self.debug and existinghash:
-                            if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                                yield str(filepath)
-                        elif self.debug or not existinghash:
-                            if filepath.suffix in whitelist and filepath.is_file():
-                                yield str(filepath)
-                else:
-                    filepath = pathlib.Path(filename)
-                    if not self.debug and existinghash:
-                        if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                            yield str(filepath)
-                    elif self.debug or not existinghash:
-                        if filepath.suffix in whitelist and filepath.is_file():
-                            yield str(filepath)
+                filepath = pathlib.Path(filename)
+                if not self.debug and existinghash:
+                    if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
+                        yield str(filepath)
+                elif self.debug or not existinghash:
+                    if filepath.suffix in whitelist and filepath.is_file():
+                        yield str(filepath)
             pass
 
     def gvigenjson(self, videofile):
