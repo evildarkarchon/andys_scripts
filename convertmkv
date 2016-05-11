@@ -19,7 +19,9 @@ args.add_argument("--concat", "-c", dest="combine", action="store_true", help="C
 args.add_argument("--output", "-o", help="Name of output file (for concatenation mode) or directory (for normal mode).")
 args.add_argument("--no-sort", "-ns", action="store_true", help="Do not sort the file names to be used for the file list.")
 args.add_argument("--database", "-d", help="Location of video info database.")
+args.add_argument("--output-database", "-od", help="Location of the output videoinfo database (defaults to the output directory)")
 args.add_argument("--backup", "-b", help="Location to move the original file.")
+args.add_argument("--no-gvi", "-ng", help="Disable video information generation if a database is found/specified.")
 args.add_argument("files", nargs="*", help="Files to be muxed.")
 
 options = vars(args.parse_args())
@@ -42,35 +44,61 @@ mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
 
 peshow = True
 
+if not options["output"] and not options["combine"]:
+    options["output"] = str(pathlib.Path.cwd())
+
+if not options["output"] == str(pathlib.Path.cwd()) and not pathlib.Path(options["output"]).is_dir():
+    if util.is_python_version((3, 5, 0)):
+        pathlib.Path(options["output"]).mkdir(parents=True, exist_ok=True)
+    else:
+        pathlib.Path(options["output"]).mkdir(parents=True)
+
 if options["database"] and pathlib.Path(options["database"]).exists():
     vi = VideoInfo(options["database"])
-    gvi = GenVideoInfo(options["database"])
+    if not options["no_gvi"]:
+        gvi = GenVideoInfo(options["database"])
+    else:
+        gvi = None
 elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
     vi = VideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
-    gvi = GenVideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+    if not options["no_gvi"]:
+        gvi = GenVideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+    else:
+        gvi = None
     options["database"] = str(pathlib.Path.cwd().joinpath("videoinfo.sqlite"))
 else:
     vi = None
     gvi = None
 
 
+def genvi(videoname):
+    if options["output_database"] and pathlib.Path(options["output_database"]).is_file():
+        ogvi = GenVideoInfo(options["output_database"])
+    elif not options["combine"] and options["output"] and not options["output_database"]\
+            and str(pathlib.Path(options["database"]).parent) != options["output"] and options["output"] != str(pathlib.Path.cwd()):
+                ogvi = GenVideoInfo(str(pathlib.Path(options["output"]).joinpath("videoinfo.sqlite")))
+    else:
+        ogvi = None
+    filepath = pathlib.Path(videoname)
+    print("{} Calculating hash for videoname for {}".format(colors.mood("happy"), filepath.name))
+    outhash = util.hashfile(videoname)
+    if ogvi:
+        jsondump = ogvi.gvigenjson(videoname)
+        ogvi.write(ogvi.generate(videoname, jsondump, outhash))
+    elif gvi and not ogvi:
+        jsondump = gvi.gvigenjson(videoname)
+        gvi.write(gvi.generate(videoname, jsondump, outhash))
+
+
 def backup(videoname):
     if options["backup"] and pathlib.Path(options["backup"]).is_dir():
-        filepath = pathlib.Path(videoname)
-        newname = str(filepath.with_suffix(".mkv"))
         print("{} Moving {} to {}".format(colors.mood("happy"), videoname, options["backup"]))
-        shutil.move(filename, options["backup"])
+        shutil.move(videoname, options["backup"])
         if vi:
             print("{} Removing original file metadata from the videoinfo database.".format(colors.mood("happy")))
             entry = vi.queryvideoinfosr('select filename from videoinfo where filename = ?', videoname)
             if entry:
                 vi.deletefileentry(videoname)
-            if gvi:
-                print("{} Calculating hash for {}".format(colors.mood("happy"), filepath.with_suffix(".mkv").name))
-                orighash = util.hashfile(newname)
-                print("{} Extracting Metadata from {}".format)
-                jsondump = gvi.gvigenjson(newname)
-                gvi.write(gvi.generate(newname, jsondump, orighash))
 
 
 def ffmpegconcat():
@@ -97,6 +125,8 @@ def ffmpegconcat():
             if peshow is True:
                 print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
                 peshow = False
+        if gvi:
+            genvi(options["output"])
 
 
 def mkvmergeconcat():
@@ -113,6 +143,8 @@ def mkvmergeconcat():
     else:
         print("{} mkvmerge not found.".format(colors.mood("sad")))
         raise FileNotFoundError
+    if gvi:
+        genvi(options["output"])
 
 if options["combine"]:
     if not options["output"]:
@@ -167,5 +199,7 @@ else:
                 else:
                     print("{} mkvmerge not found.".format(colors.mood("sad")))
                     raise FileNotFoundError
+            if gvi:
+                genvi(fileoutname)
             if options["backup"]:
                 backup(filename)
