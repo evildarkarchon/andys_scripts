@@ -72,14 +72,17 @@ else:
 
 
 def genvi(videoname):
-    if options["output_database"] and pathlib.Path(options["output_database"]).is_file():
+    outpath = pathlib.Path(options["output"])
+    outdbpath = pathlib.Path(options["output_database"])
+    dbpath = pathlib.Path(options["database"])
+    if options["output_database"] and outdbpath.is_file():
         ogvi = GenVideoInfo(options["output_database"])
-    elif not options["combine"] and options["output"] and not options["output_database"]\
-            and str(pathlib.Path(options["database"]).parent) != options["output"] and options["output"] != str(pathlib.Path.cwd()):
-                ogvi = GenVideoInfo(str(pathlib.Path(options["output"]).joinpath("videoinfo.sqlite")))
-    elif options["combine"] and pathlib.Path(options["output"]).parent.is_dir() and\
-            str(pathlib.Path(options["output"]).parent) != str(pathlib.Path.cwd()):
-                ogvi = GenVideoInfo(str(pathlib.Path(options["output"]).parent).joinpath("videoinfo.sqlite"))
+    elif not options["combine"] and options["output"] and not options["output_database"] and\
+            str(dbpath.parent) != options["output"] and options["output"] != str(pathlib.Path.cwd()):
+                ogvi = GenVideoInfo(str(outpath.joinpath("videoinfo.sqlite")))
+    elif options["combine"] and outpath.parent.is_dir() and\
+            str(outpath.parent) != str(pathlib.Path.cwd()):
+                ogvi = GenVideoInfo(outpath.parent.joinpath("videoinfo.sqlite"))
     else:
         ogvi = None
 
