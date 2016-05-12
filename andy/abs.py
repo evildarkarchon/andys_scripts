@@ -103,21 +103,23 @@ class ABS(VideoInfo, VideoUtil):
                         return bitrates[0]
                 else:
                     return None
-            if ('videobitrate' not in vars() and 'audiobitrate' not in vars()) or (not videobitrate and not audiobitrate):
+
+            if ('videobitrate' not in vars() or not videobitrate) or ('audiobitrate' not in vars() or not audiobitrate):
                 bitrates = auto_bitrates()
                 if self.debug:
                     print(bitrates)
 
-            if ('videobitrate' not in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) is 2:
+            if ('videobitrate' not in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) >= 2:
                 videobitrate = str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
-            elif 'videobitrate' not in vars() and videocodec not in self.nocodec and ('audiocodec' not in vars() or not audiocodec) and len(bitrates) is 1:
+            elif 'videobitrate' not in vars() and videocodec not in self.nocodec\
+                    and ('audiocodec' not in vars() or not audiocodec) and len(bitrates) is 1:
                 videobitrate = str(bitrates)
                 if self.debug:
                     print(videobitrate)
 
-            if 'audiobitrate' not in vars() and audiocodec not in self.nocodec and len(bitrates) is 2:
+            if 'audiobitrate' not in vars() and audiocodec not in self.nocodec and len(bitrates) >= 2:
                 audiobitrate = str(min(bitrates))
                 if self.debug:
                     print(audiobitrate)
