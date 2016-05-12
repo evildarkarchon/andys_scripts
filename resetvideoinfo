@@ -22,9 +22,12 @@ for directory in directories:
     vi = VideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
     gvi = GenVideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
     path = pathlib.Path(directory).resolve()
-    files = []
-    for filename in path.iterdir():
-        files.append(str(filename))
+
+    def gfl():
+        for filename in path.iterdir():
+            yield str(filename)
+
+    files = list(gfl())
 
     if options["reset_json"] or options["reset_all"]:
         vi.resetjson()
