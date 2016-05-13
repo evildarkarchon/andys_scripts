@@ -2,8 +2,6 @@ import locale
 import shutil
 import os
 
-from humanize.filesize import naturalsize
-
 from andy.util import Color, Util, Program
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
