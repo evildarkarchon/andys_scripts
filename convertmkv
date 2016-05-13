@@ -115,9 +115,7 @@ def ffmpegconcat():
                 if dur:
                     mkvlist.write("duration {}\n".format(dur[0]))
             mkvlist.flush()
-        """mkvlist.seek(0)
-        print(mkvlist.read())
-        mkvlist.seek(0)"""
+
         if ffmpeg:
             program.runprogram([ffmpeg, "-f", "concat", '-safe', '0', "-i", mkvlist.name, "-c", "copy", "-hide_banner", "-y", options["output"]])
         else:
@@ -138,12 +136,8 @@ def mkvmergeconcat():
     def mkvconcat():
         basecommand = [mkvmerge, "-o", options["output"]]
         concatfilelist = ' + '.join(filelist).split()
-        """newlist=str(start)
-        newnewlist=newlist.split()"""
         return basecommand + concatfilelist
     if mkvmerge:
-        """command=concatlist()"""
-        """print(command)"""
         program.runprogram(mkvconcat())
     else:
         print("{} mkvmerge not found.".format(colors.mood("sad")))
