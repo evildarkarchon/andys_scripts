@@ -12,7 +12,6 @@ locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 args = argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
 args.add_argument("--database", "-db", default=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), help="Location of the sqlite database to save the information into.")
 args.add_argument("--debug", "-d", action="store_true", help="Run in debug mode.")
-args.add_argument("--delete", "-del", action="store_true", help="Delete the files specified from the database")
 args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
 args.add_argument("--regen", "-r", action="store_true", help="Regenerate the videoinfo table of the database.")
 args.add_argument("--reset-json", "-rj", action="store_true", help="Resets the videojson table.")
@@ -58,7 +57,7 @@ def geninitfilelist(filelist=options["files"]):
 
 initfilelist = list(geninitfilelist())
 
-if not options["delete"] and not options["reset_json"] and not options["maintainence"]:
+if not options["reset_json"] and not options["maintainence"]:
     existinghashes = dict(gvi.genexisting())
     filelist = util.sortentries(list(gvi.genfilelist(initfilelist, existinghashes)))
     if options["debug"]:
@@ -70,12 +69,7 @@ if not options["delete"] and not options["reset_json"] and not options["maintain
 
     hashes = dict(gvi.genhashlist(filelist, existinghashes))
 
-if options["delete"]:
-    for filename in options["files"]:
-        for filename in options["files"]:
-            vi.deletefileentry(filename)
-
-if not options["delete"] and not options["maintainence"]:
+if not options["maintainence"]:
     for filename in filelist:
         jsondump = gvi.gvigenjson(filename)
         gvi.write(gvi.generate(filename, jsondump, hashes[filename]))
