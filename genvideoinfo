@@ -71,5 +71,4 @@ if not options["reset_json"] and not options["maintainence"]:
 
 if not options["maintainence"]:
     for filename in filelist:
-        jsondump = gvi.gvigenjson(filename)
-        gvi.write(gvi.generate(filename, jsondump, hashes[filename]))
+        gvi.write(gvi.generate(filename, gvi.gvigenjson(filename), hashes[filename]))
