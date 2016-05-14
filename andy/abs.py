@@ -57,14 +57,14 @@ class ABS(VideoInfo, VideoUtil):
 
         def frameratefilter():
             if framerate:
-                return ["-filter:v", "fps={}".format(framerate)]
+                return "-filter:v", "fps={}".format(framerate)
             elif self.vi and not framerate and videocodec not in self.nocodec:
                 if self.fr is False:
                     print("{} Frame Rate not specified, attempting to read from the database.".format(self.colors.mood("neutral")))
                     self.frcount = True
                 try:
                     fr = self.vi.queryvideoinfosr("select frame_rate from videoinfo where filename=?", filepath.name)
-                    return ["-filter:v", "fps={}".format(fr[0])]
+                    return "-filter:v", "fps={}".format(fr[0])
                 except (sqlite3.Error, IndexError):
                     print("{} Frame Rate for {} not found in database, will rely on ffmpeg auto-detection.".format(self.colors.mood("neutral"), filename))
                     return None
@@ -128,46 +128,47 @@ class ABS(VideoInfo, VideoUtil):
                 if self.debug:
                     print(audiobitrate)
 
-            biglist = []
-            baselist = [self.ffmpeg, "-i", str(filepath)]
-            videocodeclist = ["-c:v", videocodec]
-            bitratelist = ["-b:v", videobitrate]
-            passlist = ["-pass", str(passno), "-passlogfile", str(filepath.with_suffix(""))]
-            listsuffix = ["-hide_banner", "-y"]
-
-            biglist = biglist + baselist
+            for item in [self.ffmpeg, "-i", str(filepath)]:
+                yield item
 
             if videocodec not in self.nocodec:
-                biglist = biglist + videocodeclist
+                for item in ["-c:v", videocodec]:
+                    yield item
                 fr = frameratefilter()
                 if fr:
-                    biglist = biglist + fr
-                biglist = biglist + bitratelist
+                    yield from frameratefilter()
+                for item in ["-b:v", videobitrate]:
+                    yield item
 
             if passmax is 2:
-                biglist = biglist + passlist
+                for item in ["-pass", str(passno), "-passlogfile", str(filepath.with_suffix(""))]:
+                    yield item
 
             if videocodecopts:
-                biglist = biglist + videocodecopts
+                for item in videocodecopts:
+                    yield item
 
             if passno is 1:
-                biglist = biglist + ["-an"] + listsuffix + ["-f", "matroska", "/dev/null"]
+                for item in ["-an", "-hide_banner", "-y", "-f", "matroska", "/dev/null"]:
+                    yield item
             else:
                 if audiocodec not in (None, "none"):
-                    biglist = biglist + ["-c:a"] + [audiocodec]
+                    for item in ["-c:a", audiocodec]:
+                        yield item
                     if audiocodec is not "copy":
-                        biglist = biglist + ["-b:a"] + [audiobitrate]
+                        for item in ["-b:a", audiobitrate]:
+                            yield item
                         if audiocodecopts:
-                            biglist = biglist + audiocodecopts
+                            for item in audiocodecopts:
+                                yield item
                         if audiofilteropts:
-                            biglist = biglist + ["-af"] + audiofilteropts
+                            yield "-af"
+                            for item in audiofilteropts:
+                                yield item
                 else:
-                    biglist.append("-an")
-                biglist = biglist + listsuffix + [output]
-
-            # print(list(flatten(biglist))) #temporary for debugging purposes
-
-            return biglist
+                    yield "-an"
+                for item in ["-hide_banner", "-y", output]:
+                    yield item
 
         def convertdone():
             if self.vi and not self.converttest:
@@ -184,15 +185,15 @@ class ABS(VideoInfo, VideoUtil):
         if self.debug:
             print('')
             if passes is 2:
-                print(commandlist(passno=1, passmax=2))
-                print(commandlist(passno=2, passmax=2))
+                print(list(commandlist(passno=1, passmax=2)))
+                print(list(commandlist(passno=2, passmax=2)))
             else:
-                print(commandlist(passmax=1))
+                print(list(commandlist(passmax=1)))
 
         if passes is 2 and not self.debug:
             try:
-                self.program.runprogram(commandlist(passno=1, passmax=2))
-                self.program.runprogram(commandlist(passno=2, passmax=2))
+                self.program.runprogram(list(commandlist(passno=1, passmax=2)))
+                self.program.runprogram(list(commandlist(passno=2, passmax=2)))
             except (KeyboardInterrupt, subprocess.CalledProcessError):
                 if outpath.exists():
                     print("\n{} Removing unfinished file.".format(self.colors.mood("neutral")))
