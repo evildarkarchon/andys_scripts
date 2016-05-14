@@ -61,7 +61,7 @@ class ABS(VideoInfo, VideoUtil):
             elif self.vi and not framerate and videocodec not in self.nocodec:
                 if self.fr is False:
                     print("{} Frame Rate not specified, attempting to read from the database.".format(self.colors.mood("neutral")))
-                    self.frcount = True
+                    self.fr = True
                 try:
                     fr = self.vi.queryvideoinfosr("select frame_rate from videoinfo where filename=?", filepath.name)
                     return "-filter:v", "fps={}".format(fr[0])
