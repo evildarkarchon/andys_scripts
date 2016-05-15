@@ -3,6 +3,7 @@ import pathlib
 import shutil
 import sqlite3
 import subprocess
+import sys
 
 from andy.util import Color, Program, Util
 from andy.videoinfo import VideoInfo
@@ -181,6 +182,12 @@ class ABS(VideoInfo, VideoUtil):
                 print("{} Adding statistics tags to output file.".format(self.colors.mood("happy")))
                 self.program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", output])
 
+        def convertnotdone():
+            if outpath.exists():
+                print("\n{} Removing unfinished file.".format(self.colors.mood("neutral")))
+                outpath.unlink()
+                sys.exit(0)
+
         if self.debug:
             print('')
             if passes is 2:
@@ -194,9 +201,7 @@ class ABS(VideoInfo, VideoUtil):
                 self.program.runprogram(list(commandlist(passno=1, passmax=2)))
                 self.program.runprogram(list(commandlist(passno=2, passmax=2)))
             except (KeyboardInterrupt, subprocess.CalledProcessError):
-                if outpath.exists():
-                    print("\n{} Removing unfinished file.".format(self.colors.mood("neutral")))
-                    outpath.unlink()
+                convertnotdone()
             else:
                 convertdone()
             finally:
@@ -208,8 +213,6 @@ class ABS(VideoInfo, VideoUtil):
             try:
                 self.program.runprogram(commandlist(passmax=1))
             except (KeyboardInterrupt, subprocess.CalledProcessError):
-                if outpath.exists():
-                    print("{} Removing unfinished file.".format(self.colors.mood("neutral")))
-                    outpath.unlink()
+                convertnotdone()
             else:
                 convertdone()
