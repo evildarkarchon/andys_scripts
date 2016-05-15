@@ -44,7 +44,9 @@ class Util(Color):
         if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
             print("{} Second argument must be a dictionary.".format(self.colors.mood("sad")))
             raise TypeError
-        if not printdata:
+        if printdata:
+            print(json.dumps(dictionary, sort_keys=True, indent="\t"))
+        else:
             if jsonpath.exists():
                 print("{} Backing up {} to {}".format(self.colors.mood("happy"), str(jsonpath), str(jsonpath).replace(".json", ".json.bak")))
                 with open(str(jsonpath)) as orig, open(str(jsonpath).replace(".json", ".json.bak"), "w") as backup:
@@ -53,8 +55,6 @@ class Util(Color):
             with open(str(jsonpath), "w") as dest:
                 print("{} Writing values to JSON file: {}".format(self.colors.mood("happy"), str(jsonpath)))
                 dest.write(json.dumps(dictionary, sort_keys=True, indent="\t"))
-        else:
-            print(json.dumps(dictionary, sort_keys=True, indent="\t"))
 
     def is_python_version(self, query):
         if not isinstance(query, (tuple, list, collections.deque)):
