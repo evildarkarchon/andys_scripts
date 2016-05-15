@@ -5,6 +5,12 @@ import locale
 import pathlib
 from collections import ChainMap
 import shlex
+import sys
+
+try:
+    import magic
+except ImportError:
+    pass
 
 from andy.abs import ABS
 from andy.util import Color, Util
@@ -43,6 +49,24 @@ fileargs.add_argument("--output-dir", "-o", dest="output", help="Directory to ou
 args.add_argument("files", nargs="*", help="Files to encode.")
 
 cmdline = vars(args.parse_args())
+
+
+def filterfilelist(filelist):
+    try:
+        whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
+
+        with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
+            for filename in filelist:
+                filepath = pathlib.Path(filename)
+                if m.id_filename(filename) in whitelist and filepath.is_file():
+                    yield str(filepath)
+    except NameError:
+        whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
+        for filename in filelist:
+            filepath = pathlib.Path(filename)
+            if filepath.suffix in whitelist and filepath.is_file():
+                yield str(filepath)
+        pass
 
 
 def configdict():
@@ -90,9 +114,6 @@ if not options["database"]:
 
 abs = ABS(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
 
-if options["debug"]:
-    print(options)
-
 if options["container"]:
     options["container"] = ".{}".format(options["container"])
 elif not options["container"]:
@@ -122,11 +143,20 @@ else:
 if not options["passes"]:
     options["passes"] = options["defaults"]["passes"]
 
+options["files"] = list(filterfilelist(options["files"]))
+
+if len(options["files"]) is 0:
+    print("{} There are no valid files to be encoded.".format(colors.mood("happy")))
+    sys.exit(0)
+
 if not options["no_sort"]:
     options["files"] = util.sortentries(options["files"])
 
 if "frame_rate" not in options:
     options["frame_rate"] = None
+
+if options["debug"]:
+    print(options)
 
 for files in options["files"]:
     abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"], audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"], audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"], framerate=options["frame_rate"])
