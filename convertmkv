@@ -42,7 +42,7 @@ mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
 ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
 mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
 
-peshow = True
+pe = False
 
 if not options["output"] and not options["combine"]:
     options["output"] = str(pathlib.Path.cwd())
@@ -125,9 +125,9 @@ def ffmpegconcat():
             print("{} Adding track statistics metadata to {}".format(colors.mood("happy"), options["output"]))
             program.runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
         else:
-            if peshow is True:
+            if not pe:
                 print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
-                peshow = False
+                pe = True
         if gvi:
             genvi(options["output"])
 
@@ -189,9 +189,9 @@ else:
                     print("{} Adding track statistics to {}".format(colors.mood("happy"), fileoutname))
                     program.runprogram([mkvpropedit, "--add-track-statistics-tags", fileoutname])
                 else:
-                    if peshow is True:
+                    if not pe:
                         print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
-                        peshow = False
+                        pe = True
             else:
                 if mkvmerge:
                     program.runprogram([mkvmerge, "-o", fileoutname, "=", filename])
