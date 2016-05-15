@@ -4,6 +4,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import traceback
 
 from andy.util import Color, Program, Util
 from andy.videoinfo import VideoInfo
@@ -183,10 +184,11 @@ class ABS(VideoInfo, VideoUtil):
                 self.program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", output])
 
         def convertnotdone():
+            # print("\ntest")
             if outpath.exists():
                 print("\n{} Removing unfinished file.".format(self.colors.mood("neutral")))
                 outpath.unlink()
-                sys.exit(0)
+                sys.exit(1)
 
         if self.debug:
             print('')
@@ -198,10 +200,13 @@ class ABS(VideoInfo, VideoUtil):
 
         if passes is 2 and not self.debug:
             try:
-                self.program.runprogram(list(commandlist(passno=1, passmax=2)))
-                self.program.runprogram(list(commandlist(passno=2, passmax=2)))
-            except (KeyboardInterrupt, subprocess.CalledProcessError):
+                self.program.runprogram(list(commandlist(passno=1, passmax=2)), verify=True)
+                self.program.runprogram(list(commandlist(passno=2, passmax=2)), verify=True)
+            # except Exception as e:
+            except (KeyboardInterrupt, subprocess.CalledProcessError, ChildProcessError):
                 convertnotdone()
+                # traceback.print_exc()
+                raise
             else:
                 convertdone()
             finally:
@@ -211,8 +216,10 @@ class ABS(VideoInfo, VideoUtil):
 
         elif passes is 1 and not self.debug:
             try:
-                self.program.runprogram(commandlist(passmax=1))
-            except (KeyboardInterrupt, subprocess.CalledProcessError):
+                self.program.runprogram(commandlist(passmax=1), verify=True)
+            except (KeyboardInterrupt, subprocess.CalledProcessError, ChildProcessError):
                 convertnotdone()
+                # traceback.print_exc()
+                raise
             else:
                 convertdone()

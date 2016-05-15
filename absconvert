@@ -6,6 +6,7 @@ import pathlib
 from collections import ChainMap
 import shlex
 import sys
+import subprocess
 
 try:
     import magic
@@ -159,6 +160,10 @@ if options["debug"]:
     print(options)
 
 for files in options["files"]:
-    abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"],
-                audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"], audiobitrate=options["audio_bitrate"],
-                videocodecopts=options["videocodecopts"], container=options["container"], framerate=options["frame_rate"])
+    try:
+        abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"],
+                    audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"], audiobitrate=options["audio_bitrate"],
+                    videocodecopts=options["videocodecopts"], container=options["container"], framerate=options["frame_rate"])
+    except (KeyboardInterrupt, subprocess.CalledProcessError):
+        break
+        raise
