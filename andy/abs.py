@@ -51,7 +51,8 @@ class ABS(VideoInfo, VideoUtil):
             print("{} ffmpeg not found, exiting.")
             raise FileNotFoundError
 
-    def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None, audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
+    def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None,
+                audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
 
         filepath = pathlib.Path(filename).resolve()
         outpath = self.outputpath.joinpath(filepath.with_suffix(container).name)
