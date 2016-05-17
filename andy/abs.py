@@ -14,18 +14,17 @@ locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
 
 class ABS(VideoInfo, VideoUtil):
-    
+
     """Worker class for absconvert
-    
+
     database specifies the location of the videoinfo database, if any.
-    
-    debug specifies whether to run in debug (aka pretend) mode, it basically prints out particular variables
-    and function results, but does not actually execute ffmpeg.
-    
+
+    debug specifies whether to run in debug (aka pretend) mode, it basically prints out particular variables and function results, but does not actually execute ffmpeg.
+
     backup specifies an optional backup directory to move the original file when the conversion is complete.
-    
+
     output specifies the directory where the resulting file will be encoded to.
-    
+
     converttest tells the class to not delete any videoinfo entries if they exist."""
 
     def __init__(self, database=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), debug=None, backup=None, output=None, converttest=False):
@@ -66,41 +65,33 @@ class ABS(VideoInfo, VideoUtil):
 
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None,
                 audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
-                
-        """Conversion worker function for absconvert, this function is intended to be run in a for loop,
-        but technically be run outside one.
-        
+        """Conversion worker function for absconvert, this function is intended to be run in a for loop, but technically be run outside one.
+
         filename is the location of the file to be converted.
-        
-        videocodec specifies the video codec to be used, if the codec is None, "none", or "copy",
-        certain variables will not be used.
-        
-        videobitrate is an optional variable that specifies the bitrate for the video stream,
-        it its not specified, and there is a videoinfo database, it will use the highest
-        of the two bitrate entries (or only one if there is only one stream).
-        If there is not a videoinfo database and the videocodec is not None, "none", or "copy",
-        it will error out.
-        
+
+        videocodec specifies the video codec to be used, if the codec is None, "none", or "copy", certain variables will not be used.
+
+        videobitrate is an optional variable that specifies the bitrate for the video stream.
+        If its not specified, and there is a videoinfo database, it will use the highest of the two bitrate entries (or only one if there is only one stream).
+        If there is not a videoinfo database and the videocodec is not None, "none", or "copy", it will error out.
+
         videocodecopts specifies any options to be passed to ffmpeg regarding the video codec.
-        
+
         audiocodec specifies the audio codec to be used, like videocodec,
         if None, "none", or "copy" is specified, certain variables will not be used.
-        
-        audiobitrate is an optional variable that specifies the bitrate for the audio stream,
-        if its not specified, and there is a videoinfo database, it will use the lowest of the
-        two bitrate entries in the database (or the only one if there is only one stream).
-        If there is not a videoinfo database and the audiocodec is not None, "none", or "copy",
-        it will error out.
-        
+
+        audiobitrate is an optional variable that specifies the bitrate for the audio stream.
+        If its not specified, and there is a videoinfo database, it will use the lowest of the two bitrate entries in the database (or the only one if there is only one stream).
+        If there is not a videoinfo database and the audiocodec is not None, "none", or "copy", it will error out.
+
         audiocodecopts specifies any options related to the audio codec to be passed to ffmpeg.
-        
+
         audiofilteropts specifies any audio filters to use.
-        
+
         container specifies what container format to use.
-        
-        framerate tells ffmpeg explicitly what frame rate the video file is, it helps with old containers
-        like MPEG2-PS, if not specified and there is a videoinfo database, that value will automatically be used.
-        
+
+        framerate tells ffmpeg explicitly what frame rate the video file is, it helps with old containers like MPEG2-PS, if not specified and there is a videoinfo database, that value will automatically be used.
+
         passes specifies the number of passes to use, defaults to 2."""
 
         filepath = pathlib.Path(filename).resolve()
@@ -108,10 +99,8 @@ class ABS(VideoInfo, VideoUtil):
         output = str(outpath)
 
         def frameratefilter():
-        
-            """Helper function to give the command list function the framerate that was either specified on the command line or
-            from the videoinfo database."""
-            
+            """Helper function to give the command list function the framerate that was either specified on the command line or from the videoinfo database."""
+
             if framerate:
                 return "-filter:v", "fps={}".format(framerate)
             elif self.vi and not framerate and videocodec not in self.nocodec:
@@ -133,13 +122,12 @@ class ABS(VideoInfo, VideoUtil):
             passes = 1
 
         def commandlist(passno=None, passmax=passes):
-        
             """Generator function to assemble the command list.
-            
+
             passno indicates the stage of a 2 pass encode.
-            
+
             passmax indicates whether its a 1 or 2 pass encode."""
-            
+
             if passno is None and passmax is 2:
                 print("{} You must specify a pass number if using 2-pass encoding.".format(self.colors.mood("sad")))
                 raise ValueError
@@ -153,9 +141,8 @@ class ABS(VideoInfo, VideoUtil):
                 raise ValueError
 
             def auto_bitrates():
-            
                 """Helper function that returns the bitrate(s) in a videoinfo database if not specified."""
-                
+
                 if self.database:
                     if self.auto is False:
                         print("{} Bit-rates not specified, attempting to guess from database entries.".format(self.colors.mood("neutral")))
@@ -237,9 +224,8 @@ class ABS(VideoInfo, VideoUtil):
                     yield item
 
         def convertdone():
-        
             """Clean up function for when the conversion has completed successfully."""
-        
+
             if self.vi and not self.converttest:
                 self.vi.deletefileentry(filepath.name)
             if self.backuppath and self.backuppath.exists():
@@ -251,9 +237,8 @@ class ABS(VideoInfo, VideoUtil):
                 self.program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", output])
 
         def convertnotdone():
-        
             """Clean up function for when conversion does not complete successfully."""
-        
+
             # print("\ntest")
             if outpath.exists():
                 print("\n{} Removing unfinished file.".format(self.colors.mood("neutral")))
