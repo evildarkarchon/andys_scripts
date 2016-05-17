@@ -72,11 +72,10 @@ else:
 
 
 def genvi(videoname):
-
     """Frontend function for all videoinfo generation for this script.
     If the destination directory is the current directory, it will use the database in the current directory.
     Otherwise, it will use the database (or create a new one, built-in feature of sqlite3 module) in the destination directory.
-    
+
     videoname is a string with the filename of the newly muxed file."""
 
     outpath = pathlib.Path(options["output"])
@@ -86,10 +85,10 @@ def genvi(videoname):
         ogvi = GenVideoInfo(options["output_database"])
     elif not options["combine"] and options["output"] and not options["output_database"] and\
             str(dbpath.parent) != options["output"] and options["output"] != str(pathlib.Path.cwd()):
-                ogvi = GenVideoInfo(str(outpath.joinpath("videoinfo.sqlite")))
+        ogvi = GenVideoInfo(str(outpath.joinpath("videoinfo.sqlite")))
     elif options["combine"] and outpath.parent.is_dir() and\
             str(outpath.parent) != str(pathlib.Path.cwd()):
-                ogvi = GenVideoInfo(outpath.parent.joinpath("videoinfo.sqlite"))
+        ogvi = GenVideoInfo(outpath.parent.joinpath("videoinfo.sqlite"))
     else:
         ogvi = None
 
@@ -103,9 +102,8 @@ def genvi(videoname):
 
 
 def backup(videoname):
-
     """Worker function that performs any requested backup operations.
-    
+
     videoname is a string with the filename of the source file."""
 
     if options["backup"] and pathlib.Path(options["backup"]).is_dir():
@@ -119,7 +117,6 @@ def backup(videoname):
 
 
 def ffmpegconcat():
-
     """Worker function that performs concatenation using ffmpeg.
     Because ffmpeg requires a file list and I am not aware of a way to do this using stdin.
     A temporary file is created and the file name of the source file as well as the duration from the duration_raw column of the videoinfo database if one is available.
@@ -151,7 +148,6 @@ def ffmpegconcat():
 
 
 def mkvmergeconcat():
-
     """Worker function to perform concatenation using mkvmerge."""
 
     def mkvconcat():

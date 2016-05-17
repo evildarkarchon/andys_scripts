@@ -20,12 +20,11 @@ from termcolor import colored
 class Color:
 
     def mood(self, currentmood=None):
-    
         """Specifies what color star to print (or generic if not one of the specified three specified "moods")
-        
+
         currentmood will return a colored star (or a generic star if run on windows or if currentmood is not specified)
         valid moods are "happy", "sad", and "neutral"."""
-    
+
         if platform.system is "Windows":
             return "*"
         else:
@@ -48,7 +47,6 @@ class Util(Color):
         self.colors = Color()
 
     def genjson(self, dictionary, filename=None, printdata=False, indentjson=True):
-    
     """Convenience function to take a dictionary, convert it to json, and either write it to a file or print it out.
     
     dictionary is the dictionary to convert to json.
@@ -59,11 +57,11 @@ class Util(Color):
     
     If indentjson is True, it will insert tabs in the resulting json (this is the default mode), otherwise,
     it will output a sorted version of the raw json."""
-        
+
         if not isinstance(filename, str) and printdata is False:
             print("{} File name was not specified and printdata mode is disabled.")
             raise TypeError
-    
+
         jsonpath = pathlib.Path(filename).resolve()
     #    print(dictionary)
         if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
@@ -88,12 +86,11 @@ class Util(Color):
                     dest.write(json.dumps(dictionary, sort_keys=True))
 
     def is_python_version(self, query):
-    
         """Helper function to take a tuple of the minimum version of python you are searching for and returning True if its greater than or equal to that version or False if its not.
         It will convert any tuple-convertable types into a tuple for the purposes of evaluation.
-        
+
         query is a tuple of the minimum version of python that will return True."""
-    
+
         if not isinstance(query, (tuple, list, collections.deque)):
             print("{} Value must be a tuple or a list.".format(self.colors.mood("sad")))
             raise TypeError
@@ -107,11 +104,10 @@ class Util(Color):
             return False
 
     def is_privileged(self, privuser="root"):
-    
     """Helper function to check if the current effective user is the same as the "privileged" user specified.
     
     privuser can be either a UID integer or a username string."""
-    
+
         if isinstance(privuser, str):
             user = pwd.getpwnam(privuser)
             if user.pw_uid == os.geteuid():
@@ -128,13 +124,12 @@ class Util(Color):
             raise TypeError
 
     def sortentries(self, text):
-    
     """Helper function to sort lists, it will use the natsort module's humansorted function if its available.
     Otherwise it will use the builtin sorting function (which is not quite as good).
     It will split strings into lists if that's what's been given to sort.
     
     text is the text to be sorted."""
-    
+
         try:
             if isinstance(text, str):
                 return humansorted(text.split())
@@ -152,11 +147,10 @@ class Util(Color):
                 pass
 
     def hashfile(self, filename):
-    
         """Helper function to calculate hashes for files.
-        
+
         filename is the name of the file to be hashed."""
-    
+
         hasher = hashlib.sha256()
         filepath = pathlib.Path(filename).resolve()
         with open(str(filepath), "rb", 200000000) as afile:
@@ -178,27 +172,26 @@ class Program(Util, Color):
         self.util = Util()
 
     def runprogram(self, program, verify=True, use_sudo=False, user=None, stdinput=None, stdoutput=None, stderror=None, environment=None, workdir=None):
-    
         """Convenience function for running programs.
-        
+
         program is the program to be run.
-        
+
         verify specifies whether subprocess.check_call is used in python <3.5 or subprocess.run(check=True) is used in python >=3.5.
-        
+
         use_sudo specifies whether to run the program using sudo.
-        
+
         user specifies to sudo what user to run as.
-        
+
         stdinput is used for any data to be passed to the program through stdin, verify should be off if this is used.
-        
+
         stdoutput specifies a class to handle standard output, default will output it to normal stdout.
-        
+
         stderror is the same as stdoutput, but for stderr
-        
+
         environment takes a dictionary that will be used as the environment for the running program.
-        
+
         workdir specifies the cwd the program will run in."""
-    
+
         if isinstance(program, collections.deque):
             command = program
         elif isinstance(program, (tuple, list)):
@@ -230,15 +223,14 @@ class Program(Util, Color):
                 subprocess.call(command, stdin=stdinput, stdout=stdoutput, stderr=stderror, env=environment, cwd=workdir)
 
     def returninfo(self, source, string=True, stdinput=None):
-    
         """Convenience function for returning the output of a program to the caller.
-        
+
         source is the program to be run.
-        
+
         if string is True, it will decode the output using utf-8.
-        
+
         stdinput is used for any data to be passed to the program through stdin."""
-    
+
         if isinstance(source, str):
             source = shlex.split(source)
         data = subprocess.Popen(source, stdin=stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
