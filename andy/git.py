@@ -12,7 +12,7 @@ class Git:
         
         use_sudo controls whether sudo is used.
         
-        sudo_user tells runprogram what user to run sudo under.
+        sudo_user tells sudo what user to run as.
         
         url tells git what url to use when cloning a repository."""
         
