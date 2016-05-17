@@ -72,6 +72,13 @@ else:
 
 
 def genvi(videoname):
+
+    """Frontend function for all videoinfo generation for this script.
+    If the destination directory is the current directory, it will use the database in the current directory.
+    Otherwise, it will use the database (or create a new one, built-in feature of sqlite3 module) in the destination directory.
+    
+    videoname is a string with the filename of the newly muxed file."""
+
     outpath = pathlib.Path(options["output"])
     outdbpath = pathlib.Path(options["output_database"])
     dbpath = pathlib.Path(options["database"])
@@ -96,6 +103,11 @@ def genvi(videoname):
 
 
 def backup(videoname):
+
+    """Worker function that performs any requested backup operations.
+    
+    videoname is a string with the filename of the source file."""
+
     if options["backup"] and pathlib.Path(options["backup"]).is_dir():
         print("{} Moving {} to {}".format(colors.mood("happy"), videoname, options["backup"]))
         shutil.move(videoname, options["backup"])
@@ -107,6 +119,12 @@ def backup(videoname):
 
 
 def ffmpegconcat():
+
+    """Worker function that performs concatenation using ffmpeg.
+    Because ffmpeg requires a file list and I am not aware of a way to do this using stdin.
+    A temporary file is created and the file name of the source file as well as the duration from the duration_raw column of the videoinfo database if one is available.
+    This will also invoke mkvpropedit if its installed and add track statistics tags so tools like genvideoinfo can get bitrate data."""
+
     with tempfile.NamedTemporaryFile("a+") as mkvlist:
         for filename in filelist:
             mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
@@ -133,6 +151,9 @@ def ffmpegconcat():
 
 
 def mkvmergeconcat():
+
+    """Worker function to perform concatenation using mkvmerge."""
+
     def mkvconcat():
         basecommand = [mkvmerge, "-o", options["output"]]
         concatfilelist = ' + '.join(filelist).split()
