@@ -101,10 +101,10 @@ class ABS(VideoInfo, VideoUtil):
         output = str(outpath)
         
         if not self.vi and videocodec not in self.nocodec and (videobitrate not in vars() or not videobitrate):
-            print('{} No videoinfo database initialized, videocodec is not None, "none", or "copy", and no bitrate specified'.format(self.colors.mood("sad")))
+            print('{} No videoinfo database initialized, videocodec is not None, "none", or "copy", and no bitrate specified.'.format(self.colors.mood("sad")))
             raise ValueError
         elif not self.vi and audiocodec not in self.nocodec and (audiobitrate not in vars() or not audiobitrate):
-            print('{} No videoinfo database initialized, audiocodec is not None, "none", or "copy", and no bitrate specified'.format(self.colors.mood("sad")))
+            print('{} No videoinfo database initialized, audiocodec is not None, "none", or "copy", and no bitrate specified.'.format(self.colors.mood("sad")))
             raise ValueError
 
         def frameratefilter():
