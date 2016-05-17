@@ -111,8 +111,7 @@ class VideoInfo:
 
     def queryvideoinfomr(self, query, *values):
     
-        """Performs a query on the videoinfo database, It will only accept select or pragma queries as there is
-        a separate set of functions for executing queries that don't expect a result.
+        """Performs a query on the videoinfo database, It will only accept select or pragma queries as there is a separate set of functions for executing queries that don't expect a result.
         This function is for returning multiple results.
         
         query is the sql query to be executed (using normal placeholders).
@@ -129,8 +128,7 @@ class VideoInfo:
 
     def queryvideoinfosr(self, query, *values):
     
-        """Performs a query on the videoinfo database, It will only accept select or pragma queries as there is
-        a separate set of functions for executing queries that don't expect a result.
+        """Performs a query on the videoinfo database, It will only accept select or pragma queries as there is a separate set of functions for executing queries that don't expect a result.
         This function is for returning a single result.
         
         query is the sql query to be executed (using normal placeholders).
@@ -147,8 +145,7 @@ class VideoInfo:
 
     def execviquery(self, query, *values):
     
-        """Executes an arbitrary query on the videoinfo database. It will not return any results,
-        so use the queryvideoinfo series of functions for that.
+        """Executes an arbitrary query on the videoinfo database. It will not return any results, so use the queryvideoinfo series of functions for that.
         
         query is the sql query to be executed (using normal placeholders).
         
@@ -160,8 +157,7 @@ class VideoInfo:
 
     def execviquerynp(self, query, dictionary):
         
-        """Executes an arbitrary query on the videoinfo database. It will not return any results,
-        so use the queryvideoinfo series of functions for that.
+        """Executes an arbitrary query on the videoinfo database. It will not return any results, so use the queryvideoinfo series of functions for that.
         
         query is the sql query to be executed (using named placeholders).
         
@@ -243,9 +239,8 @@ class GenVideoInfo(VideoInfo):
 
     def genfilelist(self, filelist, existinghash=None):
     
-        """Generator function that takes a list of files and yields a filtered list that eliminates
-        any non-video files (based on known mime types or file extensions) and any files that are already in the database. It will use the filemagic
-        module if available for matching based on mime type or use a file extension whitelist if filemagic is not detected.
+        """Generator function that takes a list of files and yields a filtered list that eliminates any non-video files (based on known mime types or file extensions) and any files that are already in the database.
+        It will use the filemagic module if available for matching based on mime type or use a file extension whitelist if filemagic is not detected.
         python-magic WILL NOT WORK and there is no easy way to test for it as it uses the same module name. 
         So if python-magic is installed, get rid of it and install filemagic instead."""
     
@@ -300,8 +295,7 @@ class GenVideoInfo(VideoInfo):
 
     def generate(self, videofile, jsoninfo, filehash):
     
-        """The workhorse of genvideoinfo, this function generates a dictionary based on json that's either given by gvigenjson
-        or any other source of ffprobe-format json data.
+        """The workhorse of genvideoinfo, this function generates a dictionary based on json that's either given by gvigenjson or any other source of ffprobe-format json data.
         
         videofile is the file name of the video to extract metadata from.
         
