@@ -42,6 +42,11 @@ if options["reset_all"]:
 
 
 def geninitfilelist(filelist=options["files"]):
+
+    """Generator function that that iterates over the current directory or the list specified on the command line to yield all the files in any directories specified as well as any files specified in the source list.
+    
+    filelist takes an optional list and iterates over that to generate the super-list."""
+
     if filelist:
         for entry in filelist:
             path = pathlib.Path(entry)
