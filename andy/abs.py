@@ -31,6 +31,8 @@ class ABS(VideoInfo, VideoUtil):
         if database and pathlib.Path(database).exists():
             VideoInfo.__init__(self, database)
             self.vi = VideoInfo(database)
+        else:
+            self.vi = None
         VideoUtil.__init__(self)
         self.debug = debug
 
