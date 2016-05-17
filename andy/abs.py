@@ -65,7 +65,7 @@ class ABS(VideoInfo, VideoUtil):
 
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None,
                 audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
-        """Conversion worker function for absconvert, this function is intended to be run in a for loop, but technically be run outside one.
+        """Conversion worker function for absconvert, this function is intended to be run in a for loop, but technically can be run outside one.
 
         filename is the location of the file to be converted.
 
