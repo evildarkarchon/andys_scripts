@@ -86,7 +86,7 @@ def configdict():
         defaultconfig["codecs"]["libvpx-vp9"] = ["-threads", "4", "-tile-columns", "6", "-frame-parallel", "1", "-speed", "1"]
 
         if not cmdline["debug"]:
-            util.genjson(str(pathlib.Path.home().joinpath(".config", "absconvert.json")), defaultconfig)
+            util.genjson(defaultconfig, str(pathlib.Path.home().joinpath(".config", "absconvert.json")))
 
         return ChainMap(cmdline, defaultconfig)
     else:
