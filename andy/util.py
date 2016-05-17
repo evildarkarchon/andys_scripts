@@ -103,9 +103,9 @@ class Util(Color):
             return False
 
     def is_privileged(self, privuser="root"):
-    """Helper function to check if the current effective user is the same as the "privileged" user specified.
+        """Helper function to check if the current effective user is the same as the "privileged" user specified.
     
-    privuser can be either a UID integer or a username string."""
+        privuser can be either a UID integer or a username string."""
 
         if isinstance(privuser, str):
             user = pwd.getpwnam(privuser)
@@ -123,11 +123,11 @@ class Util(Color):
             raise TypeError
 
     def sortentries(self, text):
-    """Helper function to sort lists, it will use the natsort module's humansorted function if its available.
-    Otherwise it will use the builtin sorting function (which is not quite as good).
-    It will split strings into lists if that's what's been given to sort.
+        """Helper function to sort lists, it will use the natsort module's humansorted function if its available.
+        Otherwise it will use the builtin sorting function (which is not quite as good).
+        It will split strings into lists if that's what's been given to sort.
     
-    text is the text to be sorted."""
+        text is the text to be sorted."""
 
         try:
             if isinstance(text, str):
