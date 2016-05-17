@@ -42,21 +42,18 @@ class VideoInfo:
         self.ffprobe = shutil.which("ffprobe", mode=os.X_OK)
 
     def createvideoinfo(self):
-    
         """Creates the videoinfo table in the videoinfo database."""
-    
+
         with self.database:
             self.db.execute(self.createstatement)
 
     def createvideojson(self):
-    
         """Creates the JSON cache table in the videoinfo database."""
-    
+
         with self.database:
             self.execute(self.createstatementjson)
 
     def resetjson(self):
-    
         """Purges the JSON cache and performs a vacuum operation."""
 
         with self.database:
@@ -66,9 +63,8 @@ class VideoInfo:
             self.db.execute('vacuum')
 
     def resetvideoinfo(self):
-    
         """Deletes and remakes the videoinfo table and performs a vacuum operation."""
-    
+
         with self.database:
             print("{} Regenerating the videoinfo table for {}.".format(self.colors.mood("happy"), self.dbfile))
             self.db.execute('drop table if exists videoinfo')
@@ -76,49 +72,45 @@ class VideoInfo:
             self.db.execute('vacuum')
 
     def deleteentry(self, criteria, value):
-    
         """Deletes a row or rows from a videoinfo database based on specified criteria (only one criteria is supported).
         A vacuum operation is performed after the query is executed.
-        
+
         criteria is the column or other criteria to be used as the criteria for the query.
-        
+
         value is the value of the criteria to evaluate."""
-    
+
         with self.database:
             print("{} Deleting {} from videoinfo".format(self.colors.mood("happy"), value))
             self.db.execute('delete from videoinfo where ? = ?', (criteria, value))
             self.db.execute('vacuum')
 
     def deletefileentry(self, value):
-    
         """Deletes an entry from the database based on file name.
         A vacuum operation is performed after query execution.
-        
+
         value is the file name of the entry to be deleted."""
-    
+
         with self.database:
             print("{} Deleting {} from videoinfo".format(self.colors.mood("happy"), value))
             self.db.execute('delete from videoinfo where filename = ?', (value,))
             self.db.execute('vacuum')
 
     def maintainence(self):
-    
         """Performs a vacuum operation on the database."""
-    
+
         with self.database:
             print("{} Vacuuming Database.")
             self.db.execute('vacuum')
 
     def queryvideoinfomr(self, query, *values):
-    
         """Performs a query on the videoinfo database, It will only accept select or pragma queries as there is a separate set of functions for executing queries that don't expect a result.
         This function is for returning multiple results.
-        
+
         query is the sql query to be executed (using normal placeholders).
-        
+
         values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
         in the query."""
-    
+
         if "select" not in query and "pragma" not in query and "SELECT" not in query and "PRAGMA" not in query:
             print("{} Query is not a SELECT or PRAGMA query, use execviquery or execviquerynp instead.")
             raise ValueError
@@ -127,15 +119,14 @@ class VideoInfo:
             return self.db.fetchall()
 
     def queryvideoinfosr(self, query, *values):
-    
         """Performs a query on the videoinfo database, It will only accept select or pragma queries as there is a separate set of functions for executing queries that don't expect a result.
         This function is for returning a single result.
-        
+
         query is the sql query to be executed (using normal placeholders).
-        
+
         values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
         in the query."""
-    
+
         if "select" not in query and "pragma" not in query and "SELECT" not in query and "PRAGMA" not in query:
             print("{} Query is not a SELECT or PRAGMA query, use execviquery or execviquerynp instead.")
             raise ValueError
@@ -144,25 +135,23 @@ class VideoInfo:
             return self.db.fetchone()
 
     def execviquery(self, query, *values):
-    
         """Executes an arbitrary query on the videoinfo database. It will not return any results, so use the queryvideoinfo series of functions for that.
-        
+
         query is the sql query to be executed (using normal placeholders).
-        
+
         values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
         in the query."""
-    
+
         with self.database:
             self.db.execute(query, values)
 
     def execviquerynp(self, query, dictionary):
-        
         """Executes an arbitrary query on the videoinfo database. It will not return any results, so use the queryvideoinfo series of functions for that.
-        
+
         query is the sql query to be executed (using named placeholders).
-        
+
         values takes a dictionary of arguments where the keys correspond to the named placeholders."""
-        
+
         with self.database:
             self.db.execute(query, dictionary)
 
@@ -170,12 +159,11 @@ class VideoInfo:
 class GenVideoInfo(VideoInfo):
 
     """Worker class for generating info to be put in a videoinfo database.
-    
+
     databasefile is the file name of the file to write to.
-    
+
     debug indicates whether to run in debug (aka pretend) mode. In this mode, the sql queries and video info dictionaries are generated,
     but the queries are not actually executed."""
-
 
     def __init__(self, databasefile, debug=False):
         VideoInfo.__init__(self, databasefile)
@@ -213,14 +201,12 @@ class GenVideoInfo(VideoInfo):
             del vjtemp
 
     def genhashlist(self, files, existinghash=None):
-    
-        """Generator function that takes a list of files and a list of existing hashes (if any) and calculates
-        hashes for those files.
-    
+        """Generator function that takes a list of files and a list of existing hashes (if any) and calculates hashes for those files.
+
         files takes a list containing file names for which hashes will be calculated.
-    
+
         existinghash takes a dictionary where the filename is the key and the hash is the value, this is optional."""
-    
+
         for filename in files:
             if existinghash and filename not in existinghash:
                 print("{} Calculating hash for {}".format(self.colors.mood("happy"), pathlib.Path(filename).name))
@@ -230,20 +216,17 @@ class GenVideoInfo(VideoInfo):
                 yield filename, self.util.hashfile(filename)
 
     def genexisting(self):
-    
-        """Generator function that queries an existing videoinfo database and yields the filename and hash for
-        any existing files in the database."""
-    
+        """Generator function that queries an existing videoinfo database and yields the filename and hash for any existing files in the database."""
+
         for filename, hashval in self.vi.queryvideoinfomr("select filename, hash from videoinfo"):
             yield filename, hashval
 
     def genfilelist(self, filelist, existinghash=None):
-    
         """Generator function that takes a list of files and yields a filtered list that eliminates any non-video files (based on known mime types or file extensions) and any files that are already in the database.
         It will use the filemagic module if available for matching based on mime type or use a file extension whitelist if filemagic is not detected.
         python-magic WILL NOT WORK and there is no easy way to test for it as it uses the same module name. 
         So if python-magic is installed, get rid of it and install filemagic instead."""
-    
+
         try:
             whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
 
@@ -269,12 +252,11 @@ class GenVideoInfo(VideoInfo):
             pass
 
     def gvigenjson(self, videofile):
-    
         """Worker function that either retrieves the json from the cache or executes ffprobe to generate the json.
         It will then return the json to the caller.
-        
+
         videofile is the video file for which the json will either be queried for or generated."""
-    
+
         print("{} Extracting metadata for {}".format(self.colors.mood("happy"), pathlib.Path(videofile).name))
         try:
             entryexists = self.vi.queryvideoinfosr('select filename from videojson where filename = ?', videofile)[0]
@@ -294,15 +276,14 @@ class GenVideoInfo(VideoInfo):
             return self.program.returninfo([self.ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
 
     def generate(self, videofile, jsoninfo, filehash):
-    
         """The workhorse of genvideoinfo, this function generates a dictionary based on json that's either given by gvigenjson or any other source of ffprobe-format json data.
-        
+
         videofile is the file name of the video to extract metadata from.
-        
+
         jsoninfo takes a json string for the json module to load.
-        
+
         filehash takes the hash string for the video file."""
-    
+
         video_dict = {}
         jsondata = json.loads(jsoninfo)
 
@@ -407,11 +388,10 @@ class GenVideoInfo(VideoInfo):
         return video_dict, jsoninfo
 
     def write(self, videodict):
-    
         """Worker function that does the sql query generation and actually writes the data to the database.
-        
+
         videodict takes a tuple that contains both a videoinfo dictionary and the original json string."""
-    
+
         columns = ', '.join(tuple(videodict[0].keys()))
         placeholders = ':' + ', :'.join(videodict[0].keys())
         viquery = 'insert into videoinfo ({}) values ({})'.format(columns, placeholders)
@@ -442,7 +422,6 @@ class FindVideoInfo:
     Requires filemagic, python-magic will not work, if python-magic is installed, get rid of it 
     and use filemagic instead. It's not easy to test for which is which as they use the same module name."""
 
-
     def __init__(self):
         try:
             test = magic.Magic()
@@ -453,15 +432,14 @@ class FindVideoInfo:
             del test
 
     def find(self, directory="/data/Private"):
-    
         """Worker function that locates directories with videoinfo database that are under the specified directory.
         Files will be run through filemagic to verify that they actually sqlite databases.
         Just like the genfilelist function in GenVideoInfo, this only works with filemagic,
         if python-magic is installed, get rid of it and use filemagic instead. Its not easy to distinguish
         python-magic from filemagic as they use the same module name.
-        
+
         directory is the directory to be searched."""
-    
+
         paths = pathlib.Path(directory).rglob("videoinfo.sqlite")
         for filename in paths:
             with magic.Magic() as m, open(str(filename), "rb") as f:
