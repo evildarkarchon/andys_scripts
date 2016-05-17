@@ -49,8 +49,7 @@ class Util(Color):
 
     def genjson(self, dictionary, filename=None, printdata=False, indentjson=True):
     
-    """Convenience function to take a dictionary and either write it to a file or print it out.
-    JSON calculated with this function 
+    """Convenience function to take a dictionary, convert it to json, and either write it to a file or print it out.
     
     dictionary is the dictionary to convert to json.
     
@@ -90,8 +89,7 @@ class Util(Color):
 
     def is_python_version(self, query):
     
-        """Helper function to take a tuple of the minimum version of python you are searching for
-        and returning True if its greater than or equal to that version or False if its not.
+        """Helper function to take a tuple of the minimum version of python you are searching for and returning True if its greater than or equal to that version or False if its not.
         It will convert any tuple-convertable types into a tuple for the purposes of evaluation.
         
         query is a tuple of the minimum version of python that will return True."""
@@ -131,9 +129,9 @@ class Util(Color):
 
     def sortentries(self, text):
     
-    """Helper function to sort lists, it will use the natsort module's humansorted function if its available
-    otherwise it will use the builtin sorting function (which is not quite as good). It will split strings into
-    lists if that's what's been given to sort.
+    """Helper function to sort lists, it will use the natsort module's humansorted function if its available.
+    Otherwise it will use the builtin sorting function (which is not quite as good).
+    It will split strings into lists if that's what's been given to sort.
     
     text is the text to be sorted."""
     
