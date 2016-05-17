@@ -47,16 +47,15 @@ class Util(Color):
         self.colors = Color()
 
     def genjson(self, dictionary, filename=None, printdata=False, indentjson=True):
-    """Convenience function to take a dictionary, convert it to json, and either write it to a file or print it out.
+        """Convenience function to take a dictionary, convert it to json, and either write it to a file or print it out.
     
-    dictionary is the dictionary to convert to json.
+        dictionary is the dictionary to convert to json.
     
-    filename is the name of the file to write the json to, mandatory if printdata is False.
+        filename is the name of the file to write the json to, mandatory if printdata is False.
     
-    If printdata is True it will print the resulting json to stdout instead of writing it to a file.
+        If printdata is True it will print the resulting json to stdout instead of writing it to a file.
     
-    If indentjson is True, it will insert tabs in the resulting json (this is the default mode), otherwise,
-    it will output a sorted version of the raw json."""
+        If indentjson is True, it will insert tabs in the resulting json (this is the default mode), otherwise, it will output a sorted version of the raw json."""
 
         if not isinstance(filename, str) and printdata is False:
             print("{} File name was not specified and printdata mode is disabled.")
