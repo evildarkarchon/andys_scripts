@@ -44,7 +44,7 @@ elif pathlib.Path("/data/web/feeds").exists() and not pathlib.Path("/data/web/fe
     raise FileNotFoundError
 elif pathlib.Path("/data/web/feeds").is_file():
     print("{} Target location is a file, renaming and cloning repository.".format(colors.mood("neutral")))
-    program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.bad"], use_sudo=True, sudo_user="nginx")
+    program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.bad"], use_sudo=True, user="nginx")
     ttrss.clone()
 else:
     print("{} Target location does not exist, cloning repository.".format(colors.mood("neutral")))
