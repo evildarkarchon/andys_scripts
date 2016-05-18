@@ -22,16 +22,16 @@ atexit.register(ttrss.clean_lock)
 
 def ttrssgcfile():
     if not util.is_privileged():
-        program.runprogram(["touch", "/var/cache/ttrssgc"], use_sudo=True, sudo_user="root")
+        program.runprogram(["touch", "/var/cache/ttrssgc"], use_sudo=True, user="root")
     else:
         pathlib.Path("/var/cache/ttrssgc").touch()
 
-if not pathlib.path("/var/cache/ttrssgc").is_file():
+if not pathlib.Path("/var/cache/ttrssgc").is_file():
     ttrssgcfile()
 
 
-def ttrssgc(now, then):
-    diff = now - then
+def ttrssgc(then):
+    diff = util.datediff(then)
     if diff.days > 30:
         ttrss.gc(aggressive=options["aggressive"])
         ttrssgcfile()
@@ -50,4 +50,4 @@ else:
     print("{} Target location does not exist, cloning repository.".format(colors.mood("neutral")))
     ttrss.clone()
 
-ttrssgc(datetime.now(), datetime.fromtimestamp(pathlib.Path("/var/cache/ttrssgc").stat().st_mtime))
+ttrssgc(pathlib.Path("/var/cache/ttrssgc").stat().st_mtime)
