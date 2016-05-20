@@ -8,7 +8,8 @@ from andy.util import Color, Util, Program
 from andy.git import Git
 
 args = argparse.ArgumentParser()
-args.add_argument("--aggressive", help="Run garbage collection in aggressive mode")
+args.add_argument("--aggressive", "-a", action="store_true", help="Run garbage collection in aggressive mode")
+args.add_argument("--replace", "-r", action="store_true", help="Rename any existing directory if a repository is not found.")
 options = vars(args.parse_args())
 
 colors = Color()
@@ -40,8 +41,12 @@ if pathlib.Path("/data/web/feeds/.git").is_dir():
     ttrss.clean_lock()
     ttrss.pull()
 elif pathlib.Path("/data/web/feeds").exists() and not pathlib.Path("/data/web/feeds/.git").exists():
-    print("{} No git repository located in the target directory.".format(colors.mood("sad")))
-    raise FileNotFoundError
+    if options["replace"]:
+        program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.old"], use_sudo=True, user="nginx")
+        ttrss.clone()
+    else:
+        print("{} No git repository located in the target directory.".format(colors.mood("sad")))
+        raise FileNotFoundError
 elif pathlib.Path("/data/web/feeds").is_file():
     print("{} Target location is a file, renaming and cloning repository.".format(colors.mood("neutral")))
     program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.bad"], use_sudo=True, user="nginx")
