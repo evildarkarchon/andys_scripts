@@ -162,8 +162,9 @@ if options["debug"]:
 for files in options["files"]:
     try:
         abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"],
-                    audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"], audiobitrate=options["audio_bitrate"],
-                    videocodecopts=options["videocodecopts"], container=options["container"], framerate=options["frame_rate"])
+                    audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"],
+                    audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"],
+                    framerate=options["frame_rate"])
     except (KeyboardInterrupt, subprocess.CalledProcessError, ChildProcessError):
         break
         raise
