@@ -49,13 +49,13 @@ class Util(Color):
 
     def genjson(self, dictionary, filename=None, printdata=False, indentjson=True):
         """Convenience function to take a dictionary, convert it to json, and either write it to a file or print it out.
-    
+
         dictionary is the dictionary to convert to json.
-    
+
         filename is the name of the file to write the json to, mandatory if printdata is False.
-    
+
         If printdata is True it will print the resulting json to stdout instead of writing it to a file.
-    
+
         If indentjson is True, it will insert tabs in the resulting json (this is the default mode), otherwise, it will output a sorted version of the raw json."""
 
         if not isinstance(filename, str) and printdata is False:
@@ -105,7 +105,7 @@ class Util(Color):
 
     def is_privileged(self, privuser="root"):
         """Helper function to check if the current effective user is the same as the "privileged" user specified.
-    
+
         privuser can be either a UID integer or a username string."""
 
         if isinstance(privuser, str):
@@ -127,7 +127,7 @@ class Util(Color):
         """Helper function to sort lists, it will use the natsort module's humansorted function if its available.
         Otherwise it will use the builtin sorting function (which is not quite as good).
         It will split strings into lists if that's what's been given to sort.
-    
+
         text is the text to be sorted."""
 
         try:
@@ -159,24 +159,24 @@ class Util(Color):
 
     def prettylist(self, text, quotes=False, sep=", "):
         """Front-end function that takes an iterable and creates a "pretty" list from it.
-        
+
         text is the iterable to be used for making the pretty list.
-        
+
         quotes sets whether you want each entry to have quotes around them or not.
-        
+
         sep takes a string that will be used as the separator for the list."""
 
         if quotes:
             return sep.join(repr(e) for e in text)
         else:
             return sep.join(str(e) for e in text)
-    
+
     def datediff(self, timestamp):
         """Front-end Function that will return a timedelta of the supplied timestamp vs. a snapshot of the current time.
-        
+
         timestamp takes a POSIX timestamp and uses it to create a datetime object for comparison."""
-        now=datetime.now()
-        then=datetime.fromtimestamp(timestamp)
+        now = datetime.now()
+        then = datetime.fromtimestamp(timestamp)
         return now - then
 
 

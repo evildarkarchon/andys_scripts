@@ -99,7 +99,7 @@ class ABS(VideoInfo, VideoUtil):
         filepath = pathlib.Path(filename).resolve()
         outpath = self.outputpath.joinpath(filepath.with_suffix(container).name)
         output = str(outpath)
-        
+
         if not self.vi and videocodec not in self.nocodec and (videobitrate not in vars() or not videobitrate):
             print('{} No videoinfo database initialized, videocodec is not None, "none", or "copy", and no bitrate specified.'.format(self.colors.mood("sad")))
             raise ValueError
