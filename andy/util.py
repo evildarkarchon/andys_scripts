@@ -159,7 +159,7 @@ class Util(Color):
 
     def prettylist(self, text, quotes=False, sep=", "):
         """Front-end function that takes an iterable and creates a "pretty" list from it.
-        
+
         This function courtesy of the community at stackoverflow.com
 
         text is the iterable to be used for making the pretty list.
@@ -189,7 +189,8 @@ class Program(Util, Color):
         self.colors = Color()
         self.util = Util()
 
-    def runprogram(self, program, verify=True, use_sudo=False, user=None, stdinput=None, stdoutput=None, stderror=None, environment=None, workdir=None):
+    def runprogram(self, program, verify=True, use_sudo=False, user=None, stdinput=None, stdoutput=None,
+                   stderror=None, environment=None, workdir=None):
         """Convenience function for running programs.
 
         program is the program to be run.
