@@ -5,7 +5,7 @@ import locale
 import sys
 
 from andy.videoinfo import VideoInfo, GenVideoInfo
-from andy.util import Color, Util
+from andy.util import Mood, Util
 
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
@@ -22,7 +22,6 @@ options = vars(args.parse_args())
 
 vi = VideoInfo(options["database"])
 gvi = GenVideoInfo(options["database"], debug=options["debug"])
-colors = Color()
 util = Util()
 
 if options["regen"]:
@@ -68,7 +67,7 @@ if not options["reset_json"] and not options["maintainence"]:
         print(filelist)
 
     if len(filelist) is 0:
-        print("{} All files are already in the database or there are no files.".format(colors.mood("happy")))
+        print("{} All files are already in the database or there are no files.".format(Mood.happy()))
         sys.exit(0)
 
     hashes = dict(gvi.genhashlist(filelist, existinghashes))
