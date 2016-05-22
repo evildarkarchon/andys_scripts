@@ -5,11 +5,9 @@ import pathlib
 import shutil
 import os
 
-from andy.util import Color, Program, Util
+from andy.util import Mood, Program, Util
 from andy.videoinfo import VideoInfo, GenVideoInfo
 
-
-colors = Color()
 program = Program()
 util = Util()
 
@@ -27,7 +25,7 @@ args.add_argument("files", nargs="*", help="Files to be muxed.")
 options = vars(args.parse_args())
 
 if not options["files"]:
-    print("{} No files specified.".format(colors.mood("sad")))
+    print("{} No files specified.".format(Mood.sad()))
     raise ValueError
 
 if options["no_sort"]:
@@ -93,7 +91,7 @@ def genvi(videoname):
         ogvi = None
 
     filepath = pathlib.Path(videoname)
-    print("{} Calculating hash for videoname for {}".format(colors.mood("happy"), filepath.name))
+    print("{} Calculating hash for videoname for {}".format(Mood.happy(), filepath.name))
     outhash = util.hashfile(videoname)
     if ogvi:
         ogvi.write(ogvi.generate(videoname, ogvi.gvigenjson(videoname), outhash))
@@ -107,10 +105,10 @@ def backup(videoname):
     videoname is a string with the filename of the source file."""
 
     if options["backup"] and pathlib.Path(options["backup"]).is_dir():
-        print("{} Moving {} to {}".format(colors.mood("happy"), videoname, options["backup"]))
+        print("{} Moving {} to {}".format(Mood.happy(), videoname, options["backup"]))
         shutil.move(videoname, options["backup"])
         if vi:
-            print("{} Removing original file metadata from the videoinfo database.".format(colors.mood("happy")))
+            print("{} Removing original file metadata from the videoinfo database.".format(Mood.happy()))
             entry = vi.queryvideoinfosr('select filename from videoinfo where filename = ?', videoname)
             if entry:
                 vi.deletefileentry(videoname)
@@ -134,14 +132,14 @@ def ffmpegconcat():
         if ffmpeg:
             program.runprogram([ffmpeg, "-f", "concat", '-safe', '0', "-i", mkvlist.name, "-c", "copy", "-hide_banner", "-y", options["output"]])
         else:
-            print("{} ffmpeg not found.".format(colors.mood("sad")))
+            print("{} ffmpeg not found.".format(Mood.sad()))
             raise FileNotFoundError
         if mkvpropedit:
-            print("{} Adding track statistics metadata to {}".format(colors.mood("happy"), options["output"]))
+            print("{} Adding track statistics metadata to {}".format(Mood.happy(), options["output"]))
             program.runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
         else:
             if not pe:
-                print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
+                print("{} mkvpropedit not found, not adding statistics tags.".format(Mood.neutral()))
                 pe = True
         if gvi:
             genvi(options["output"])
@@ -157,25 +155,25 @@ def mkvmergeconcat():
     if mkvmerge:
         program.runprogram(mkvconcat())
     else:
-        print("{} mkvmerge not found.".format(colors.mood("sad")))
+        print("{} mkvmerge not found.".format(Mood.sad()))
         raise FileNotFoundError
     if gvi:
         genvi(options["output"])
 
 if options["combine"]:
     if not options["output"]:
-        print("{} Output file name has not been specified.".format(colors.mood("sad")))
+        print("{} Output file name has not been specified.".format(Mood.sad()))
         raise ValueError
-    print("{} Combining files into {}".format(colors.mood("happy"), options["output"]))
+    print("{} Combining files into {}".format(Mood.happy(), options["output"]))
     if options["ffmpeg"]:
         if options["ffmpegdisable"]:
-            print("{} {}, running mkvmerge instead.".format(colors.mood("neutral"), options["ffmpegdisable"]))
+            print("{} {}, running mkvmerge instead.".format(Mood.neutral(), options["ffmpegdisable"]))
             mkvmergeconcat()
         else:
             ffmpegconcat()
     else:
         if options["mkvmergedisable"]:
-            print("{} {}, running ffmpeg instead.".format(colors.mood("neutral"), options["mkvmergedisable"]))
+            print("{} {}, running ffmpeg instead.".format(Mood.neutral(), options["mkvmergedisable"]))
             ffmpegconcat()
         else:
             mkvmergeconcat()
@@ -193,27 +191,27 @@ else:
             outdir = pathlib.Path.cwd()
         fileoutpath = outdir.joinpath(filepath.with_suffix(".mkv").name)
         fileoutname = str(fileoutpath)
-        print("{} Muxing {} into a matroska file.".format(colors.mood("happy"), filename))
+        print("{} Muxing {} into a matroska file.".format(Mood.happy(), filename))
         if filepath.exists():
             if options["ffmpeg"]:
                 if ffmpeg:
                     program.runprogram([ffmpeg, "-i", filename, "-c", "copy", "-f", "matroska", '-hide_banner', '-y', fileoutname])
                 else:
-                    print("{} ffmpeg not found.".format(colors.mood("sad")))
+                    print("{} ffmpeg not found.".format(Mood.sad()))
                     raise FileNotFoundError
 
                 if mkvpropedit:
-                    print("{} Adding track statistics to {}".format(colors.mood("happy"), fileoutname))
+                    print("{} Adding track statistics to {}".format(Mood.happy(), fileoutname))
                     program.runprogram([mkvpropedit, "--add-track-statistics-tags", fileoutname])
                 else:
                     if not pe:
-                        print("{} mkvpropedit not found, not adding statistics tags.".format(colors.mood("neutral")))
+                        print("{} mkvpropedit not found, not adding statistics tags.".format(Mood.neutral()))
                         pe = True
             else:
                 if mkvmerge:
                     program.runprogram([mkvmerge, "-o", fileoutname, "=", filename])
                 else:
-                    print("{} mkvmerge not found.".format(colors.mood("sad")))
+                    print("{} mkvmerge not found.".format(Mood.sad()))
                     raise FileNotFoundError
             if gvi:
                 genvi(fileoutname)
