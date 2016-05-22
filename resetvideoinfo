@@ -2,10 +2,9 @@
 import pathlib
 import argparse
 
-from andy.util import Color, Util
+from andy.util import Util
 from andy.videoinfo import VideoInfo, GenVideoInfo, FindVideoInfo
 
-colors = Color()
 util = Util()
 
 args = argparse.ArgumentParser()
