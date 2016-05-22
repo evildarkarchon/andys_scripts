@@ -2,7 +2,7 @@ import locale
 import shutil
 import os
 
-from andy.util import Color, Util, Program
+from andy.util import Mood, Util, Program
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
@@ -17,7 +17,6 @@ class VideoUtil:
         """At the moment, its just an invocation of the Color, Util, and Program utility classes
         and variables that get locations of certain important programs from shutil.which"""
 
-        self.colors = Color()
         self.util = Util()
         self.program = Program()
         self.mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
