@@ -2,7 +2,7 @@
 import pathlib
 from collections import deque
 
-from andy.util import Color, Util, Program
+from andy.util import Mood, Util, Program
 
 
 class Git:
@@ -27,11 +27,11 @@ class Git:
 
         def sudocheck():
             if use_sudo not in (True, False, None):
-                print("{} use_sudo must be True, False, or None".format(self.colors.mood("sad")))
+                print("{} use_sudo must be True, False, or None".format(Mood.sad()))
                 raise ValueError
 
             if use_sudo is None:
-                print("{} use_sudo variable is unset, reverting to manual detection".format(self.colors.mood("neutral")))
+                print("{} use_sudo variable is unset, reverting to manual detection".format(Mood.neutral()))
                 if sudo_user:
                     return self.util.is_privileged(privuser=sudo_user), sudo_user
                 else:
@@ -58,7 +58,7 @@ class Git:
         """Clones the repository to the directory specified by the class using the url specified by the class."""
 
         if not self.url:
-            print("{} url not defined.".format(self.colors.mood("sad")))
+            print("{} url not defined.".format(Mood.sad()))
             raise ValueError
         self.program.runprogram(["git", "clone", self.url, self.directory], use_sudo=self.use_sudo, user=self.sudo_user)
 
