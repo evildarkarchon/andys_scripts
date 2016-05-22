@@ -14,7 +14,7 @@ except ImportError:
     pass
 
 from andy.abs import ABS
-from andy.util import Color, Util
+from andy.util import Mood, Util
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
@@ -72,7 +72,7 @@ def filterfilelist(filelist):
 
 def configdict():
     if ('config' not in cmdline or not cmdline["config"]) or not pathlib.Path(cmdline["config"]).exists():
-        print("{} Could not find configuration file or one was not specified, generating one with default values.".format(colors.mood("neutral")))
+        print("{} Could not find configuration file or one was not specified, generating one with default values.".format(Mood.neutral()))
         defaultconfig = {}
 
         defaultconfig["defaults"] = {}
@@ -147,7 +147,7 @@ if not options["passes"]:
 options["files"] = list(filterfilelist(options["files"]))
 
 if len(options["files"]) is 0:
-    print("{} There are no valid files to be encoded.".format(colors.mood("happy")))
+    print("{} There are no valid files to be encoded.".format(Mood.happy()))
     sys.exit(0)
 
 if not options["no_sort"]:
