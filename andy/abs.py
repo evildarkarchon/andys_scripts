@@ -6,7 +6,7 @@ import subprocess
 import sys
 import traceback
 
-from andy.util import Color, Program, Util
+from andy.util import Mood, Program, Util
 from andy.videoinfo import VideoInfo
 from andy.videoutil import VideoUtil
 
@@ -36,7 +36,6 @@ class ABS(VideoInfo, VideoUtil):
         VideoUtil.__init__(self)
         self.debug = debug
 
-        self.colors = Color()
         self.util = Util()
         self.program = Program()
 
@@ -62,7 +61,7 @@ class ABS(VideoInfo, VideoUtil):
         self.nocodec = (None, "none", "copy")
 
         if not self.ffmpeg:
-            print("{} ffmpeg not found, exiting.")
+            print("{} ffmpeg not found, exiting.".format(Mood.sad()))
             raise FileNotFoundError
 
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None,
@@ -101,10 +100,12 @@ class ABS(VideoInfo, VideoUtil):
         output = str(outpath)
 
         if not self.vi and videocodec not in self.nocodec and (videobitrate not in vars() or not videobitrate):
-            print('{} No videoinfo database initialized, videocodec is not None, "none", or "copy", and no bitrate specified.'.format(self.colors.mood("sad")))
+            print('{} No videoinfo database initialized, videocodec is not None, "none", or "copy",\
+             and no bitrate specified.'.format(Mood.sad())
             raise ValueError
         elif not self.vi and audiocodec not in self.nocodec and (audiobitrate not in vars() or not audiobitrate):
-            print('{} No videoinfo database initialized, audiocodec is not None, "none", or "copy", and no bitrate specified.'.format(self.colors.mood("sad")))
+            print('{} No videoinfo database initialized, audiocodec is not None, "none", or "copy",\
+             and no bitrate specified.'.format(Mood.sad()))
             raise ValueError
 
         def frameratefilter():
@@ -114,21 +115,21 @@ class ABS(VideoInfo, VideoUtil):
                 return "-filter:v", "fps={}".format(framerate)
             elif self.vi and not framerate and videocodec not in self.nocodec:
                 if self.fr is False:
-                    print("{} Frame Rate not specified, attempting to read from the database.".format(self.colors.mood("neutral")))
-                    self.fr = True
+                    print("{} Frame Rate not specified, attempting to read from the database.".format(Mood.neutral()))
+                    self.fr=True
                 try:
-                    fr = self.vi.queryvideoinfosr("select frame_rate from videoinfo where filename=?", filepath.name)
+                    fr=self.vi.queryvideoinfosr("select frame_rate from videoinfo where filename=?", filepath.name)
                     return "-filter:v", "fps={}".format(fr[0])
                 except (sqlite3.Error, IndexError):
-                    print("{} Frame Rate for {} not found in database, will rely on ffmpeg auto-detection.".format(self.colors.mood("neutral"), filename))
+                    print("{} Frame Rate for {} not found in database, will rely on ffmpeg auto-detection.".format(Mood.neutral(), filename))
                     return None
                     pass
             elif not self.vi and not framerate:
-                print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg auto-detection.".format(self.colors.mood("neutral")))
+                print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg auto-detection.".format(Mood.neutral()))
                 return None
 
         if videocodec in self.nocodec or not videocodec:
-            passes = 1
+            passes=1
 
         def commandlist(passno=None, passmax=passes):
             """Generator function to assemble the command list.
@@ -138,15 +139,15 @@ class ABS(VideoInfo, VideoUtil):
             passmax indicates whether its a 1 or 2 pass encode."""
 
             if passno is None and passmax is 2:
-                print("{} You must specify a pass number if using 2-pass encoding.".format(self.colors.mood("sad")))
+                print("{} You must specify a pass number if using 2-pass encoding.".format(Mood.sad()))
                 raise ValueError
 
             if passmax not in (1, 2):
-                print("{} The maximum pass variable can only be 1 or 2.".format(self.colors.mood("sad")))
+                print("{} The maximum pass variable can only be 1 or 2.".format(Mood.sad()))
                 raise ValueError
 
             if isinstance(passno, int) and (passno >= 2 and passmax is 1):
-                print("{} is >=2 and the maximum number of passes is set to 1.".format(self.colors.mood("sad")))
+                print("{} is >=2 and the maximum number of passes is set to 1.".format(Mood.sad()))
                 raise ValueError
 
             def auto_bitrates():
@@ -154,11 +155,11 @@ class ABS(VideoInfo, VideoUtil):
 
                 if self.database:
                     if self.auto is False:
-                        print("{} Bit-rates not specified, attempting to guess from database entries.".format(self.colors.mood("neutral")))
-                        self.auto = True
+                        print("{} Bit-rates not specified, attempting to guess from database entries.".format(Mood.neutral()))
+                        self.auto=True
 
-                    streams = self.vi.queryvideoinfosr("select streams from videoinfo where filename=?", filepath.name)[0]
-                    bitrates = self.vi.queryvideoinfosr("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", filepath.name)
+                    streams=self.vi.queryvideoinfosr("select streams from videoinfo where filename=?", filepath.name)[0]
+                    bitrates=self.vi.queryvideoinfosr("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", filepath.name)
                     if streams >= 2:
                         return [bitrates[0], bitrates[1]]
                     elif streams is 1:
@@ -167,26 +168,26 @@ class ABS(VideoInfo, VideoUtil):
                     return None
 
             if ('videobitrate' not in vars() or not videobitrate) or ('audiobitrate' not in vars() or not audiobitrate):
-                bitrates = auto_bitrates()
+                bitrates=auto_bitrates()
                 if self.debug:
                     print(bitrates)
 
             if ('videobitrate' not in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) >= 2:
-                videobitrate = str(max(bitrates))
+                videobitrate=str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
-            elif 'videobitrate' not in vars() and videocodec not in self.nocodec\
+            elif 'videobitrate' not in vars() and videocodec not in self.nocodec
                     and ('audiocodec' not in vars() or not audiocodec) and len(bitrates) is 1:
-                videobitrate = str(bitrates)
+                videobitrate=str(bitrates)
                 if self.debug:
                     print(videobitrate)
 
             if 'audiobitrate' not in vars() and audiocodec not in self.nocodec and len(bitrates) >= 2:
-                audiobitrate = str(min(bitrates))
+                audiobitrate=str(min(bitrates))
                 if self.debug:
                     print(audiobitrate)
             elif 'audiobitrate' not in vars() and audiocodec not in self.nocodec and len(bitrates) is 1:
-                audiobitrate = str(bitrates)
+                audiobitrate=str(bitrates)
                 if self.debug:
                     print(audiobitrate)
 
@@ -196,7 +197,7 @@ class ABS(VideoInfo, VideoUtil):
             if videocodec not in self.nocodec:
                 for item in ["-c:v", videocodec]:
                     yield item
-                fr = frameratefilter()
+                fr=frameratefilter()
                 if fr:
                     yield from frameratefilter()
                 for item in ["-b:v", videobitrate]:
@@ -238,11 +239,11 @@ class ABS(VideoInfo, VideoUtil):
             if self.vi and not self.converttest:
                 self.vi.deletefileentry(filepath.name)
             if self.backuppath and self.backuppath.exists():
-                print("{} Moving {} to {}".format(self.colors.mood("happy"), filepath.name, self.backup))
+                print("{} Moving {} to {}".format(Mood.happy(), filepath.name, self.backup))
                 shutil.move(str(filepath), self.backup)
 
             if ("mkv" in container or "mka" in container) and self.mkvpropedit:
-                print("{} Adding statistics tags to output file.".format(self.colors.mood("happy")))
+                print("{} Adding statistics tags to output file.".format(Mood.happy()))
                 self.program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", output])
 
         def convertnotdone():
@@ -250,7 +251,7 @@ class ABS(VideoInfo, VideoUtil):
 
             # print("\ntest")
             if outpath.exists():
-                print("\n{} Removing unfinished file.".format(self.colors.mood("neutral")))
+                print("\n{} Removing unfinished file.".format(Mood.neutral()))
                 outpath.unlink()
                 sys.exit(1)
 
