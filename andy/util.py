@@ -39,6 +39,39 @@ class Color:
                 return "*"
 
 
+class Mood:
+
+    """Class to replace the old Color class that uses static methods instead of string conditionals.
+    Also, because it is using static methods, it no longer requires class instantiation."""
+
+    @staticmethod
+    def happy():
+        """Prints a green star on unix, a generic star on windows."""
+
+        if platform.system is not "Windows":
+            return colored("*", "green")
+        else:
+            return "*"
+
+    @staticmethod
+    def neutral():
+        """Prints a yellow star on unix, a generic star on windows."""
+
+        if platform.system is not "Windows":
+            return colored("*", yellow)
+        else:
+            return "*"
+
+    @staticmethod
+    def sad():
+        """Prints a red star on unix, a generic star on windows."""
+
+        if platform.system is not "Windows":
+            return colored("*", "red")
+        else:
+            return "*"
+
+
 class Util(Color):
 
     """Compilation class that houses all the convenience functions that I've either made myself or
@@ -63,7 +96,7 @@ class Util(Color):
             raise TypeError
 
         jsonpath = pathlib.Path(filename).resolve()
-    #    print(dictionary)
+
         if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
             print("{} First argument must be a dictionary.".format(self.colors.mood("sad")))
             raise TypeError
