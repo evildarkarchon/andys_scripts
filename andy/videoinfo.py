@@ -57,7 +57,7 @@ class VideoInfo:
         """Purges the JSON cache and performs a vacuum operation."""
 
         with self.database:
-            print("{} Purging JSON cache from {}".format(self.colors.mood("happy"), self.dbfile))
+            print("{} Purging JSON cache from {}".format(Mood.happy(), self.dbfile))
             self.db.execute('drop table if exists videojson')
             self.db.execute(self.createstatementjson)
             self.db.execute('vacuum')
@@ -66,7 +66,7 @@ class VideoInfo:
         """Deletes and remakes the videoinfo table and performs a vacuum operation."""
 
         with self.database:
-            print("{} Regenerating the videoinfo table for {}.".format(self.colors.mood("happy"), self.dbfile))
+            print("{} Regenerating the videoinfo table for {}.".format(Mood.happy(), self.dbfile))
             self.db.execute('drop table if exists videoinfo')
             self.db.execute(self.createstatement)
             self.db.execute('vacuum')
@@ -80,7 +80,7 @@ class VideoInfo:
         value is the value of the criteria to evaluate."""
 
         with self.database:
-            print("{} Deleting {} from videoinfo".format(self.colors.mood("happy"), value))
+            print("{} Deleting {} from videoinfo".format(Mood.happy(), value))
             self.db.execute('delete from videoinfo where ? = ?', (criteria, value))
             self.db.execute('vacuum')
 
@@ -91,7 +91,7 @@ class VideoInfo:
         value is the file name of the entry to be deleted."""
 
         with self.database:
-            print("{} Deleting {} from videoinfo".format(self.colors.mood("happy"), value))
+            print("{} Deleting {} from videoinfo".format(Mood.happy(), value))
             self.db.execute('delete from videoinfo where filename = ?', (value,))
             self.db.execute('vacuum')
 
@@ -209,10 +209,10 @@ class GenVideoInfo(VideoInfo):
 
         for filename in files:
             if existinghash and filename not in existinghash:
-                print("{} Calculating hash for {}".format(self.colors.mood("happy"), pathlib.Path(filename).name))
+                print("{} Calculating hash for {}".format(Mood.happy(), pathlib.Path(filename).name))
                 yield filename, self.util.hashfile(filename)
             else:
-                print("{} Calculating hash for {}".format(self.colors.mood("happy"), pathlib.Path(filename).name))
+                print("{} Calculating hash for {}".format(Mood.happy(), pathlib.Path(filename).name))
                 yield filename, self.util.hashfile(filename)
 
     def genexisting(self):
@@ -257,7 +257,7 @@ class GenVideoInfo(VideoInfo):
 
         videofile is the video file for which the json will either be queried for or generated."""
 
-        print("{} Extracting metadata for {}".format(self.colors.mood("happy"), pathlib.Path(videofile).name))
+        print("{} Extracting metadata for {}".format(Mood.happy(), pathlib.Path(videofile).name))
         try:
             entryexists = self.vi.queryvideoinfosr('select filename from videojson where filename = ?', videofile)[0]
         except (TypeError, IndexError, KeyError):
@@ -265,11 +265,11 @@ class GenVideoInfo(VideoInfo):
             pass
         if entryexists:
             if self.debug:
-                print("{} Using Database".format(self.colors.mood("neutral")))
+                print("{} Using Database".format(Mood.neutral()))
             return self.vi.queryvideoinfosr('select jsondata from videojson where filename = ?', videofile)[0]
         else:
             if not self.ffprobe:
-                print("{} ffprobe not found.".format(self.colors.mood("sad")))
+                print("{} ffprobe not found.".format(Mood.sad()))
                 raise FileNotFoundError
             if self.debug:
                 print("{} Extracting Data from file.")
@@ -412,7 +412,7 @@ class GenVideoInfo(VideoInfo):
                 entryexists = False
                 pass
             if not entryexists:
-                print("{} Caching a copy of the json data for {}".format(self.colors.mood("happy"), videodict[0]["filename"]))
+                print("{} Caching a copy of the json data for {}".format(Mood.happy(), videodict[0]["filename"]))
                 self.vi.execviquery('insert into videojson (filename, jsondata) values(?, ?)', videodict[0]["filename"], json.dumps(jsoninfo))
 
 
@@ -426,7 +426,7 @@ class FindVideoInfo:
         try:
             test = magic.Magic()
         except NameError:
-            print("{} Filemagic module not installed.".format(self.colors.mood("sad")))
+            print("{} Filemagic module not installed.".format(Mood.sad()))
             raise
         else:
             del test
