@@ -2,9 +2,8 @@
 import pathlib
 from datetime import datetime
 
-from andy.util import Color, Util
+from andy.util import Mood, Util
 
-colors = Color()
 util = Util()
 
 now = datetime.now()
@@ -16,5 +15,5 @@ for filepath in files:
     then = datetime.fromtimestamp(filepath.stat().st_mtime)
     filetime = now - then
     if filetime.days > 14:
-        print("{} Removing {} from backup directory.".format(colors.mood("neutral"), filepath.name))
+        print("{} Removing {} from backup directory.".format(Mood.neutral(), filepath.name))
         filepath.unlink()
