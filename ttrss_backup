@@ -35,7 +35,7 @@ if options["cron"]:
     log.setLevel(logging.DEBUG)
 
 if not pgdump:
-    print("{} pg_dump could not be found or is not executable.".format(colors.mood("sad")))
+    print("{} pg_dump could not be found or is not executable.".format(Mood.sad()))
     raise FileNotFoundError
 
 database = "feeds"
@@ -46,19 +46,19 @@ try:
         if options["cron"]:
             log.info("Dumping Database.")
         else:
-            print("{} Dumping Database.".format(colors.mood("happy")))
+            print("{} Dumping Database.".format(Mood.happy()))
 
         data = program.returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
 
         if options["cron"]:
             log.info("Compressing Data.")
         else:
-            print("{} Compressing Data.".format(colors.mood("happy")))
+            print("{} Compressing Data.".format(Mood.happy()))
         compress = lzma.compress(data)
         if options["cron"]:
             log.info("Writing File: {}.".format(filename))
         else:
-            print("{} Writing File: {}".format(colors.mood("happy"), filename))
+            print("{} Writing File: {}".format(Mood.happy(), filename))
         db.write(compress)
 except KeyboardInterrupt:
     pathlib.Path(filename).unlink()
@@ -75,5 +75,5 @@ for filepath in files:
         if options["cron"]:
             log.info("Removing {} from backup directory.".format(filepath.name))
         else:
-            print("{} Removing {} from backup directory.".format(colors.mood("neutral"), filepath.name))
+            print("{} Removing {} from backup directory.".format(Mood.neutral(), filepath.name))
         filepath.unlink()
