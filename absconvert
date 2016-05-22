@@ -18,7 +18,6 @@ from andy.util import Mood, Util
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
-colors = Color()
 util = Util()
 
 args = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
