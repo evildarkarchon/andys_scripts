@@ -113,9 +113,9 @@ class ABS(VideoInfo, VideoUtil):
             elif self.vi and not framerate and videocodec not in self.nocodec:
                 if self.fr is False:
                     print("{} Frame Rate not specified, attempting to read from the database.".format(Mood.neutral()))
-                    self.fr=True
+                    self.fr = True
                 try:
-                    fr=self.vi.queryvideoinfo("select frame_rate from videoinfo where filename=?", filepath.name)
+                    fr = self.vi.queryvideoinfo("select frame_rate from videoinfo where filename=?", filepath.name)
                     return "-filter:v", "fps={}".format(fr[0])
                 except (sqlite3.Error, IndexError):
                     print("{} Frame Rate for {} not found in database, will rely on ffmpeg auto-detection.".format(Mood.neutral(), filename))
@@ -126,7 +126,7 @@ class ABS(VideoInfo, VideoUtil):
                 return None
 
         if videocodec in self.nocodec or not videocodec:
-            passes=1
+            passes = 1
 
         def commandlist(passno=None, passmax=passes):
             """Generator function to assemble the command list.
@@ -153,10 +153,10 @@ class ABS(VideoInfo, VideoUtil):
                 if self.vi:
                     if self.auto is False:
                         print("{} Bit-rates not specified, attempting to guess from database entries.".format(Mood.neutral()))
-                        self.auto=True
+                        self.auto = True
 
-                    streams=self.vi.queryvideoinfo("select streams from videoinfo where filename=?", filepath.name)[0]
-                    bitrates=self.vi.queryvideoinfo("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", filepath.name)
+                    streams = self.vi.queryvideoinfo("select streams from videoinfo where filename=?", filepath.name)[0]
+                    bitrates = self.vi.queryvideoinfo("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", filepath.name)
                     if streams >= 2:
                         return [bitrates[0], bitrates[1]]
                     elif streams is 1:
@@ -165,25 +165,25 @@ class ABS(VideoInfo, VideoUtil):
                     return None
 
             if ('videobitrate' not in vars() or not videobitrate) or ('audiobitrate' not in vars() or not audiobitrate):
-                bitrates=auto_bitrates()
+                bitrates = auto_bitrates()
                 if self.debug:
                     print(bitrates)
 
             if ('videobitrate' not in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) >= 2:
-                videobitrate=str(max(bitrates))
+                videobitrate = str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
             elif 'videobitrate' not in vars() and videocodec not in self.nocodec and ('audiocodec' not in vars() or not audiocodec) and len(bitrates) is 1:
-                    videobitrate=str(bitrates)
-                    if self.debug:
-                        print(videobitrate)
+                videobitrate = str(bitrates)
+                if self.debug:
+                    print(videobitrate)
 
             if 'audiobitrate' not in vars() and audiocodec not in self.nocodec and len(bitrates) >= 2:
-                audiobitrate=str(min(bitrates))
+                audiobitrate = str(min(bitrates))
                 if self.debug:
                     print(audiobitrate)
             elif 'audiobitrate' not in vars() and audiocodec not in self.nocodec and len(bitrates) is 1:
-                audiobitrate=str(bitrates)
+                audiobitrate = str(bitrates)
                 if self.debug:
                     print(audiobitrate)
 
@@ -193,7 +193,7 @@ class ABS(VideoInfo, VideoUtil):
             if videocodec not in self.nocodec:
                 for item in ["-c:v", videocodec]:
                     yield item
-                fr=frameratefilter()
+                fr = frameratefilter()
                 if fr:
                     yield from frameratefilter()
                 for item in ["-b:v", videobitrate]:
