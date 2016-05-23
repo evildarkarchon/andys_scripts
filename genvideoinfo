@@ -62,7 +62,7 @@ initfilelist = list(geninitfilelist())
 
 if not options["reset_json"] and not options["maintainence"]:
     existinghashes = dict(gvi.genexisting())
-    filelist = util.sortentries(list(gvi.genfilelist(initfilelist, existinghashes)))
+    filelist = Util.sortentries(list(gvi.genfilelist(initfilelist, existinghashes)))
     if options["debug"]:
         print(filelist)
 

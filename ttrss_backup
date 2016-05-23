@@ -13,9 +13,6 @@ from andy.util import Color, Program, Util
 
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
-program = Program()
-util = Util()
-
 pgdump = shutil.which("pg_dump", mode=os.X_OK)
 
 args = argparse.ArgumentParser()
@@ -48,7 +45,7 @@ try:
         else:
             print("{} Dumping Database.".format(Mood.happy()))
 
-        data = program.returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
+        data = Program.returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
 
         if options["cron"]:
             log.info("Compressing Data.")
@@ -66,7 +63,7 @@ except KeyboardInterrupt:
 
 now = datetime.now()
 
-files = util.sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
+files = Util.sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
 
 for filepath in files:
     then = datetime.fromtimestamp(filepath.stat().st_mtime)

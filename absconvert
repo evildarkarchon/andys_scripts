@@ -18,8 +18,6 @@ from andy.util import Mood, Util
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
-util = Util()
-
 args = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 video = args.add_argument_group(description="Video options:")
@@ -85,7 +83,7 @@ def configdict():
         defaultconfig["codecs"]["libvpx-vp9"] = ["-threads", "4", "-tile-columns", "6", "-frame-parallel", "1", "-speed", "1"]
 
         if not cmdline["debug"]:
-            util.genjson(defaultconfig, str(pathlib.Path.home().joinpath(".config", "absconvert.json")))
+            Util.genjson(defaultconfig, str(pathlib.Path.home().joinpath(".config", "absconvert.json")))
 
         return ChainMap(cmdline, defaultconfig)
     else:
@@ -150,7 +148,7 @@ if len(options["files"]) is 0:
     sys.exit(0)
 
 if not options["no_sort"]:
-    options["files"] = util.sortentries(options["files"])
+    options["files"] = Util.sortentries(options["files"])
 
 if "frame_rate" not in options:
     options["frame_rate"] = None

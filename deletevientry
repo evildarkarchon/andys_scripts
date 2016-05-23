@@ -3,7 +3,7 @@ import argparse
 import pathlib
 
 from andy.videoinfo import VideoInfo
-from andy.util import Color
+from andy.util import Mood
 
 args = argparse.ArgumentParser()
 args.add_argument("--database", "-db", help="Location of the database file.")
@@ -11,15 +11,13 @@ args.add_argument("files", nargs="*", help="Entries to be deleted (by filename).
 
 options = vars(args.parse_args())
 
-colors = Color()
-
 if not options["database"]:
     options["database"] = str(pathlib.Path.cwd().joinpath("videoinfo.sqlite"))
 
 vi = VideoInfo(options["database"])
 
 if "files" not in options or not isinstance(options["files"], list) or options["files"] is None:
-    print("{} No files specified.")
+    print("{} No files specified.".format(Mood.sad()))
     raise ValueError
 
 for filename in options["files"]:

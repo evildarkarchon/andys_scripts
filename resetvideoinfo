@@ -35,7 +35,7 @@ for directory in directories:
 
     if not options["reset_json"]:
         vi.resetvideoinfo()
-        filelist = util.sortentries(list(gvi.genfilelist(files)))
+        filelist = Util.sortentries(list(gvi.genfilelist(files)))
         hashes = dict(gvi.genhashlist(filelist))
         for filename in filelist:
             gvi.write(gvi.generate(filename, gvi.gvigenjson(filename), hashes[filename]))

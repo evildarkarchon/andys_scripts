@@ -8,9 +8,6 @@ import os
 from andy.util import Mood, Program, Util
 from andy.videoinfo import VideoInfo, GenVideoInfo
 
-program = Program()
-util = Util()
-
 args = argparse.ArgumentParser()
 args.add_argument("--ffmpeg", "-f", action="store_true", help="Use ffmpeg instead of mkvmerge. (Doesn't like mpeg-1 files)")
 args.add_argument("--concat", "-c", dest="combine", action="store_true", help="Combine multiple files into one mkv file.")
@@ -31,7 +28,7 @@ if not options["files"]:
 if options["no_sort"]:
     filelist = options["files"]
 else:
-    filelist = util.sortentries(options["files"])
+    filelist = Util.sortentries(options["files"])
 
 options["ffmpegdisable"] = False  # These are for extreme circumstances, reason for disabling goes in the variable.
 options["mkvmergedisable"] = False
@@ -46,7 +43,7 @@ if not options["output"] and not options["combine"]:
     options["output"] = str(pathlib.Path.cwd())
 
 if not options["output"] == str(pathlib.Path.cwd()) and not pathlib.Path(options["output"]).is_dir():
-    if util.is_python_version((3, 5, 0)):
+    if Util.is_python_version((3, 5, 0)):
         pathlib.Path(options["output"]).mkdir(parents=True, exist_ok=True)
     else:
         pathlib.Path(options["output"]).mkdir(parents=True)
@@ -92,7 +89,7 @@ def genvi(videoname):
 
     filepath = pathlib.Path(videoname)
     print("{} Calculating hash for videoname for {}".format(Mood.happy(), filepath.name))
-    outhash = util.hashfile(videoname)
+    outhash = Util.hashfile(videoname)
     if ogvi:
         ogvi.write(ogvi.generate(videoname, ogvi.gvigenjson(videoname), outhash))
     elif gvi and not ogvi:
@@ -130,13 +127,13 @@ def ffmpegconcat():
             mkvlist.flush()
 
         if ffmpeg:
-            program.runprogram([ffmpeg, "-f", "concat", '-safe', '0', "-i", mkvlist.name, "-c", "copy", "-hide_banner", "-y", options["output"]])
+            Program.runprogram([ffmpeg, "-f", "concat", '-safe', '0', "-i", mkvlist.name, "-c", "copy", "-hide_banner", "-y", options["output"]])
         else:
             print("{} ffmpeg not found.".format(Mood.sad()))
             raise FileNotFoundError
         if mkvpropedit:
             print("{} Adding track statistics metadata to {}".format(Mood.happy(), options["output"]))
-            program.runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
+            Program.runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
         else:
             if not pe:
                 print("{} mkvpropedit not found, not adding statistics tags.".format(Mood.neutral()))
@@ -153,7 +150,7 @@ def mkvmergeconcat():
         concatfilelist = ' + '.join(filelist).split()
         return basecommand + concatfilelist
     if mkvmerge:
-        program.runprogram(mkvconcat())
+        Program.runprogram(mkvconcat())
     else:
         print("{} mkvmerge not found.".format(Mood.sad()))
         raise FileNotFoundError
@@ -195,21 +192,21 @@ else:
         if filepath.exists():
             if options["ffmpeg"]:
                 if ffmpeg:
-                    program.runprogram([ffmpeg, "-i", filename, "-c", "copy", "-f", "matroska", '-hide_banner', '-y', fileoutname])
+                    Program.runprogram([ffmpeg, "-i", filename, "-c", "copy", "-f", "matroska", '-hide_banner', '-y', fileoutname])
                 else:
                     print("{} ffmpeg not found.".format(Mood.sad()))
                     raise FileNotFoundError
 
                 if mkvpropedit:
                     print("{} Adding track statistics to {}".format(Mood.happy(), fileoutname))
-                    program.runprogram([mkvpropedit, "--add-track-statistics-tags", fileoutname])
+                    Program.runprogram([mkvpropedit, "--add-track-statistics-tags", fileoutname])
                 else:
                     if not pe:
                         print("{} mkvpropedit not found, not adding statistics tags.".format(Mood.neutral()))
                         pe = True
             else:
                 if mkvmerge:
-                    program.runprogram([mkvmerge, "-o", fileoutname, "=", filename])
+                    Program.runprogram([mkvmerge, "-o", fileoutname, "=", filename])
                 else:
                     print("{} mkvmerge not found.".format(Mood.sad()))
                     raise FileNotFoundError
