@@ -115,7 +115,7 @@ class ABS(VideoInfo, VideoUtil):
                     print("{} Frame Rate not specified, attempting to read from the database.".format(Mood.neutral()))
                     self.fr=True
                 try:
-                    fr=self.vi.queryvideoinfosr("select frame_rate from videoinfo where filename=?", filepath.name)
+                    fr=self.vi.queryvideoinfo("select frame_rate from videoinfo where filename=?", filepath.name)
                     return "-filter:v", "fps={}".format(fr[0])
                 except (sqlite3.Error, IndexError):
                     print("{} Frame Rate for {} not found in database, will rely on ffmpeg auto-detection.".format(Mood.neutral(), filename))
@@ -150,13 +150,13 @@ class ABS(VideoInfo, VideoUtil):
             def auto_bitrates():
                 """Helper function that returns the bitrate(s) in a videoinfo database if not specified."""
 
-                if self.database:
+                if self.vi:
                     if self.auto is False:
                         print("{} Bit-rates not specified, attempting to guess from database entries.".format(Mood.neutral()))
                         self.auto=True
 
-                    streams=self.vi.queryvideoinfosr("select streams from videoinfo where filename=?", filepath.name)[0]
-                    bitrates=self.vi.queryvideoinfosr("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", filepath.name)
+                    streams=self.vi.queryvideoinfo("select streams from videoinfo where filename=?", filepath.name)[0]
+                    bitrates=self.vi.queryvideoinfo("select bitrate_0_raw, bitrate_1_raw from videoinfo where filename=?", filepath.name)
                     if streams >= 2:
                         return [bitrates[0], bitrates[1]]
                     elif streams is 1:
@@ -272,7 +272,7 @@ class ABS(VideoInfo, VideoUtil):
                 convertdone()
             finally:
                 if pathlib.Path(filename.replace(filepath.suffix, "-0.log")).exists():
-                    print("{} Removing 1st pass log file.".format(self.colors.mood("neutral")))
+                    print("{} Removing 1st pass log file.".format(Mood.neutral()))
                     Program.runprogram(["rm", filename.replace(filepath.suffix, "-0.log")])
 
         elif passes is 1 and not self.debug:
