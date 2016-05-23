@@ -58,7 +58,7 @@ class Mood:
         """Prints a yellow star on unix, a generic star on windows."""
 
         if platform.system is not "Windows":
-            return colored("*", yellow)
+            return colored("*", "yellow")
         else:
             return "*"
 
