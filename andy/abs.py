@@ -4,7 +4,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-import traceback
+# import traceback
 
 from andy.util import Mood, Program, Util
 from andy.videoinfo import VideoInfo
@@ -34,7 +34,7 @@ class ABS(VideoInfo, VideoUtil):
             self.vi = VideoInfo.cwd()
         else:
             self.vi = None
-            
+
         VideoUtil.__init__(self)
         self.debug = debug
 
@@ -99,12 +99,10 @@ class ABS(VideoInfo, VideoUtil):
         output = str(outpath)
 
         if not self.vi and videocodec not in self.nocodec and (videobitrate not in vars() or not videobitrate):
-            print('{} No videoinfo database initialized, videocodec is not None, "none", or "copy",\
-             and no bitrate specified.'.format(Mood.sad())
+            print('{} No videoinfo database initialized, videocodec is not None, "none", or "copy" and no bitrate specified.'.format(Mood.sad()))
             raise ValueError
         elif not self.vi and audiocodec not in self.nocodec and (audiobitrate not in vars() or not audiobitrate):
-            print('{} No videoinfo database initialized, audiocodec is not None, "none", or "copy",\
-             and no bitrate specified.'.format(Mood.sad()))
+            print('{} No videoinfo database initialized, audiocodec is not None, "none", or "copy", and no bitrate specified.'.format(Mood.sad()))
             raise ValueError
 
         def frameratefilter():
@@ -175,11 +173,10 @@ class ABS(VideoInfo, VideoUtil):
                 videobitrate=str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
-            elif 'videobitrate' not in vars() and videocodec not in self.nocodec
-                    and ('audiocodec' not in vars() or not audiocodec) and len(bitrates) is 1:
-                videobitrate=str(bitrates)
-                if self.debug:
-                    print(videobitrate)
+            elif 'videobitrate' not in vars() and videocodec not in self.nocodec and ('audiocodec' not in vars() or not audiocodec) and len(bitrates) is 1:
+                    videobitrate=str(bitrates)
+                    if self.debug:
+                        print(videobitrate)
 
             if 'audiobitrate' not in vars() and audiocodec not in self.nocodec and len(bitrates) >= 2:
                 audiobitrate=str(min(bitrates))
