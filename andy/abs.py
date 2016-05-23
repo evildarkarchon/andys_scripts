@@ -27,12 +27,14 @@ class ABS(VideoInfo, VideoUtil):
 
     converttest tells the class to not delete any videoinfo entries if they exist."""
 
-    def __init__(self, database=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), debug=None, backup=None, output=None, converttest=False):
+    def __init__(self, database=None, debug=None, backup=None, output=None, converttest=False):
         if database and pathlib.Path(database).exists():
-            VideoInfo.__init__(self, database)
             self.vi = VideoInfo(database)
+        elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
+            self.vi = VideoInfo.cwd()
         else:
             self.vi = None
+            
         VideoUtil.__init__(self)
         self.debug = debug
 

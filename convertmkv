@@ -55,9 +55,9 @@ if options["database"] and pathlib.Path(options["database"]).exists():
     else:
         gvi = None
 elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
-    vi = VideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+    vi = VideoInfo.cwd()
     if not options["no_gvi"]:
-        gvi = GenVideoInfo(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+        gvi = GenVideoInfo.cwd()
     else:
         gvi = None
     options["database"] = str(pathlib.Path.cwd().joinpath("videoinfo.sqlite"))
