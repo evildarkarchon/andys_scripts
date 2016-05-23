@@ -106,7 +106,7 @@ def backup(videoname):
         shutil.move(videoname, options["backup"])
         if vi:
             print("{} Removing original file metadata from the videoinfo database.".format(Mood.happy()))
-            entry = vi.queryvideoinfosr('select filename from videoinfo where filename = ?', videoname)
+            entry = vi.queryvideoinfo('select filename from videoinfo where filename = ?', videoname)
             if entry:
                 vi.deletefileentry(videoname)
 
@@ -121,7 +121,7 @@ def ffmpegconcat():
         for filename in filelist:
             mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
             if vi:
-                dur = vi.queryvideoinfosr('select duration_raw from videoinfo where filename = ?', filename)
+                dur = vi.queryvideoinfo('select duration_raw from videoinfo where filename = ?', filename)
                 if dur:
                     mkvlist.write("duration {}\n".format(dur[0]))
             mkvlist.flush()
