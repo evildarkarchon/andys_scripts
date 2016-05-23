@@ -17,8 +17,6 @@ class VideoUtil:
         """At the moment, its just an invocation of the Color, Util, and Program utility classes
         and variables that get locations of certain important programs from shutil.which"""
 
-        self.util = Util()
-        self.program = Program()
         self.mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
         self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
         self.mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
