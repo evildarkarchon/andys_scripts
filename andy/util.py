@@ -72,15 +72,13 @@ class Mood:
             return "*"
 
 
-class Util(Color):
+class Util:
 
     """Compilation class that houses all the convenience functions that I've either made myself or
     have copy/pasted from stackoverflow."""
 
-    def __init__(self):
-        self.colors = Color()
-
-    def genjson(self, dictionary, filename=None, printdata=False, indentjson=True):
+    @staticmethod
+    def genjson(dictionary, filename=None, printdata=False, indentjson=True):
         """Convenience function to take a dictionary, convert it to json, and either write it to a file or print it out.
 
         dictionary is the dictionary to convert to json.
@@ -95,10 +93,13 @@ class Util(Color):
             print("{} File name was not specified and printdata mode is disabled.")
             raise TypeError
 
-        jsonpath = pathlib.Path(filename).resolve()
+        jsonpath = pathlib.Path(filename)
+        
+        if jsonpath.exists():
+            jsonpath = jsonpath.resolve()
 
         if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
-            print("{} First argument must be a dictionary.".format(self.colors.mood("sad")))
+            print("{} First argument must be a dictionary.".format(Mood.sad()))
             raise TypeError
         if printdata:
             if indentjson:
@@ -107,25 +108,26 @@ class Util(Color):
                 print(json.dumps(dictionary, sort_keys=True))
         else:
             if jsonpath.exists():
-                print("{} Backing up {} to {}".format(self.colors.mood("happy"), str(jsonpath), str(jsonpath).replace(".json", ".json.bak")))
+                print("{} Backing up {} to {}".format(Mood.happy(), str(jsonpath), str(jsonpath).replace(".json", ".json.bak")))
                 with open(str(jsonpath)) as orig, open(str(jsonpath).replace(".json", ".json.bak"), "w") as backup:
                     backup.write(orig.read())
 
             with open(str(jsonpath), "w") as dest:
-                print("{} Writing values to JSON file: {}".format(self.colors.mood("happy"), str(jsonpath)))
+                print("{} Writing values to JSON file: {}".format(Mood.happy(), str(jsonpath)))
                 if indentjson:
                     dest.write(json.dumps(dictionary, sort_keys=True, indent="\t"))
                 else:
                     dest.write(json.dumps(dictionary, sort_keys=True))
 
-    def is_python_version(self, query):
+    @staticmethod
+    def is_python_version(query):
         """Helper function to take a tuple of the minimum version of python you are searching for and returning True if its greater than or equal to that version or False if its not.
         It will convert any tuple-convertable types into a tuple for the purposes of evaluation.
 
         query is a tuple of the minimum version of python that will return True."""
 
         if not isinstance(query, (tuple, list, collections.deque)):
-            print("{} Value must be a tuple or a list.".format(self.colors.mood("sad")))
+            print("{} Value must be a tuple or a list.".format(Mood.sad()))
             raise TypeError
 
         if isinstance(query, (list, collections.deque)):
@@ -136,7 +138,8 @@ class Util(Color):
         else:
             return False
 
-    def is_privileged(self, privuser="root"):
+    @staticmethod
+    def is_privileged(privuser="root"):
         """Helper function to check if the current effective user is the same as the "privileged" user specified.
 
         privuser can be either a UID integer or a username string."""
@@ -153,10 +156,11 @@ class Util(Color):
             else:
                 return False
         else:
-            print("{} User must be specified as a string or an integer".format(self.colors.mood("sad")))
+            print("{} User must be specified as a string or an integer".format(Mood.sad()))
             raise TypeError
 
-    def sortentries(self, text):
+    @staticmethod
+    def sortentries(text):
         """Helper function to sort lists, it will use the natsort module's humansorted function if its available.
         Otherwise it will use the builtin sorting function (which is not quite as good).
         It will split strings into lists if that's what's been given to sort.
@@ -179,7 +183,8 @@ class Util(Color):
                 return list(sorted(text, key=str.lower))
                 pass
 
-    def hashfile(self, filename):
+    @staticmethod
+    def hashfile(filename):
         """Helper function to calculate hashes for files.
 
         filename is the name of the file to be hashed."""
@@ -190,7 +195,8 @@ class Util(Color):
             hasher.update(afile.read())
         return hasher.hexdigest()
 
-    def prettylist(self, text, quotes=False, sep=", "):
+    @staticmethod
+    def prettylist(text, quotes=False, sep=", "):
         """Front-end function that takes an iterable and creates a "pretty" list from it.
 
         This function courtesy of the community at stackoverflow.com
@@ -206,7 +212,8 @@ class Util(Color):
         else:
             return sep.join(str(e) for e in text)
 
-    def datediff(self, timestamp):
+    @staticmethod
+    def datediff(timestamp):
         """Front-end Function that will return a timedelta of the supplied timestamp vs. a snapshot of the current time.
 
         timestamp takes a POSIX timestamp and uses it to create a datetime object for comparison."""
@@ -215,14 +222,11 @@ class Util(Color):
         return now - then
 
 
-class Program(Util, Color):
-    """Convenience functions related to running subprocesses."""
+class Program:
+    """Compilation of convenience functions related to running subprocesses."""
 
-    def __init__(self):
-        self.colors = Color()
-        self.util = Util()
-
-    def runprogram(self, program, verify=True, use_sudo=False, user=None, stdinput=None, stdoutput=None,
+    @staticmethod
+    def runprogram(program, verify=True, use_sudo=False, user=None, stdinput=None, stdoutput=None,
                    stderror=None, environment=None, workdir=None):
         """Convenience function for running programs.
 
@@ -251,11 +255,11 @@ class Program(Util, Color):
         elif isinstance(program, str):
             command = collections.deque(shlex.split(program))
         else:
-            print("{} program must be in the form of a string, tuple, list or deque".format(self.colors.mood("sad")))
+            print("{} program must be in the form of a string, tuple, list or deque".format(Mood.sad()))
             raise TypeError
 
         if use_sudo and not isinstance(user, (str, int)):
-            print("{} User must be a string or integer.".format(self.colors.mood("sad")))
+            print("{} User must be a string or integer.".format(Mood.sad()))
             raise TypeError
 
         if use_sudo and isinstance(user, int):
@@ -266,7 +270,7 @@ class Program(Util, Color):
             """command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list."""
             sudo = collections.deque(["sudo", "-u", user])
             command = sudo + command
-        if self.util.is_python_version((3, 5, 0)):
+        if Util.is_python_version((3, 5, 0)):
             subprocess.run(command, input=stdinput, stdout=stdoutput, stderr=stderror, env=environment, check=verify, cwd=workdir)
         else:
             if verify:
@@ -274,7 +278,8 @@ class Program(Util, Color):
             else:
                 subprocess.call(command, stdin=stdinput, stdout=stdoutput, stderr=stderror, env=environment, cwd=workdir)
 
-    def returninfo(self, source, string=True, stdinput=None):
+    @staticmethod
+    def returninfo(source, string=True, stdinput=None):
         """Convenience function for returning the output of a program to the caller.
 
         source is the program to be run.
