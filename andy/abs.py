@@ -36,9 +36,6 @@ class ABS(VideoInfo, VideoUtil):
         VideoUtil.__init__(self)
         self.debug = debug
 
-        self.util = Util()
-        self.program = Program()
-
         if backup:
             self.backuppath = pathlib.Path(backup).resolve()
             self.backup = str(self.backuppath)
@@ -244,7 +241,7 @@ class ABS(VideoInfo, VideoUtil):
 
             if ("mkv" in container or "mka" in container) and self.mkvpropedit:
                 print("{} Adding statistics tags to output file.".format(Mood.happy()))
-                self.program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", output])
+                Program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", output])
 
         def convertnotdone():
             """Clean up function for when conversion does not complete successfully."""
@@ -265,8 +262,8 @@ class ABS(VideoInfo, VideoUtil):
 
         if passes is 2 and not self.debug:
             try:
-                self.program.runprogram(list(commandlist(passno=1, passmax=2)), verify=True)
-                self.program.runprogram(list(commandlist(passno=2, passmax=2)), verify=True)
+                Program.runprogram(list(commandlist(passno=1, passmax=2)), verify=True)
+                Program.runprogram(list(commandlist(passno=2, passmax=2)), verify=True)
             # except Exception as e:
             except (KeyboardInterrupt, subprocess.CalledProcessError, ChildProcessError):
                 convertnotdone()
@@ -277,11 +274,11 @@ class ABS(VideoInfo, VideoUtil):
             finally:
                 if pathlib.Path(filename.replace(filepath.suffix, "-0.log")).exists():
                     print("{} Removing 1st pass log file.".format(self.colors.mood("neutral")))
-                    self.program.runprogram(["rm", filename.replace(filepath.suffix, "-0.log")])
+                    Program.runprogram(["rm", filename.replace(filepath.suffix, "-0.log")])
 
         elif passes is 1 and not self.debug:
             try:
-                self.program.runprogram(commandlist(passmax=1), verify=True)
+                Program.runprogram(commandlist(passmax=1), verify=True)
             except (KeyboardInterrupt, subprocess.CalledProcessError, ChildProcessError):
                 convertnotdone()
                 # traceback.print_exc()
