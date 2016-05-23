@@ -152,6 +152,29 @@ class VideoInfo:
         with self.database:
             self.db.execute(query, dictionary)
 
+    def execarbquerysr(self, query, *values):
+        """Executes an arbitrary query that returns a single result.
+        
+        query is the sql query to be executed (using normal placeholders).
+        
+        values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
+        in the query."""
+        
+        with self.database:
+            self.db.execute(query, values)
+            return self.db.fetchone()
+
+    def execarbquerymr(self, query, *values):
+        """Executes an arbitrary query that returns a single result.
+        
+        query is the sql query to be executed (using normal placeholders).
+        
+        values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
+        in the query."""
+        
+        with self.database:
+            self.db.execute(query, values)
+            return self.db.fetchall()
 
 class GenVideoInfo(VideoInfo):
 
