@@ -38,6 +38,12 @@ class VideoInfo:
         self.dbfile = dbfile
         self.ffprobe = shutil.which("ffprobe", mode=os.X_OK)
 
+    @classmethod
+    def cwd(cls):
+        """Class method to simplify prettify accessing a videoinfo database in the current directory with the name videoinfo.sqlite."""
+
+        return cls(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
+
     def createvideoinfo(self):
         """Creates the videoinfo table in the videoinfo database."""
 
@@ -154,27 +160,28 @@ class VideoInfo:
 
     def execarbquerysr(self, query, *values):
         """Executes an arbitrary query that returns a single result.
-        
+
         query is the sql query to be executed (using normal placeholders).
-        
+
         values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
         in the query."""
-        
+
         with self.database:
             self.db.execute(query, values)
             return self.db.fetchone()
 
     def execarbquerymr(self, query, *values):
         """Executes an arbitrary query that returns a single result.
-        
+
         query is the sql query to be executed (using normal placeholders).
-        
+
         values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
         in the query."""
-        
+
         with self.database:
             self.db.execute(query, values)
             return self.db.fetchall()
+
 
 class GenVideoInfo(VideoInfo):
 
@@ -219,6 +226,14 @@ class GenVideoInfo(VideoInfo):
             self.vi.execviquery(self.createstatementjson)
         else:
             del vjtemp
+
+    @classmethod
+    def cwd(cls, debugmode=False):
+        """Class method to simplify prettify accessing a videoinfo database in the current directory with the name videoinfo.sqlite.
+        
+        debugmode takes a True or False and passes it along to the parent class."""
+
+        return cls(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), debug=debugmode)
 
     def genhashlist(self, files, existinghash=None):
         """Generator function that takes a list of files and a list of existing hashes (if any) and calculates hashes for those files.
