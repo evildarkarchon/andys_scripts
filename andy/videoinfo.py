@@ -14,7 +14,7 @@ try:
 except ImportError:
     pass
 
-from andy.util import Color, Util, Program
+from andy.util import Mood, Util, Program
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
@@ -24,9 +24,6 @@ class VideoInfo:
     """High-level functions for working with a videoinfo database."""
 
     def __init__(self, dbfile):
-        self.colors = Color()
-        self.util = Util()
-        self.program = Program()
         self.database = sqlite3.connect(dbfile)
         global aereg
         if 'aereg' not in vars():
@@ -210,10 +207,10 @@ class GenVideoInfo(VideoInfo):
         for filename in files:
             if existinghash and filename not in existinghash:
                 print("{} Calculating hash for {}".format(Mood.happy(), pathlib.Path(filename).name))
-                yield filename, self.util.hashfile(filename)
+                yield filename, Util.hashfile(filename)
             else:
                 print("{} Calculating hash for {}".format(Mood.happy(), pathlib.Path(filename).name))
-                yield filename, self.util.hashfile(filename)
+                yield filename, Util.hashfile(filename)
 
     def genexisting(self):
         """Generator function that queries an existing videoinfo database and yields the filename and hash for any existing files in the database."""
@@ -273,7 +270,7 @@ class GenVideoInfo(VideoInfo):
                 raise FileNotFoundError
             if self.debug:
                 print("{} Extracting Data from file.")
-            return self.program.returninfo([self.ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
+            return Program.returninfo([self.ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
 
     def generate(self, videofile, jsoninfo, filehash):
         """The workhorse of genvideoinfo, this function generates a dictionary based on json that's either given by gvigenjson or any other source of ffprobe-format json data.
