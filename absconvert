@@ -51,10 +51,7 @@ cmdline = vars(args.parse_args())
 
 def filterfilelist(filelist):
     try:
-        whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm",
-                     "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska",
-                     "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg",
-                     "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
+        whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm", "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska", "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg", "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
 
         with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
             for filename in filelist:
@@ -62,8 +59,7 @@ def filterfilelist(filelist):
                 if m.id_filename(filename) in whitelist and filepath.is_file():
                     yield str(filepath)
     except NameError:
-        whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg',
-                     '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
+        whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
         for filename in filelist:
             filepath = pathlib.Path(filename)
             if filepath.suffix in whitelist and filepath.is_file():
@@ -108,8 +104,11 @@ if not options["output"]:
     else:
         options["output"] = str(pathlib.Path("..").resolve())
 
-if "database" not in options or not options["database"]:
-    options["database"] = None
+if not options["database"]:
+    if pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
+        options["database"] = str(pathlib.Path.cwd().joinpath("videoinfo.sqlite"))
+    else:
+        options["database"] = None
 
 abs = ABS(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
 

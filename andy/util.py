@@ -94,7 +94,7 @@ class Util:
             raise TypeError
 
         jsonpath = pathlib.Path(filename)
-
+        
         if jsonpath.exists():
             jsonpath = jsonpath.resolve()
 

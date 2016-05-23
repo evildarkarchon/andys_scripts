@@ -10,7 +10,7 @@ from andy.util import Mood, Util
 locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
 
 args = argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
-args.add_argument("--database", "-db", help="Location of the sqlite database to save the information into.")
+args.add_argument("--database", "-db", default=str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), help="Location of the sqlite database to save the information into.")
 args.add_argument("--debug", "-d", action="store_true", help="Run in debug mode.")
 args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
 args.add_argument("--regen", "-r", action="store_true", help="Regenerate the videoinfo table of the database.")
@@ -20,12 +20,9 @@ args.add_argument("files", nargs="*", help="Files to get information from.")
 
 options = vars(args.parse_args())
 
-if "database" in options and options["database"]:
-    vi = VideoInfo(options["database"])
-    gvi = GenVideoInfo(options["database"], options["debug"])
-else:
-    vi = VideoInfo.cwd()
-    gvi = GenVideoInfo.cwd(options["debug"])
+vi = VideoInfo(options["database"])
+gvi = GenVideoInfo(options["database"], debug=options["debug"])
+util = Util()
 
 if options["regen"]:
     vi.resetvideoinfo()
