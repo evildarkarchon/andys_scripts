@@ -2,7 +2,7 @@ import atexit
 import locale
 import pathlib
 import shutil
-import sqlite3
+import apsw
 import os
 import json
 import time
@@ -24,7 +24,7 @@ class VideoInfo:
     """High-level functions for working with a videoinfo database."""
 
     def __init__(self, dbfile):
-        self.database = sqlite3.connect(dbfile)
+        self.database = apsw.Connection(dbfile)
         global aereg
         if 'aereg' not in vars():
             aereg = False
@@ -40,7 +40,7 @@ class VideoInfo:
 
     @classmethod
     def cwd(cls):
-        """Class method to simplify prettify accessing a videoinfo database in the current directory with the name videoinfo.sqlite."""
+        """Class method to simplify and prettify accessing a videoinfo database in the current directory with the name videoinfo.sqlite."""
 
         return cls(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")))
 
@@ -63,7 +63,7 @@ class VideoInfo:
             print("{} Purging JSON cache from {}".format(Mood.happy(), self.dbfile))
             self.db.execute('drop table if exists videojson')
             self.db.execute(self.createstatementjson)
-            self.db.execute('vacuum')
+        self.db.execute('begin; commit; vacuum')
 
     def resetvideoinfo(self):
         """Deletes and remakes the videoinfo table and performs a vacuum operation."""
@@ -72,7 +72,7 @@ class VideoInfo:
             print("{} Regenerating the videoinfo table for {}.".format(Mood.happy(), self.dbfile))
             self.db.execute('drop table if exists videoinfo')
             self.db.execute(self.createstatement)
-            self.db.execute('vacuum')
+        self.db.execute('begin; commit; vacuum')
 
     def deleteentry(self, criteria, value):
         """Deletes a row or rows from a videoinfo database based on specified criteria (only one criteria is supported).
@@ -85,7 +85,7 @@ class VideoInfo:
         with self.database:
             print("{} Deleting {} from videoinfo".format(Mood.happy(), value))
             self.db.execute('delete from videoinfo where ? = ?', (criteria, value))
-            self.db.execute('vacuum')
+        self.db.execute('begin; commit; vacuum')
 
     def deletefileentry(self, value):
         """Deletes an entry from the database based on file name.
@@ -96,17 +96,16 @@ class VideoInfo:
         with self.database:
             print("{} Deleting {} from videoinfo".format(Mood.happy(), value))
             self.db.execute('delete from videoinfo where filename = ?', (value,))
-            self.db.execute('vacuum')
+        self.db.execute('begin; commit; vacuum')
 
     def maintainence(self):
         """Performs a vacuum operation on the database."""
 
-        with self.database:
-            print("{} Vacuuming Database.")
-            self.db.execute('vacuum')
+        self.db.execute('begin; commit; vacuum')
 
-    def queryvideoinfomr(self, query, *values):
-        """Performs a query on the videoinfo database, It will only accept select or pragma queries as there is a separate set of functions for executing queries that don't expect a result.
+    def queryvideoinfo(self, query, *values):
+        """Performs a query on the videoinfo database.
+        It will only accept select or pragma queries as there is a separate set of functions for executing queries that don't expect a result.
         This function is for returning multiple results.
 
         query is the sql query to be executed (using normal placeholders).
@@ -118,26 +117,13 @@ class VideoInfo:
             print("{} Query is not a SELECT or PRAGMA query, use execviquery or execviquerynp instead.")
             raise ValueError
         with self.database:
-            self.db.execute(query, values)
-            return self.db.fetchall()
+            value = list(self.db.execute(query, values))
+            if len(value) is 1:
+                return value[0]
+            else:
+                return value
 
-    def queryvideoinfosr(self, query, *values):
-        """Performs a query on the videoinfo database, It will only accept select or pragma queries as there is a separate set of functions for executing queries that don't expect a result.
-        This function is for returning a single result.
-
-        query is the sql query to be executed (using normal placeholders).
-
-        values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
-        in the query."""
-
-        if "select" not in query and "pragma" not in query and "SELECT" not in query and "PRAGMA" not in query:
-            print("{} Query is not a SELECT or PRAGMA query, use execviquery or execviquerynp instead.")
-            raise ValueError
-        with self.database:
-            self.db.execute(query, values)
-            return self.db.fetchone()
-
-    def execviquery(self, query, *values):
+    def execviquery(self, query, vacuum=False, *values):
         """Executes an arbitrary query on the videoinfo database. It will not return any results, so use the queryvideoinfo series of functions for that.
 
         query is the sql query to be executed (using normal placeholders).
@@ -147,8 +133,10 @@ class VideoInfo:
 
         with self.database:
             self.db.execute(query, values)
+        if vacuum:
+            self.db.execute('begin; commit; vacuum')
 
-    def execviquerynp(self, query, dictionary):
+    def execviquerynp(self, query, dictionary, vacuum=False):
         """Executes an arbitrary query on the videoinfo database. It will not return any results, so use the queryvideoinfo series of functions for that.
 
         query is the sql query to be executed (using named placeholders).
@@ -157,8 +145,10 @@ class VideoInfo:
 
         with self.database:
             self.db.execute(query, dictionary)
+        if vacuum:
+            self.db.execute('begin; commit; vacuum')
 
-    def execarbquerysr(self, query, *values):
+    def execarbquery(self, query, *values):
         """Executes an arbitrary query that returns a single result.
 
         query is the sql query to be executed (using normal placeholders).
@@ -167,20 +157,11 @@ class VideoInfo:
         in the query."""
 
         with self.database:
-            self.db.execute(query, values)
-            return self.db.fetchone()
-
-    def execarbquerymr(self, query, *values):
-        """Executes an arbitrary query that returns a single result.
-
-        query is the sql query to be executed (using normal placeholders).
-
-        values takes multiple positional arguments that will be turned into a tuple to fill in the placeholders
-        in the query."""
-
-        with self.database:
-            self.db.execute(query, values)
-            return self.db.fetchall()
+            value = self.db.execute(query, values)
+            if len(value) is 1:
+                return value[0]
+            else:
+                return value
 
 
 class GenVideoInfo(VideoInfo):
@@ -197,20 +178,18 @@ class GenVideoInfo(VideoInfo):
         self.vi = VideoInfo(databasefile)
         self.debug = debug
 
-        av = self.vi.queryvideoinfosr('pragma auto_vacuum')
+        av = self.vi.queryvideoinfo('pragma auto_vacuum')
         if av[0] is not 1:
-            self.vi.execviquery('pragma auto_vacuum = 1')
-            self.vi.execviquery('vacuum')
+            self.vi.execviquery('pragma auto_vacuum = 1', vacuum=True)
 
-        pgsize = self.vi.queryvideoinfosr('pragma page_size')
+        pgsize = self.vi.queryvideoinfo('pragma page_size')
         if pgsize[0] is not 4096:
-            self.vi.execviquery('pragma page_size = 4096')
-            self.vi.execviquery('vacuum')
-        cachesize = self.vi.queryvideoinfosr('pragma cache_size')
+            self.vi.execviquery('pragma page_size = 4096', vacuum=True)
+        cachesize = self.vi.queryvideoinfo('pragma cache_size')
         if cachesize[0] is not -2000:
-            self.vi.execviquery('pragma cache_size = -2000')
+            self.vi.execviquery('pragma cache_size = -2000', vacuum=True)
 
-        vit = self.vi.queryvideoinfosr("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
+        vit = self.vi.queryvideoinfo("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
         try:
             vitemp = len(vit)
         except TypeError:
@@ -219,7 +198,7 @@ class GenVideoInfo(VideoInfo):
         else:
             del vitemp
 
-        vj = self.vi.queryvideoinfosr("SELECT name FROM sqlite_master WHERE type='table' AND name='videojson';")
+        vj = self.vi.queryvideoinfo("SELECT name FROM sqlite_master WHERE type='table' AND name='videojson';")
         try:
             vjtemp = len(vj)
         except TypeError:
@@ -229,8 +208,8 @@ class GenVideoInfo(VideoInfo):
 
     @classmethod
     def cwd(cls, debugmode=False):
-        """Class method to simplify prettify accessing a videoinfo database in the current directory with the name videoinfo.sqlite.
-        
+        """Class method to simplify and prettify accessing a videoinfo database in the current directory with the name "videoinfo.sqlite".
+
         debugmode takes a True or False and passes it along to the parent class."""
 
         return cls(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), debug=debugmode)
@@ -253,13 +232,13 @@ class GenVideoInfo(VideoInfo):
     def genexisting(self):
         """Generator function that queries an existing videoinfo database and yields the filename and hash for any existing files in the database."""
 
-        for filename, hashval in self.vi.queryvideoinfomr("select filename, hash from videoinfo"):
+        for filename, hashval in self.vi.queryvideoinfo("select filename, hash from videoinfo"):
             yield filename, hashval
 
     def genfilelist(self, filelist, existinghash=None):
         """Generator function that takes a list of files and yields a filtered list that eliminates any non-video files (based on known mime types or file extensions) and any files that are already in the database.
         It will use the filemagic module if available for matching based on mime type or use a file extension whitelist if filemagic is not detected.
-        python-magic WILL NOT WORK and there is no easy way to test for it as it uses the same module name. 
+        python-magic WILL NOT WORK and there is no easy way to test for it as it uses the same module name.
         So if python-magic is installed, get rid of it and install filemagic instead."""
 
         try:
@@ -294,14 +273,14 @@ class GenVideoInfo(VideoInfo):
 
         print("{} Extracting metadata for {}".format(Mood.happy(), pathlib.Path(videofile).name))
         try:
-            entryexists = self.vi.queryvideoinfosr('select filename from videojson where filename = ?', videofile)[0]
+            entryexists = self.vi.queryvideoinfo('select filename from videojson where filename = ?', videofile)[0]
         except (TypeError, IndexError, KeyError):
             entryexists = False
             pass
         if entryexists:
             if self.debug:
                 print("{} Using Database".format(Mood.neutral()))
-            return self.vi.queryvideoinfosr('select jsondata from videojson where filename = ?', videofile)[0]
+            return self.vi.queryvideoinfo('select jsondata from videojson where filename = ?', videofile)[0]
         else:
             if not self.ffprobe:
                 print("{} ffprobe not found.".format(Mood.sad()))
@@ -442,7 +421,7 @@ class GenVideoInfo(VideoInfo):
             self.vi.execviquerynp(viquery, videodict[0])
 
             try:
-                entryexists = self.vi.queryvideoinfosr('select filename from videojson where filename = ?', videodict[0]["filename"])[0]
+                entryexists = self.vi.queryvideoinfo('select filename from videojson where filename = ?', videodict[0]["filename"])[0]
             except (TypeError, KeyError, IndexError):
                 entryexists = False
                 pass
@@ -454,8 +433,8 @@ class GenVideoInfo(VideoInfo):
 class FindVideoInfo:
 
     """This class contains any functions related to locating videoinfo databases.
-    Requires filemagic, python-magic will not work, if python-magic is installed, get rid of it 
-    and use filemagic instead. It's not easy to test for which is which as they use the same module name."""
+    Requires filemagic, python-magic will not work, if python-magic is installed, get rid of it and use filemagic instead.
+    It's not easy to test for which is which as they use the same module name."""
 
     def __init__(self):
         try:
