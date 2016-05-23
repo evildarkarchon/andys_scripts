@@ -18,9 +18,6 @@ class Git:
 
     def __init__(self, directory, use_sudo=None, sudo_user=None, url=None):
 
-        self.colors = Color()
-        self.util = Util()
-        self.program = Program()
         self.path = pathlib.Path(directory).resolve()
         self.directory = str(self.path)
         self.url = url
@@ -33,7 +30,7 @@ class Git:
             if use_sudo is None:
                 print("{} use_sudo variable is unset, reverting to manual detection".format(Mood.neutral()))
                 if sudo_user:
-                    return self.util.is_privileged(privuser=sudo_user), sudo_user
+                    return Util.is_privileged(privuser=sudo_user), sudo_user
                 else:
                     return False, None
             elif use_sudo and sudo_user:
@@ -50,7 +47,7 @@ class Git:
 
         if self.path.joinpath(".git", "index.lock").exists():
             if self.use_sudo:
-                self.program.runprogram(["rm", str(self.path.joinpath(".git", "index.lock"))], use_sudo=self.use_sudo, user=self.sudo_user)
+                Program.runprogram(["rm", str(self.path.joinpath(".git", "index.lock"))], use_sudo=self.use_sudo, user=self.sudo_user)
             else:
                 self.path.joinpath(".git", "index.lock").unlink()
 
@@ -60,7 +57,7 @@ class Git:
         if not self.url:
             print("{} url not defined.".format(Mood.sad()))
             raise ValueError
-        self.program.runprogram(["git", "clone", self.url, self.directory], use_sudo=self.use_sudo, user=self.sudo_user)
+        Program.runprogram(["git", "clone", self.url, self.directory], use_sudo=self.use_sudo, user=self.sudo_user)
 
     def gc(self, aggressive=False):
         """Runs git's garbage collection subcommand.
@@ -70,9 +67,9 @@ class Git:
         gccmd = deque(["git", "gc"])
         if aggressive:
             gccmd.append("--aggressive")
-        self.program.runprogram(gccmd, workdir=self.directory, use_sudo=self.use_sudo, user=self.sudo_user)
+        Program.runprogram(gccmd, workdir=self.directory, use_sudo=self.use_sudo, user=self.sudo_user)
 
     def pull(self):
         """Updates the repository in the directory specified by the class."""
 
-        self.program.runprogram(["git", "pull"], workdir=self.directory, use_sudo=self.use_sudo, user=self.sudo_user)
+        Program.runprogram(["git", "pull"], workdir=self.directory, use_sudo=self.use_sudo, user=self.sudo_user)
