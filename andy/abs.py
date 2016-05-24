@@ -8,7 +8,6 @@ import sys
 
 from andy.util import Mood, Program, Util
 from andy.videoinfo import VideoInfo
-from andy.videoutil import VideoUtil
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
