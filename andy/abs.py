@@ -13,7 +13,7 @@ from andy.videoutil import VideoUtil
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 
 
-class ABS(VideoInfo, VideoUtil):
+class ABS:
 
     """Worker class for absconvert
 
@@ -35,7 +35,6 @@ class ABS(VideoInfo, VideoUtil):
         else:
             self.vi = None
 
-        VideoUtil.__init__(self)
         self.debug = debug
 
         if backup:
@@ -58,6 +57,11 @@ class ABS(VideoInfo, VideoUtil):
         self.fr = False
 
         self.nocodec = (None, "none", "copy")
+        
+        self.mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
+        self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
+        self.mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
+        self.ffprobe = shutil.which("ffprobe", mode=os.X_OK)
 
         if not self.ffmpeg:
             print("{} ffmpeg not found, exiting.".format(Mood.sad()))
