@@ -4,6 +4,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import os
 # import traceback
 
 from andy.util import Mood, Program, Util
