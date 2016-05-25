@@ -2,7 +2,7 @@
 import pathlib
 import shutil
 import logging
-import systemd.journal as journal
+import systemd.journal as journal  # pylint: disable=e0401
 import argparse
 import lzma
 import locale
@@ -50,7 +50,7 @@ try:
             print("{} Compressing Data.".format(Mood.happy()))
         compress = lzma.compress(data)
         if options["cron"]:
-            log.info("Writing File: {}.".format(filename))
+            log.info("Writing File: {}.".format(filename))  # pylint: disable=W1202
         else:
             print("{} Writing File: {}".format(Mood.happy(), filename))
         db.write(compress)
@@ -67,7 +67,7 @@ for filepath in files:
     filetime = now - then
     if filetime.days > 14:
         if options["cron"]:
-            log.info("Removing {} from backup directory.".format(filepath.name))
+            log.info("Removing {} from backup directory.".format(filepath.name))  # pylint: disable=W1202
         else:
             print("{} Removing {} from backup directory.".format(Mood.neutral(), filepath.name))
         filepath.unlink()
