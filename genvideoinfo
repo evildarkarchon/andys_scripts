@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pylint: disable=line-too-long
 import pathlib
 import argparse
 import locale
@@ -43,7 +44,7 @@ if options["reset_all"]:
     vi.resetjson()
 
 
-def geninitfilelist(filelist=options["files"]):
+def geninitfilelist(filelist=options["files"]):  # pylint: disable=w0621
     """Generator function that that iterates over the current directory or the list specified on the command line to yield all the files in any directories specified as well as any files specified in the source list.
 
     filelist takes an optional list and iterates over that to generate the super-list."""

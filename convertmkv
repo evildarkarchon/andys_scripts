@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.5
+# pylint: disable=line-too-long
 import tempfile
 import argparse
 import pathlib
@@ -54,7 +55,7 @@ if options["database"] and pathlib.Path(options["database"]).exists():
         gvi = GenVideoInfo(options["database"])
     else:
         gvi = None
-elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
+elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():  # pylint: disable=e1101
     vi = VideoInfo.cwd()
     if not options["no_gvi"]:
         gvi = GenVideoInfo.cwd()
@@ -81,13 +82,12 @@ def genvi(videoname):
     elif not options["combine"] and options["output"] and not options["output_database"] and\
             str(dbpath.parent) != options["output"] and options["output"] != str(pathlib.Path.cwd()):
         ogvi = GenVideoInfo(str(outpath.joinpath("videoinfo.sqlite")))
-    elif options["combine"] and outpath.parent.is_dir() and\
-            str(outpath.parent) != str(pathlib.Path.cwd()):
+    elif options["combine"] and outpath.parent.is_dir() and str(outpath.parent) != str(pathlib.Path.cwd()):  # pylint: disable=e1101
         ogvi = GenVideoInfo(outpath.parent.joinpath("videoinfo.sqlite"))
     else:
         ogvi = None
 
-    filepath = pathlib.Path(videoname)
+    filepath = pathlib.Path(videoname)  # pylint: disable=W0621
     print("{} Calculating hash for videoname for {}".format(Mood.happy(), filepath.name))
     outhash = Util.hashfile(videoname)
     if ogvi:
@@ -118,7 +118,7 @@ def ffmpegconcat():
     This will also invoke mkvpropedit if its installed and add track statistics tags so tools like genvideoinfo can get bitrate data."""
 
     with tempfile.NamedTemporaryFile("a+") as mkvlist:
-        for filename in filelist:
+        for filename in filelist:  # pylint: disable=W0621
             mkvlist.write("file '{}'\n".format(str(pathlib.Path(filename).resolve())))
             if vi:
                 dur = vi.queryvideoinfo('select duration_raw from videoinfo where filename = ?', filename)
@@ -135,9 +135,9 @@ def ffmpegconcat():
             print("{} Adding track statistics metadata to {}".format(Mood.happy(), options["output"]))
             Program.runprogram([mkvpropedit, '--add-track-statistics-tags', options["output"]])
         else:
-            if not pe:
+            if not pe:  # noqa
                 print("{} mkvpropedit not found, not adding statistics tags.".format(Mood.neutral()))
-                pe = True
+                pe = True  # noqa # pylint: disable=W0621
         if gvi:
             genvi(options["output"])
 
@@ -185,7 +185,7 @@ else:
         if options["output"] and pathlib.Path(options["output"]).is_dir():
             outdir = pathlib.Path(options["output"]).resolve()
         else:
-            outdir = pathlib.Path.cwd()
+            outdir = pathlib.Path.cwd()  # pylint: disable=r0204
         fileoutpath = outdir.joinpath(filepath.with_suffix(".mkv").name)
         fileoutname = str(fileoutpath)
         print("{} Muxing {} into a matroska file.".format(Mood.happy(), filename))

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.5
+# pylint: disable=line-too-long
 import argparse
 
 from andy.videoinfo import VideoInfo

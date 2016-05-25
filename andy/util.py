@@ -1,3 +1,4 @@
+# pylint: disable=line-too-long
 import platform
 import collections
 import json

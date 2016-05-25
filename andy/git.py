@@ -1,4 +1,4 @@
-
+# pylint: disable=line-too-long
 import pathlib
 from collections import deque
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.5
+# pylint: disable=line-too-long
 import argparse
 import json
 import locale
