@@ -2,7 +2,7 @@ import atexit
 import locale
 import pathlib
 import shutil
-import apsw
+import apsw  # pylint: disable=E0401
 import os
 import json
 import time
@@ -25,12 +25,10 @@ class VideoInfo:
 
     def __init__(self, dbfile):
         self.database = apsw.Connection(dbfile)
-        global aereg
-        if 'aereg' not in vars():
-            aereg = False
-        if aereg is False:
+        self.aereg = False
+        if not self.aereg:
             atexit.register(self.database.close)
-            aereg = True
+            self.aereg = True
 
         self.db = self.database.cursor()
         self.createstatement = 'CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, streams integer, bitrate_total text, bitrate_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'
@@ -54,7 +52,7 @@ class VideoInfo:
         """Creates the JSON cache table in the videoinfo database."""
 
         with self.database:
-            self.execute(self.createstatementjson)
+            self.db.execute(self.createstatementjson)
 
     def resetjson(self):
         """Purges the JSON cache and performs a vacuum operation."""
@@ -118,7 +116,9 @@ class VideoInfo:
             raise ValueError
         with self.database:
             value = list(self.db.execute(query, values))
-            if len(value) is 1:
+            if 'value' not in vars() or value is None or len(value) < 1:
+                return None
+            elif len(value) is 1:
                 return value[0]
             else:
                 return value
@@ -194,7 +194,6 @@ class GenVideoInfo(VideoInfo):
             vitemp = len(vit)
         except TypeError:
             self.vi.execviquery(self.createstatement)
-            pass
         else:
             del vitemp
 
@@ -207,14 +206,15 @@ class GenVideoInfo(VideoInfo):
             del vjtemp
 
     @classmethod
-    def cwd(cls, debugmode=False):
+    def cwd(cls, debugmode=False):  # pylint: disable=W0221
         """Class method to simplify and prettify accessing a videoinfo database in the current directory with the name "videoinfo.sqlite".
 
         debugmode takes a True or False and passes it along to the parent class."""
 
         return cls(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), debug=debugmode)
 
-    def genhashlist(self, files, existinghash=None):
+    @staticmethod
+    def genhashlist(files, existinghash=None):
         """Generator function that takes a list of files and a list of existing hashes (if any) and calculates hashes for those files.
 
         files takes a list containing file names for which hashes will be calculated.
@@ -263,7 +263,6 @@ class GenVideoInfo(VideoInfo):
                 elif self.debug or not existinghash:
                     if filepath.suffix in whitelist and filepath.is_file():
                         yield str(filepath)
-            pass
 
     def gvigenjson(self, videofile):
         """Worker function that either retrieves the json from the cache or executes ffprobe to generate the json.
@@ -276,7 +275,6 @@ class GenVideoInfo(VideoInfo):
             entryexists = self.vi.queryvideoinfo('select filename from videojson where filename = ?', videofile)[0]
         except (TypeError, IndexError, KeyError):
             entryexists = False
-            pass
         if entryexists:
             if self.debug:
                 print("{} Using Database".format(Mood.neutral()))
@@ -289,7 +287,8 @@ class GenVideoInfo(VideoInfo):
                 print("{} Extracting Data from file.")
             return Program.returninfo([self.ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True)
 
-    def generate(self, videofile, jsoninfo, filehash):
+    @staticmethod
+    def generate(videofile, jsoninfo, filehash):  # pylint: disable=R0912, R0915, R0903
         """The workhorse of genvideoinfo, this function generates a dictionary based on json that's either given by gvigenjson or any other source of ffprobe-format json data.
 
         videofile is the file name of the video to extract metadata from.
@@ -314,7 +313,6 @@ class GenVideoInfo(VideoInfo):
                 video_dict["bitrate_0"] = naturalsize(jsondata["streams"][0].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
         except (KeyError, IndexError, TypeError):
             video_dict["bitrate_0"] = None
-            pass
         try:
             if "tags" in jsondata["streams"][0] and "bit_rate" not in jsondata["streams"][0] and "BPS" in jsondata["streams"][0]["tags"]:
                 video_dict["bitrate_0_raw"] = int(jsondata["streams"][0]["tags"].get("BPS"))
@@ -322,7 +320,6 @@ class GenVideoInfo(VideoInfo):
                 video_dict["bitrate_0_raw"] = int(jsondata["streams"][0].get("bit_rate"))
         except (KeyError, IndexError, TypeError):
             video_dict["bitrate_0_raw"] = None
-            pass
 
         try:
             if "tags" in jsondata["streams"][1] and "bitrate" not in jsondata["streams"][1] and "BPS" in jsondata["streams"][1]["tags"]:
@@ -331,7 +328,6 @@ class GenVideoInfo(VideoInfo):
                 video_dict["bitrate_1"] = naturalsize(jsondata["streams"][1].get("bit_rate")).replace(" MB", "M").replace(" kB", "K")
         except (KeyError, IndexError, TypeError):
             video_dict["bitrate_1"] = None
-            pass
         try:
             if "tags" in jsondata["streams"][1] and "bitrate" not in jsondata["streams"][1] and "BPS" in jsondata["streams"][1]["tags"]:
                 video_dict["bitrate_1_raw"] = int(jsondata["streams"][1]["tags"].get("BPS"))
@@ -339,19 +335,16 @@ class GenVideoInfo(VideoInfo):
                 video_dict["bitrate_1_raw"] = int(jsondata["streams"][1].get("bit_rate"))
         except (KeyError, IndexError, TypeError):
             video_dict["bitrate_1_raw"] = None
-            pass
 
         try:
             video_dict["height"] = jsondata["streams"][0].get("height")
         except (KeyError, IndexError):
             video_dict["height"] = None
-            pass
 
         try:
             video_dict["width"] = jsondata["streams"][0].get("width")
         except (KeyError, IndexError):
             video_dict["width"] = None
-            pass
 
         video_dict["codec_0"] = jsondata["streams"][0].get("codec_name")
 
@@ -359,36 +352,34 @@ class GenVideoInfo(VideoInfo):
             video_dict["codec_1"] = jsondata["streams"][1].get("codec_name")
         except (KeyError, IndexError):
             video_dict["codec_1"] = None
-            pass
 
         if not video_dict["height"]:
             try:
                 video_dict["height"] = jsondata["streams"][1].get("height")
             except (KeyError, IndexError):
                 video_dict["height"] = None
-                pass
+
         if not video_dict["width"]:
             try:
                 video_dict["width"] = jsondata["streams"][1].get("width")
             except (KeyError, IndexError):
                 video_dict["width"] = None
-                pass
 
         video_dict["hash"] = filehash
 
         if jsondata["streams"][0].get("avg_frame_rate"):
             try:
-                framerate = round(eval(jsondata["streams"][0].get("avg_frame_rate")), 2)
+                framerate = round(eval(jsondata["streams"][0].get("avg_frame_rate")), 2)  # pylint: disable=W0123
                 if framerate is not 0 and isinstance(framerate, (int, float)):
                     video_dict["frame_rate"] = framerate
                 else:
                     video_dict["frame_rate"] = None
             except ZeroDivisionError:
                 video_dict["frame_rate"] = None
-                pass
+
         elif jsondata["streams"][1].get("avg_frame_rate"):
             try:
-                framerate = round(eval(jsondata["streams"][1].get("avg_frame_rate")), 2)
+                framerate = round(eval(jsondata["streams"][1].get("avg_frame_rate")), 2)  # pylint: disable=W0123
                 if "frame_rate" not in video_dict and not video_dict["frame_rate"]:
                     if framerate is not 0 and isinstance(framerate, (int, float)):
                         video_dict["frame_rate"] = framerate
@@ -396,7 +387,7 @@ class GenVideoInfo(VideoInfo):
                         video_dict["frame_rate"] = None
             except ZeroDivisionError:
                 video_dict["frame_rate"] = None
-                pass
+
         else:
             video_dict["frame_rate"] = None
         return video_dict, jsoninfo
@@ -424,13 +415,13 @@ class GenVideoInfo(VideoInfo):
                 entryexists = self.vi.queryvideoinfo('select filename from videojson where filename = ?', videodict[0]["filename"])[0]
             except (TypeError, KeyError, IndexError):
                 entryexists = False
-                pass
+
             if not entryexists:
                 print("{} Caching a copy of the json data for {}".format(Mood.happy(), videodict[0]["filename"]))
                 self.vi.execviquery('insert into videojson (filename, jsondata) values(?, ?)', videodict[0]["filename"], json.dumps(jsoninfo))
 
 
-class FindVideoInfo:
+class FindVideoInfo:  # pylint: disable=R0903
 
     """This class contains any functions related to locating videoinfo databases.
     Requires filemagic, python-magic will not work, if python-magic is installed, get rid of it and use filemagic instead.
@@ -445,7 +436,8 @@ class FindVideoInfo:
         else:
             del test
 
-    def find(self, directory="/data/Private"):
+    @staticmethod
+    def find(directory="/data/Private"):
         """Worker function that locates directories with videoinfo database that are under the specified directory.
         Files will be run through filemagic to verify that they actually sqlite databases.
         Just like the genfilelist function in GenVideoInfo, this only works with filemagic,
