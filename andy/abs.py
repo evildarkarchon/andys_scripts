@@ -1,21 +1,20 @@
 import locale
 import pathlib
 import shutil
-import sqlite3
 import subprocess
 import sys
 import os
 # import traceback
 
-from andy.util import Mood, Program, Util
+from andy.util import Mood, Program
 from andy.videoinfo import VideoInfo
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
+# pylint: disable=too-many-arguments, too-many-branches
 
 
-class ABS:
-
-    """Worker class for absconvert
+class ABS:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
+    """Worker class for absconvert.
 
     database specifies the location of the videoinfo database, if any.
 
@@ -25,12 +24,13 @@ class ABS:
 
     output specifies the directory where the resulting file will be encoded to.
 
-    converttest tells the class to not delete any videoinfo entries if they exist."""
+    converttest tells the class to not delete any videoinfo entries if they exist.
+    """
 
-    def __init__(self, database=None, debug=None, backup=None, output=None, converttest=False):
+    def __init__(self, database=None, debug=None, backup=None, output=None, converttest=False):  # pylint: disable=too-many-arguments
         if database and pathlib.Path(database).exists():
             self.vi = VideoInfo(database)
-        elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():
+        elif pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():  # pylint: disable=no-member
             self.vi = VideoInfo.cwd()
         else:
             self.vi = None
@@ -47,7 +47,7 @@ class ABS:
         if output:
             self.outputpath = pathlib.Path(output).resolve()
         else:
-            self.outputpath = pathlib.Path.cwd()
+            self.outputpath = pathlib.Path.cwd()  # pylint: disable=redefined-variable-type
 
         self.output = str(self.outputpath)
 
@@ -57,7 +57,7 @@ class ABS:
         self.fr = False
 
         self.nocodec = (None, "none", "copy")
-        
+
         self.mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
         self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
         self.mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
@@ -66,6 +66,7 @@ class ABS:
         if not self.ffmpeg:
             print("{} ffmpeg not found, exiting.".format(Mood.sad()))
             raise FileNotFoundError
+# pylint: disable=too-many-locals,too-many-statements
 
     def convert(self, filename, videocodec=None, videobitrate=None, audiocodec=None, audiobitrate=None, videocodecopts=None,
                 audiocodecopts=None, audiofilteropts=None, container=None, framerate=None, passes=2):
@@ -96,8 +97,8 @@ class ABS:
 
         framerate tells ffmpeg explicitly what frame rate the video file is, it helps with old containers like MPEG2-PS, if not specified and there is a videoinfo database, that value will automatically be used.
 
-        passes specifies the number of passes to use, defaults to 2."""
-
+        passes specifies the number of passes to use, defaults to 2.
+        """
         filepath = pathlib.Path(filename).resolve()
         outpath = self.outputpath.joinpath(filepath.with_suffix(container).name)
         output = str(outpath)
@@ -111,7 +112,6 @@ class ABS:
 
         def frameratefilter():
             """Helper function to give the command list function the framerate that was either specified on the command line or from the videoinfo database."""
-
             if framerate:
                 return "-filter:v", "fps={}".format(framerate)
             elif self.vi and not framerate and videocodec not in self.nocodec:
@@ -120,11 +120,11 @@ class ABS:
                     self.fr = True
                 try:
                     fr = self.vi.queryvideoinfo("select frame_rate from videoinfo where filename=?", filepath.name)
-                    return "-filter:v", "fps={}".format(fr[0])
-                except (sqlite3.Error, IndexError):
+                    if len(fr) >= 1:
+                        return "-filter:v", "fps={}".format(fr[0])
+                except IndexError:
                     print("{} Frame Rate for {} not found in database, will rely on ffmpeg auto-detection.".format(Mood.neutral(), filename))
                     return None
-                    pass
             elif not self.vi and not framerate:
                 print("{} Frame Rate not specified and there is no videoinfo database, will rely on ffmpeg auto-detection.".format(Mood.neutral()))
                 return None
@@ -137,8 +137,8 @@ class ABS:
 
             passno indicates the stage of a 2 pass encode.
 
-            passmax indicates whether its a 1 or 2 pass encode."""
-
+            passmax indicates whether its a 1 or 2 pass encode.
+            """
             if passno is None and passmax is 2:
                 print("{} You must specify a pass number if using 2-pass encoding.".format(Mood.sad()))
                 raise ValueError
@@ -153,7 +153,6 @@ class ABS:
 
             def auto_bitrates():
                 """Helper function that returns the bitrate(s) in a videoinfo database if not specified."""
-
                 if self.vi:
                     if self.auto is False:
                         print("{} Bit-rates not specified, attempting to guess from database entries.".format(Mood.neutral()))
@@ -165,15 +164,17 @@ class ABS:
                         return [bitrates[0], bitrates[1]]
                     elif streams is 1:
                         return bitrates[0]
+                    else:
+                        return None
                 else:
                     return None
 
-            if ('videobitrate' not in vars() or not videobitrate) or ('audiobitrate' not in vars() or not audiobitrate):
+            if ('videobitrate' not in vars() or not videobitrate) or ('audiobitrate' not in vars() or not audiobitrate):  # noqa # pylint: disable=E0601
                 bitrates = auto_bitrates()
                 if self.debug:
                     print(bitrates)
 
-            if ('videobitrate' not in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) >= 2:
+            if ('videobitrate' not in vars() or not videobitrate) and videocodec not in self.nocodec and len(bitrates) >= 2:  # noqa
                 videobitrate = str(max(bitrates))
                 if self.debug:
                     print(videobitrate)
@@ -235,10 +236,9 @@ class ABS:
 
         def convertdone():
             """Clean up function for when the conversion has completed successfully."""
-
             if self.vi and not self.converttest:
                 self.vi.deletefileentry(filepath.name)
-            if self.backuppath and self.backuppath.exists():
+            if self.backuppath and self.backuppath.exists():  # pylint: disable=no-member
                 print("{} Moving {} to {}".format(Mood.happy(), filepath.name, self.backup))
                 shutil.move(str(filepath), self.backup)
 
@@ -248,11 +248,10 @@ class ABS:
 
         def convertnotdone():
             """Clean up function for when conversion does not complete successfully."""
-
             # print("\ntest")
-            if outpath.exists():
+            if outpath.exists():  # pylint: disable=no-member
                 print("\n{} Removing unfinished file.".format(Mood.neutral()))
-                outpath.unlink()
+                outpath.unlink()  # pylint: disable=no-member
                 sys.exit(1)
 
         if self.debug:
