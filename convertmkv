@@ -91,9 +91,9 @@ def genvi(videoname):
     print("{} Calculating hash for videoname for {}".format(Mood.happy(), filepath.name))
     outhash = Util.hashfile(videoname)
     if ogvi:
-        ogvi.write(ogvi.generate(videoname, ogvi.gvigenjson(videoname), outhash))
+        ogvi.write(GenVideoInfo.generate(videoname, ogvi.gvigenjson(videoname), outhash))
     elif gvi and not ogvi:
-        gvi.write(gvi.generate(videoname, gvi.gvigenjson(videoname), outhash))
+        gvi.write(GenVideoInfo.generate(videoname, gvi.gvigenjson(videoname), outhash))
 
 
 def backup(videoname):
