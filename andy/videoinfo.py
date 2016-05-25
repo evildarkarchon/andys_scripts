@@ -232,9 +232,10 @@ class GenVideoInfo(VideoInfo):
 
     def genexisting(self):
         """Generator function that queries an existing videoinfo database and yields the filename and hash for any existing files in the database."""
-
-        for filename, hashval in self.vi.queryvideoinfo("select filename, hash from videoinfo"):
-            yield filename, hashval
+        existing = self.vi.queryvideoinfo("select filename, hash from videoinfo")
+        if existing:
+            for filename, hashval in list(existing):
+                yield filename, hashval
 
     def genfilelist(self, filelist, existinghash=None):
         """Generator function that takes a list of files and yields a filtered list that eliminates any non-video files (based on known mime types or file extensions) and any files that are already in the database.
