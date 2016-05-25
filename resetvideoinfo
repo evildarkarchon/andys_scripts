@@ -15,7 +15,7 @@ options = vars(args.parse_args())
 
 fvi = FindVideoInfo()
 
-directories = list(fvi.find(options["directory"]))
+directories = list(FindVideoInfo.find(options["directory"]))
 
 for directory in directories:
     vi = VideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
