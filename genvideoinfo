@@ -73,8 +73,8 @@ if not options["reset_json"] and not options["maintainence"]:
         print("{} All files are already in the database or there are no files.".format(Mood.happy()))
         sys.exit(0)
 
-    hashes = dict(gvi.genhashlist(filelist, existinghashes))
+    hashes = dict(GenVideoInfo.genhashlist(filelist, existinghashes))
 
 if not options["maintainence"]:
     for filename in filelist:
-        gvi.write(gvi.generate(filename, gvi.gvigenjson(filename), hashes[filename]))
+        gvi.write(GenVideoInfo.generate(filename, gvi.gvigenjson(filename), hashes[filename]))
