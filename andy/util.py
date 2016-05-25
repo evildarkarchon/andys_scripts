@@ -3,7 +3,7 @@ import collections
 import json
 import pathlib
 import shlex
-import pwd
+import pwd  # pylint: disable=E0401
 import sys
 import hashlib
 import os
@@ -18,9 +18,9 @@ from termcolor import colored
 from datetime import datetime
 
 
-class Color:
+class Color:  # pylint: disable=r0903
 
-    def mood(self, currentmood=None):
+    def mood(self, currentmood=None):  # pylint: disable=r0201
         """Specifies what color star to print (or generic if not one of the specified three specified "moods")
 
         currentmood will return a colored star (or a generic star if run on windows or if currentmood is not specified)
@@ -96,7 +96,7 @@ class Util:
         jsonpath = pathlib.Path(filename)
 
         if jsonpath.exists():
-            jsonpath = jsonpath.resolve()
+            jsonpath = jsonpath.resolve()  # pylint: disable=r0204
 
         if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
             print("{} First argument must be a dictionary.".format(Mood.sad()))
@@ -133,10 +133,12 @@ class Util:
         if isinstance(query, (list, collections.deque)):
             query = tuple(query)
 
-        if sys.version_info[:len(query)] >= query:
+        """if sys.version_info[:len(query)] >= query:
             return True
         else:
-            return False
+            return False"""
+
+        return bool(sys.version_info[:len(query)] >= query)
 
     @staticmethod
     def is_privileged(privuser="root"):
@@ -146,15 +148,17 @@ class Util:
 
         if isinstance(privuser, str):
             user = pwd.getpwnam(privuser)
-            if user.pw_uid == os.geteuid():
+            """ if user.pw_uid == os.geteuid():  # pylint: disable=e1101
                 return True
             else:
-                return False
+                return False """
+            return bool(user.pw_uid == os.geteuid())  # pylint: disable=e1101
         elif isinstance(privuser, int):
-            if privuser == os.geteuid():
+            """ if privuser == os.geteuid():  # pylint: disable=e1101
                 return True
             else:
-                return False
+                return False """
+            return bool(privuser == os.geteuid())  # pylint: disable=e1101
         else:
             print("{} User must be specified as a string or an integer".format(Mood.sad()))
             raise TypeError
@@ -181,7 +185,6 @@ class Util:
                 return sorted(text, key=str.lower)
             else:
                 return list(sorted(text, key=str.lower))
-                pass
 
     @staticmethod
     def hashfile(filename):
@@ -226,7 +229,7 @@ class Program:
     """Compilation of convenience functions related to running subprocesses."""
 
     @staticmethod
-    def runprogram(program, verify=True, use_sudo=False, user=None, stdinput=None, stdoutput=None,
+    def runprogram(program, verify=True, use_sudo=False, user=None, stdinput=None, stdoutput=None,  # pylint: disable=r0913
                    stderror=None, environment=None, workdir=None):
         """Convenience function for running programs.
 
@@ -267,7 +270,7 @@ class Program:
             user = uid.pw_name
 
         if use_sudo:
-            """command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list."""
+            """command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list."""  # pylint: disable=w0105
             sudo = collections.deque(["sudo", "-u", user])
             command = sudo + command
         if Util.is_python_version((3, 5, 0)):
