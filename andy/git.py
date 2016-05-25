@@ -45,11 +45,11 @@ class Git:
     def clean_lock(self):
         """Cleans any stale lock files (currently only index.lock but more will be added if discovered)"""
 
-        if self.path.joinpath(".git", "index.lock").exists():
+        if self.path.joinpath(".git", "index.lock").exists():  # pylint: disable=e1101
             if self.use_sudo:
                 Program.runprogram(["rm", str(self.path.joinpath(".git", "index.lock"))], use_sudo=self.use_sudo, user=self.sudo_user)
             else:
-                self.path.joinpath(".git", "index.lock").unlink()
+                self.path.joinpath(".git", "index.lock").unlink()  # pylint: disable=e1101
 
     def clone(self):
         """Clones the repository to the directory specified by the class using the url specified by the class."""
