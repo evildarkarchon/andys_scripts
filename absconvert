@@ -68,7 +68,6 @@ def filterfilelist(filelist):
             filepath = pathlib.Path(filename)
             if filepath.suffix in whitelist and filepath.is_file():
                 yield str(filepath)
-        pass
 
 
 def configdict():
@@ -92,7 +91,7 @@ def configdict():
         return ChainMap(cmdline, defaultconfig)
     else:
         with open(cmdline["config"]) as jsonsource:
-            config = json.loads(jsonsource.read())
+            config = json.loads(jsonsource.read())  # pylint: disable=W0621
 
         return ChainMap(cmdline, config)
 options = configdict()
@@ -111,7 +110,7 @@ if not options["output"]:
 if "database" not in options or not options["database"]:
     options["database"] = None
 
-abs = ABS(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
+absconvert = ABS(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
 
 if options["container"]:
     options["container"] = ".{}".format(options["container"])
@@ -159,10 +158,10 @@ if options["debug"]:
 
 for files in options["files"]:
     try:
-        abs.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"],
-                    audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"],
-                    audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"],
-                    framerate=options["frame_rate"])
+        # Note to self, change these arguments from looking like keyword arguments to looking like positional arguments to reduce clutter.
+        absconvert.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"],
+                            audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"],  # noqa
+                            audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"],  # noqa
+                            framerate=options["frame_rate"])  # noqa
     except (KeyboardInterrupt, subprocess.CalledProcessError, ChildProcessError):
         break
-        raise
