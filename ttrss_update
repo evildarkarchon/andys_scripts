@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import atexit
 import pathlib
-import datetime
 import argparse
 
 from andy.util import Mood, Util, Program
