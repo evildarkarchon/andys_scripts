@@ -51,12 +51,12 @@ def geninitfilelist(filelist=options["files"]):  # pylint: disable=w0621
 
     if filelist:
         for entry in filelist:
-            path = pathlib.Path(entry)
-            if path.is_dir():
-                for paths in path.iterdir():
-                    yield str(paths)
+            pathentry = pathlib.Path(entry)
+            if pathentry.is_dir():
+                for path in pathentry.iterdir():
+                    yield str(path)
             else:
-                yield str(path)
+                yield str(pathentry)
     else:
         paths = pathlib.Path.cwd().iterdir()
         for path in paths:
