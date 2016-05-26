@@ -14,7 +14,7 @@ try:
 except ImportError:
     pass
 
-from andy.abs import ABS
+from andy.abs import ABSCONVERT
 from andy.util import Mood, Util
 
 locale.setlocale(locale.LC_ALL, "en_US.utf-8")
@@ -111,7 +111,7 @@ if not options["output"]:
 if "database" not in options or not options["database"]:
     options["database"] = None
 
-absconvert = ABS(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
+absconvert = ABSCONVERT(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
 
 if options["container"]:
     options["container"] = ".{}".format(options["container"])

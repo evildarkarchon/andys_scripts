@@ -14,7 +14,7 @@ locale.setlocale(locale.LC_ALL, "en_US.utf-8")
 # pylint: disable=too-many-arguments, too-many-branches
 
 
-class ABS:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
+class ABSCONVERT:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
     """Worker class for absconvert.
 
     database specifies the location of the videoinfo database, if any.
