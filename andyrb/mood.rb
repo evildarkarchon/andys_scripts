@@ -1,10 +1,6 @@
 require 'termcolor'
-# rubocop:disable Style/BlockComments
+# Convenience methods to add a colored star based on the "mood" method called.
 module Mood
-=begin
-'Convenience class to add a colored star based on the "mood" method called.'
-=end
-
   def self.happy(inputstring)
     ['<green>*</green>', inputstring].join(' ').termcolor
   end
