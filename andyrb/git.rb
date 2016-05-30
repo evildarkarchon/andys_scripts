@@ -1,3 +1,3 @@
-module Git
+class Git
 
 end
