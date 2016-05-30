@@ -36,7 +36,7 @@ if options["reset_json"]:
     sys.exit(0)
 
 if options["maintainence"]:
-    vi.maintainence()
+    vi.vacuum()
     sys.exit(0)
 
 if options["reset_all"]:

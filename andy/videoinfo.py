@@ -97,7 +97,7 @@ class VideoInfo:
             self.db.execute('delete from videoinfo where filename = ?', (value,))
         self.db.execute('begin; commit; vacuum')
 
-    def maintainence(self):
+    def vacuum(self):
         """Performs a vacuum operation on the database."""
 
         self.db.execute('begin; commit; vacuum')
@@ -124,7 +124,7 @@ class VideoInfo:
             else:
                 return value
 
-    def execviquery(self, query, vacuum=False, *values):
+    def execviquery(self, query, *values):
         """Executes an arbitrary query on the videoinfo database. It will not return any results, so use the queryvideoinfo series of functions for that.
 
         query is the sql query to be executed (using normal placeholders).
@@ -134,10 +134,8 @@ class VideoInfo:
 
         with self.database:
             self.db.execute(query, values)
-        if vacuum:
-            self.db.execute('begin; commit; vacuum')
 
-    def execviquerynp(self, query, dictionary, vacuum=False):
+    def execviquerynp(self, query, dictionary):
         """Executes an arbitrary query on the videoinfo database. It will not return any results, so use the queryvideoinfo series of functions for that.
 
         query is the sql query to be executed (using named placeholders).
@@ -146,8 +144,6 @@ class VideoInfo:
 
         with self.database:
             self.db.execute(query, dictionary)
-        if vacuum:
-            self.db.execute('begin; commit; vacuum')
 
     def execarbquery(self, query, *values):
         """Executes an arbitrary query that returns a single result.
@@ -181,14 +177,17 @@ class GenVideoInfo(VideoInfo):
 
         av = self.vi.queryvideoinfo('pragma auto_vacuum')
         if av[0] is not 1:
-            self.vi.execviquery('pragma auto_vacuum = 1', vacuum=True)
+            self.vi.execviquery('pragma auto_vacuum = 1')
+            self.vi.vacuum()
 
         pgsize = self.vi.queryvideoinfo('pragma page_size')
         if pgsize[0] is not 4096:
-            self.vi.execviquery('pragma page_size = 4096', vacuum=True)
+            self.vi.execviquery('pragma page_size = 4096')
+            self.vi.vacuum()
         cachesize = self.vi.queryvideoinfo('pragma cache_size')
         if cachesize[0] is not -2000:
-            self.vi.execviquery('pragma cache_size = -2000', vacuum=True)
+            self.vi.execviquery('pragma cache_size = -2000')
+            self.vi.vacuum()
 
         vit = self.vi.queryvideoinfo("SELECT name FROM sqlite_master WHERE type='table' AND name='videoinfo';")
         try:
