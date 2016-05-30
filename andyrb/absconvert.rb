@@ -1,3 +1,3 @@
-module ABS
+class ABS
 
 end
