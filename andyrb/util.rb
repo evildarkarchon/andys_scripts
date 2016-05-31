@@ -10,7 +10,7 @@ require_relative 'mood'
 module Util
   # Convenience function to write json to a file.
   class GenJSON
-    def self.write(filename, inputhash, printresults = False)
+    def self.write(filename, inputhash)
       input = inputhash.to_h if inputhash.respond_to?(:to_h)
       if printresults
         puts JSON.pretty_generate(input)
@@ -18,6 +18,11 @@ module Util
         outputfile = open(filename, 'w')
         outputfile.write(JSON.pretty_generate(input))
       end
+    end
+
+    def self.print(inputhash)
+      input = inputhash.to_h if inputhash.respond_to?(:to_h)
+      puts JSON.pretty_generate(input)
     end
   end
   # Convenience function to calculate hashes on a file or a list of files.
