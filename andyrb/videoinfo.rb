@@ -4,6 +4,7 @@ require 'pathname'
 require 'filesize'
 require 'filemagic'
 require 'find'
+# rubocop:disable Style/MultilineOperationIndentation
 # insert documentation here
 module VideoInfo
   CreateStatement = 'CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, streams integer, bitrate_total text, bitrate_0 text, type_0 text, bitrate_1 text, bitrate_0_raw integer, bitrate_1_raw integer, type_1 text, codec_0 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'.freeze
@@ -30,13 +31,13 @@ module VideoInfo
     def initialize(dbpath = Pathname.new('./videoinfo.sqlite'))
       @db = SQLite3::Database.new(dbpath.to_s)
       @db.type_translation = true
-      @db.auto_vacuum = true unless @db.auto_vacuum
-      @db.cache_size = -2000 if @db.cache_size > -2000
+      @db.auto_vacuum= true unless @db.auto_vacuum # rubocop:disable Style/RedundantPartheses, Style/SpaceAroundOperators
+      @db.cache_size= -2000 unless @db.cache_size <= -2000 # rubocop:disable Style/RedundantPartheses, Style/SpaceAroundOperators
       @db.execute 'vacuum'
     end
 
     def write(query, *values)
-      dbvalues = values.to_a if values.responds_to?(:to_a)
+      dbvalues = values.to_a if values.respond_to?(:to_a)
       @db.execute(query, dbvalues)
     end
 
@@ -50,6 +51,15 @@ module VideoInfo
       inputvalues = values.to_a if values.respond_to?(:to_a)
       output = @db.execute(query, inputvalues)
       output = nil if output.empty?
+      output
+    end
+
+    def readhash(query, *values)
+      @db.results_as_hash = true
+      inputvalues = values.to_a if values.respond_to?(:to_a)
+      output = @db.execute(query, inputvalues)
+      output = nil if output.empty?
+      @db.results_as_hash = false
       output
     end
 
@@ -82,11 +92,8 @@ module VideoInfo
     def json(filename)
       output = nil
       testresult = @vi.read('select filename from videojson where filename = ?', filename)
-      if testresult
-        output = testresult
-      else
-        output = IO.popen(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet'])
-      end
+      output = testresult unless testresult.empty?
+      output = IO.popen(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']) if testresult.empty?
       output
     end
 
@@ -102,15 +109,33 @@ module VideoInfo
       outhash['duration_raw'] = jsondata['format']['duration']
       outhash['streams'] = jsondata['format']['nb_streams']
 
-      outhash['bitrate_0'] = Filesize.from(jsondata['streams'][0]['bit_rate']) if jsondata['streams'][0].key?('bit_rate')
-      outhash['bitrate_0'] = Filesize.from(jsondata['streams'][0]['tags']['BPS']) if jsondata['streams'][0].key?('tags') && jsondata['streams'][0]['tags'].key?('BPS')
+      outhash['bitrate_0'] = Filesize.from(jsondata['streams'][0]['bit_rate'].to_s + 'b').to_s + 'Kb/s' if jsondata['streams'][0].key?('bit_rate') && jsondata['streams'][0]['bit_rate'] >= 1000
+      outhash['bitrate_0'] = Filesize.from(jsondata['streams'][0]['bit_rate'].to_s + 'b').to_s + 'b/s' if jsondata['streams'][0].key?('bit_rate') && jsondata['streams'][0]['bit_rate'] < 1000
+
+      outhash['bitrate_0'] = Filesize.from(jsondata['streams'][0]['tags']['BPS'].to_s + 'b').to_s + 'Kb/s' \
+      if jsondata['streams'][0].key?('tags') && jsondata['streams'][0]['tags'].key?('BPS') && jsondata['streams'][0]['tags'] >= 1000
+      outhash['bitrate_0'] = Filesize.from(jsondata['streams'][0]['tags']['BPS'].to_s + 'b').to_s + 'b/s' if jsondata['streams'][0].key?('tags') && \
+      jsondata['streams'][0]['tags'].key?('BPS') && jsondata['streams'][0]['tags'] < 1000
+
       outhash['bitrate_0_raw'] = jsondata['streams'][0]['bitrate'] if jsondata['streams'][0].key?('bitrate')
       outhash['bitrate_0_raw'] = jsondata['streams'][0]['tags']['BPS'] if jsondata['streams'][0].key?('tags') && jsondata['streams'][0]['tags'].key?('BPS')
+
       outhash['type_0'] = jsondata['streams'][0]['codec_type'] if jsondata['streams'][0].key?('codec_type')
       outhash['codec_0'] = jsondata['streams'][0]['codec_name'] if jsondata['streams'][0].key?('codec_name')
 
-      outhash['bitrate_1'] = Filesize.from(jsondata['streams'][1]['bit_rate']) if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('bit_rate')
-      outhash['bitrate_1'] = Filesize.from(jsondata['streams'][1]['tags']['BPS']) if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags'].key?('BPS')
+      outhash['bitrate_1'] = Filesize.from(jsondata['streams'][1]['bit_rate'].to_s + 'b').to('Kb').to_s + 'Kb/s' if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('bit_rate') && jsondata['streams'][1]['bit_rate'] >= 1000
+      outhash['bitrate_1'] = Filesize.from(jsondata['streams'][1]['bit_rate'].to_s + 'b').to('Kb').to_s + 'b/s' if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('bit_rate') && jsondata['streams'][1]['bit_rate'] < 1000
+
+      outhash['bitrate_1'] = Filesize.from(jsondata['streams'][1]['tags']['BPS'].to_s + 'b').to('Kb').to_s + 'Kb/s' if jsondata['streams'].length >= 2 && \
+      jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags'].key?('BPS') && \
+      jsondata['streams'][1]['tags']['BPS'] >= 1000
+      outhash['bitrate_1'] = Filesize.from(jsondata['streams'][1]['tags']['BPS'].to_s + 'b').to('Kb').to_s + 'b/s' if jsondata['streams'].length >= 2 && \
+      jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags'].key?('BPS') && \
+      jsondata['streams'][1]['tags']['BPS'] < 1000
+
+      outhash['bitrate_1_raw'] = jsondata['streams'][1]['bit_rate'] if jsondata['streams'][1].key?('bit_rate')
+      outhash['bitrate_1_raw'] = jsondata['streams'][1]['tags']['BPS'] if jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags'].key?('BPS')
+
       outhash['type_1'] = jsondata['streams'][1]['codec_type'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('codec_type')
       outhash['codec_1'] = jsondata['streams'][1]['codec_name'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('codec_name')
 
