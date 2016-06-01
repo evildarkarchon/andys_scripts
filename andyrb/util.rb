@@ -4,6 +4,7 @@ require 'pathname'
 require 'date'
 require 'etc'
 require 'naturalsorter'
+require 'subprocess'
 
 require_relative 'mood'
 # rubocop disable:Metrics/MethodLength
@@ -101,5 +102,21 @@ module Util
       end
       sorted
     end
+  end
+
+  class Program
+    def self.runprogram(program, use_sudo = false, sudo_user = nil)
+      cmdline = []
+      sudo_user = 'root' if use_sudo && !sudo_user
+      cmdline << ['sudo', '-u', sudo_user] if use_sudo
+      cmdline << program
+      cmdline.flatten!
+      subprocess.check_call(cmdline)
+    end
+  end
+end
+class Object
+  def in(*arr)
+    arr.include? self
   end
 end
