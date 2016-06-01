@@ -30,8 +30,35 @@ module ABSConvert
   end
 
   class Convert
-    def initialize(videocodec = nil, videobitrate = nil, audiocodec = nil, audiobitrate = nil, videocodecopts = nil, audiocodecopts = nil, audiofilteropts = nil, container = nil, framerate = nil, passes = 2) # rubocop:disable Metrics/ParameterLists
-      
+    def initialize(videocodec = nil, videobitrate = nil, videocodecopts = nil, audiocodec = nil, audiobitrate = nil, audiocodecopts = nil, audiofilteropts = nil, container = nil, framerate = nil) # rubocop:disable Metrics/ParameterLists
+      @videocodec = videocodec
+      @videobitrate = videobitrate
+      @videocodecopts = videocodecopts
+      @audiocodec = audiocodec
+      @audiobitrate = audiobitrate
+      @audiocodecopts = audiocodecopts
+      @audiofilteropts = audiofilteropts
+      @container = container
+      @framerate = framerate
+
+      @nocodec = [nil, 'none', 'copy']
+
+      @mkvpropedit = find_executable('mkvpropedit')
+      @ffmpeg = find_executable('ffmpeg')
+
+      raise Mood.sad('Unable to find ffmpeg, exiting.') unless @ffmpeg
+    end
+
+    def convertpass1
+      # insert code here
+    end
+
+    def convertpass2
+      # insert code here
+    end
+
+    def convert1pass
+      # insert code here
     end
   end
 end
