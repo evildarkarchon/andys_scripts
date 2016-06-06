@@ -30,13 +30,29 @@ module Util
     end
   end
 
+  class FindApp
+    # Cross-platform way of finding an executable in the $PATH.
+    #
+    #   which('ruby') #=> /usr/bin/ruby
+    def self.which(cmd)
+      exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
+      ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+        exts.each do |ext|
+          exe = File.join(path, "#{cmd}#{ext}")
+          return exe if File.executable?(exe) && !File.directory?(exe)
+        end
+      end
+      return nil # rubocop:disable Style/RedundantReturn
+    end
+  end
+
   class HashFile
     # Convenience function to calculate hashes on a file or a list of files.
     # Params:
     # +filelist+:: iterator or string that specifies the file (or files) to be hashed and returns the result in a ruby hash (ruby, your terminology sucks).
     def self.genhash(filelist)
       hashes = {}
-      if filelist.respond_to?('each')
+      if filelist.respond_to?(:each)
         filelist.each do |file|
           filedata = File.read(file)
           # hmac = OpenSSL::HMAC.new(filedata, OpenSSL::Digest::SHA256.new)
@@ -48,13 +64,15 @@ module Util
       else
         filedata = File.read(filelist)
         sha256 = Digest::SHA256.new
-        puts Mood.happy("Calculating hash for #{file}")
+        puts Mood.happy("Calculating hash for #{filelist}")
         sha256 << filedata
-        hashes[file] = sha256.hexdigest
+        hashes[filelist] = sha256.hexdigest
+        # puts hashes
       end
       hashes
     end
   end
+
   # Calculates the difference between dates from specified timestamp to now.
   # Params:
   # +timestamp+:: A timestamp that is either a Time object or a number of seconds from unix epoch.
@@ -71,6 +89,7 @@ module Util
       diff
     end
   end
+
   # Checks if the current user's user id is equal to the specified "privileged" user.
   # Params:
   # +user+:: The user that is indicated to have sufficient privileges for the task.
@@ -88,6 +107,7 @@ module Util
       value
     end
   end
+
   # Class to sort the entries in a given variable.
   # Params:
   # +input+:: The data that will be sorted.
@@ -98,7 +118,8 @@ module Util
       begin
         sorted = Naturalsorter::Sorter.sort(unsorted, true)
       rescue NameError
-        sorted = unsorted.sort
+        sorted = unsorted
+        sorted.sort_by! { |m| m.group.name.downcase }
       end
       sorted
     end
@@ -115,6 +136,7 @@ module Util
     end
   end
 end
+
 class Object
   def in(*arr)
     arr.include? self
