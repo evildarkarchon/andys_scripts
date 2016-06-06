@@ -1,81 +1,99 @@
-#!/usr/bin/env python3
-# pylint: disable=line-too-long
-import pathlib
-import argparse
-import locale
-import sys
+#!/usr/bin/env ruby
+require 'ostruct'
+require 'optparse'
+require 'pathname'
+require 'find'
 
-from andy.videoinfo import VideoInfo, GenVideoInfo
-from andy.util import Mood, Util
+require_relative 'andyrb/mood'
+require_relative 'andyrb/util'
+require_relative 'andyrb/videoinfo'
 
-locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
+class Options
+  def self.parse(args)
+    options = OpenStruct.new
+    options.db = Pathname.new('./videoinfo.sqlite')
+    options.debug = false
 
-args = argparse.ArgumentParser(description="genvideoinfo: a simple video metadata extractor.")
-args.add_argument("--database", "-db", help="Location of the sqlite database to save the information into.")
-args.add_argument("--debug", "-d", action="store_true", help="Run in debug mode.")
-args.add_argument("--maintainence", "-m", action="store_true", help="Run in maintainence mode.")
-args.add_argument("--regen", "-r", action="store_true", help="Regenerate the videoinfo table of the database.")
-args.add_argument("--reset-json", "-rj", action="store_true", help="Resets the videojson table.")
-args.add_argument("--reset-all", "-ra", action="store_true", help="Reset both the videojson and videoinfo table.")
-args.add_argument("files", nargs="*", help="Files to get information from.")
+    optparse = OptionParser.new do |opts|
+      opts.on('-db', "--database file", 'Location where the database will be written') { |db| options.db = Pathname.new(db) } # rubocop:disable Style/StringLiterals
+      opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") { |debug| options.debug = debug }
+      opts.on('-m', '--maintainence', 'Performs simple maintainence operations on the database.') { |m| options.m = m }
+      opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { |regen| options.regen = regen }
+      opts.on('--regen-json', 'Drops and recreates the videojson table.') { |regen_json| options.regen_json = regen_json }
+      opts.on('--reset-all', 'Drops and recreates both the videoinfo and videojson tables.') { |regen_all| options.regen_all = regen_all }
+    end
+    optparse.parse!(args)
+    options
+  end
+end
+options = Options.parse(ARGV)
+options.files = []
+options.files = ARGV unless ARGV.nil? || ARGV.empty?
+if options.files.empty?
+  Find.find(Pathname.getwd.to_s) do |path|
+    if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
+      Find.prune # Don't look any further into this directory.
+    else
+      puts path if options.debug
+      options.files << path
+      next
+    end
+  end
+end
+if options.debug
+  puts options
+  puts options.files
+end
 
-options = vars(args.parse_args())
+vi = VideoInfo::Database.new(options.db.to_s)
+gvi = VideoInfo::Generate.new(options.db.to_s)
 
-if "database" in options and options["database"]:
-    vi = VideoInfo(options["database"])
-    gvi = GenVideoInfo(options["database"], options["debug"])
-else:
-    vi = VideoInfo.cwd()
-    gvi = GenVideoInfo.cwd(options["debug"])
+if options.reset_json && !options.reset_all
+  vi.resetjson
+  exit
+end
+vi.resetvideoinfo if options.regen || options.reset_all
 
-if options["regen"]:
-    vi.resetvideoinfo()
+vi.resetjson if options.reset_all
 
-if options["reset_json"]:
-    vi.resetjson()
-    sys.exit(0)
+if options.maintainence
+  vi.vacuum
+  exit
+end
 
-if options["maintainence"]:
-    vi.vacuum()
-    sys.exit(0)
+initlist = []
+if options.files && options.files.respond_to?(:each)
+  options.files.each do |entry|
+    path = Pathname.new(entry).realpath
+    initlist << path.to_s if path.file?
+    path.descend { |file| initlist << file.to_s if file.file? } if path.directory?
+  end
+end
 
-if options["reset_all"]:
-    vi.resetvideoinfo()
-    vi.resetjson()
+existing = gvi.existing
+filelist = Util::SortEntries.sort(VideoInfo::Generate.filelist(initlist, existing, options.debug))
+if options.debug
+  puts 'Initial list:'
+  print initlist
+  print "\n"
+  puts 'Existing hash list:'
+  print existing
+  print "\n"
+  puts 'File list:'
+  print filelist
+  print "\n"
+  exit
+end
 
+if filelist.empty?
+  puts(Mood.happy('All files already in the database or there are no media files.'))
+  exit
+end
 
-def geninitfilelist(filelist=options["files"]):  # pylint: disable=w0621
-    """Generator function that that iterates over the current directory or the list specified on the command line to yield all the files in any directories specified as well as any files specified in the source list.
-
-    filelist takes an optional list and iterates over that to generate the super-list."""
-
-    if filelist:
-        for entry in filelist:
-            pathentry = pathlib.Path(entry)
-            if pathentry.is_dir():
-                for path in pathentry.iterdir():
-                    yield str(path)
-            else:
-                yield str(pathentry)
-    else:
-        paths = pathlib.Path.cwd().iterdir()
-        for path in paths:
-            yield str(path)
-
-initfilelist = list(geninitfilelist())
-
-if not options["reset_json"] and not options["maintainence"]:
-    existinghashes = dict(gvi.genexisting())
-    filelist = Util.sortentries(list(gvi.genfilelist(initfilelist, existinghashes)))
-    if options["debug"]:
-        print(filelist)
-
-    if len(filelist) is 0:
-        print("{} All files are already in the database or there are no files.".format(Mood.happy()))
-        sys.exit(0)
-
-    hashes = dict(GenVideoInfo.genhashlist(filelist, existinghashes))
-
-if not options["maintainence"]:
-    for filename in filelist:
-        gvi.write(GenVideoInfo.generate(filename, gvi.gvigenjson(filename), hashes[filename]))
+digests = VideoInfo::Generate.digest(filelist)
+filelist.each do |file|
+  puts(Mood.happy("Extracting metadata from #{file}"))
+  jsondata = gvi.json(file, options.debug)
+  metadata = VideoInfo::Generate.hash(file, jsondata, digests[file])
+  gvi.write(metadata, jsondata, options.debug)
+end
