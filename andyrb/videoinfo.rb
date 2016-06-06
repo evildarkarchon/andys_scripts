@@ -70,13 +70,13 @@ module VideoInfo
     end
 
     def createvitable
-      puts "Executing #{CreateStatement}"
+      puts Mood.happy('Creating videoinfo table.')
       @db.execute CreateStatement
       @db.execute 'vacuum'
     end
 
     def createjsontable
-      puts "Executing #{CreateStatementJSON}"
+      puts Mood.happy('Creating JSON cache table.')
       @db.execute CreateStatementJSON
       @db.execute 'vacuum'
     end
