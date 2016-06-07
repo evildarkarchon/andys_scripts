@@ -134,8 +134,6 @@ module Util
       cmdline.flatten!
       subprocess.check_call(cmdline)
     end
-
-    alias run runprogram
   end
 end
 
