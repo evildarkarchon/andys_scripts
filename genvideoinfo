@@ -19,7 +19,7 @@ class Options
       opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") { |debug| options.debug = debug }
       opts.on('-m', '--maintainence', 'Performs simple maintainence operations on the database.') { |m| options.m = m }
       opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { |regen| options.regen = regen }
-      opts.on('--regen-json', 'Drops and recreates the videojson table.') { |regen_json| options.regen_json = regen_json }
+      opts.on('--reset-json', 'Drops and recreates the videojson table.') { |reset_json| options.reset_json = reset_json }
       opts.on('--reset-all', 'Drops and recreates both the videoinfo and videojson tables.') { |regen_all| options.regen_all = regen_all }
     end
     optparse.parse!(args)
