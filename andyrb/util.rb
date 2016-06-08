@@ -132,8 +132,11 @@ module Util
       cmdline << ['sudo', '-u', sudo_user] if use_sudo
       cmdline << program
       cmdline.flatten!
-      subprocess.check_call(cmdline)
+      Subprocess.check_call(cmdline)
     end
+  end
+  class << Program
+    alias run runprogram
   end
 end
 
