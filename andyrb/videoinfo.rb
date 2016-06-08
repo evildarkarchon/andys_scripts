@@ -32,7 +32,7 @@ module VideoInfo
   class Database
     def initialize(dbpath = Pathname.new('./videoinfo.sqlite'))
       @db = SQLite3::Database.new(dbpath.to_s)
-      @dbpath = dbpath
+      @dbpath = Pathname.new(dbpath)
       @db.type_translation = true
       @db.auto_vacuum= true unless @db.auto_vacuum # rubocop:disable Style/RedundantPartheses, Style/SpaceAroundOperators
       @db.cache_size= -2000 unless @db.cache_size <= -2000 # rubocop:disable Style/RedundantPartheses, Style/SpaceAroundOperators
@@ -53,6 +53,8 @@ module VideoInfo
       inputvalues = values.to_a if values.respond_to?(:to_a)
       output = @db.execute(query, inputvalues)
       output = nil if output.empty?
+      output = output[0] if output.respond_to?(:length) && output.length == 1 && output.respond_to?(:index)
+      output = output[0] if output.respond_to?(:length) && output.length == 1 && output.respond_to?(:index)
       output
     end
 
@@ -134,8 +136,9 @@ module VideoInfo
       begin
         @vi.write(viquery, inputhash)
       rescue SQLite3::SQLException => e
-        rtvcount += 1
+        @rtvcount += 1
         @vi.createvitable
+        puts(Mood.neutral("Try \##{@rtvcount}"))
         retry if @rtvcount <= 5
       end
       # query = @db.prepare("insert into videoinfo (filename, duration, duration_raw, streams, bitrate_total, bitrate_0, bitrate_0_raw, type_0, codec_0, bitrate_1, bitrate_1_raw, type_1, codec_1, container, width, height, frame_rate, hash) values (:filename, :duration, :duration_raw, :streams, :bitrate_total, :bitrate_0, :bitrate_0_raw, :type_0, :codec_0, :bitrate_1, :bitrate_1_raw, :type_1, :codec_1, :container, :width, :height, :frame_rate, :hash)")
@@ -193,8 +196,9 @@ module VideoInfo
     def json(filename, verbose = false)
       output = nil
       testresult = nil
+      filepath = Pathname.new(filename).realpath
       begin
-        testresult = @vi.read('select filename from videojson where filename = ?', filename)
+        testresult = @vi.read('select filename from videojson where filename = ?', filepath.basename)
       rescue SQLite3::SQLException
         @vi.createjsontable
         @rtjcount += 1
@@ -202,7 +206,7 @@ module VideoInfo
         retry if @rtjcount <= 5
       else
         output = testresult unless testresult.nil? || testresult.empty?
-        output = Subprocess.check_output(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
+        output = Subprocess.check_output(['ffprobe', '-i', filepath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
         puts output if verbose
       end
       output
