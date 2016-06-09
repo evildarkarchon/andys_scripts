@@ -1,42 +1,111 @@
-#!/usr/bin/env python3
-# pylint: disable=line-too-long
-import pathlib
-import argparse
+#!/usr/bin/env ruby
+require 'ostruct'
+require 'optparse'
+require 'pathname'
+require 'find'
 
-from andy.util import Util
-from andy.videoinfo import VideoInfo, GenVideoInfo, FindVideoInfo
+require_relative 'andyrb/mood'
+require_relative 'andyrb/util'
+require_relative 'andyrb/videoinfo'
 
-util = Util()
+class Options
+  def self.parse(args)
+    options = OpenStruct.new
+    options.reset_json = false
+    options.reset_all = false
+    # options.del = false
 
-args = argparse.ArgumentParser()
-args.add_argument("--reset-json", "-rj", action="store_true", help="Reset the JSON cache instead of the videoinfo table.")
-args.add_argument("--reset-all", "-r", action="store_true", help="Reset both the JSON cache and the videoinfo table.")
-args.add_argument("directory", default="/data/Private", nargs="?", help="Directory to look for videoinfo databases")
-options = vars(args.parse_args())
+    optparse = OptionParser.new do |opts|
+      opts.on('--reset-json', 'Purges the JSON caches for all databases found.') { |j| options.reset_json = j }
+      opts.on('--reset-all', 'Resets the entire database.') { |a| options.reset_all = a }
+      # opts.on('--delete', 'Only drop and recreate tables.') { |del| options.del = del }
+    end
+    optparse.parse!(args)
+    options
+  end
+end
+options = Options.parse(ARGV)
+options.directory = ARGV unless ARGV.nil? || ARGV.empty?
+options.directory = ['/data/Private'] if ARGV.nil? || ARGV.empty?
 
-fvi = FindVideoInfo()
-
-directories = list(FindVideoInfo.find(options["directory"]))
-
-for directory in directories:
-    vi = VideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
-    gvi = GenVideoInfo(str(pathlib.Path(directory).resolve().joinpath("videoinfo.sqlite")))
-    path = pathlib.Path(directory).resolve()
-
-    def gfl():
-        """Generator function that iterates over the directory specified in the directory variable and yields all files contained within."""
-
-        for filename in path.iterdir():  # pylint: disable=e1101, w0640, w0621
-            yield str(filename)
-
-    files = list(gfl())
-
-    if options["reset_json"] or options["reset_all"]:
-        vi.resetjson()
-
-    if not options["reset_json"]:
-        vi.resetvideoinfo()
-        filelist = Util.sortentries(list(gvi.genfilelist(files)))
-        hashes = dict(gvi.genhashlist(filelist))
-        for filename in filelist:
-            gvi.write(gvi.generate(filename, gvi.gvigenjson(filename), hashes[filename]))
+directories = []
+if options.directory.respond_to?(:each)
+  options.directory.each do |i|
+    directories << VideoInfo.find(i)
+    directories.uniq!
+    directories.flatten!
+  end
+else
+  directories << VideoInfo.find(options.directory)
+  directories.uniq!
+  directories.flatten!
+end
+directories = directories.join('') if directories.respond_to?(:each) && directories.respond_to?(:length) && directories.length == 1
+filelist = []
+initlist = []
+if directories.respond_to?(:each) && directories.respond_to?(:length) && directories.length > 1
+  directories.each do |d|
+    dbpath = Pathname.new(d).realpath
+    dbpath = dbpath.dirname if dbpath.file?
+    dir = dbpath.to_s
+    vi = VideoInfo::Database.new(dbpath.join('videoinfo.sqlite')) if dbpath.join('videoinfo.sqlite').exist?
+    puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
+    vi.resetvideoinfo unless options.reset_json == true
+    vi.resetjson if options.reset_json == true || options.reset_all == true
+    Find.find(dir) do |path|
+      if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
+        Find.prune # Don't look any further into this directory.
+      else
+        initpath = Pathname.new(path.to_s)
+        initlist << initpath.to_s if initpath.file?
+        next
+      end
+    end
+    initlist.flatten!
+    initlist.uniq!
+    filelist = Util::SortEntries.sort(VideoInfo::Generate.filelist(initlist))
+    filelist.each do |i|
+      filepath = Pathname.new(i)
+      filelist.delete(i) unless filepath.file?
+      puts "Bad #{filepath}" unless filepath.file?
+    end
+  end
+else
+  dbpath = Pathname.new(directories).realpath
+  dbpath = dbpath.dirname if dbpath.file?
+  dir = dbpath.to_s
+  vi = VideoInfo::Database.new(dbpath.join('videoinfo.sqlite')) if dbpath.join('videoinfo.sqlite').exist?
+  puts 'Bad' unless dbpath.join('videoinfo.sqlite').exist?
+  vi.resetvideoinfo unless options.reset_json == true
+  vi.resetjson if options.reset_json == true || options.reset_all == true
+  Find.find(dir) do |path|
+    if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
+      Find.prune # Don't look any further into this directory.
+    else
+      initpath = Pathname.new(path.to_s)
+      initlist << initpath.to_s if initpath.file?
+      next
+    end
+  end
+  initlist.flatten!
+  initlist.uniq!
+  filelist = Util::SortEntries.sort(VideoInfo::Generate.filelist(initlist))
+  filelist.each do |i|
+    filepath = Pathname.new(i)
+    filelist.delete(i) unless filepath.file?
+    puts 'Bad' unless filepath.file?
+  end
+  # puts filelist
+end
+digests = VideoInfo::Generate.digest(filelist)
+filelist.each do |file|
+  filepath = Pathname.new(file)
+  # puts filepath.dirname
+  gvi = VideoInfo::Generate.new(filepath.dirname.join('videoinfo.sqlite')) if filepath.file?
+  gvi = VideoInfo::Generate.new(filepath.join('videoinfo.sqlite')) if filepath.directory?
+  name = filepath.to_s
+  puts(Mood.happy("Extracting metadata from #{file}"))
+  jsondata = gvi.json(name)
+  metadata = VideoInfo::Generate.hash(file, jsondata, digests[name])
+  gvi.write(metadata, jsondata)
+end
