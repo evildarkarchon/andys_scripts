@@ -28,7 +28,6 @@ module ABSConvert
       vi = VideoInfo::Database.new(Pathname.new(database).realpath.to_s)
       filepath = Pathname.new(file).realpath.to_s
       dbinfo = vi.read('select frame_rate from videoinfo where filename = ?', filepath.basename)
-
       dbinfo
     end
 
@@ -51,14 +50,14 @@ module ABSConvert
       @vb = nil
       @ab = nil
 
-      @filepath = Pathname.new(filename)
-      @filename = @filepath.realpath.to_s
+      @filepath = Pathname.new(filename).realpath
+      @filename = @filepath.to_s
 
-      @outputpath = Pathname.new(output)
-      @output = @outpath.realpath.to_s
-      @outfilepath = @outpath.join(@filepath.sub_ext(container).basename)
-      @logcmdline = @output.sub(outpath.extname, '')
-      @logfile = Pathname.new(@output.sub(outpath.extname, '-0.log'))
+      @outputpath = Pathname.new(output).realpath
+      @output = @outputpath.to_s
+      @outfilepath = @outputpath.join(@filepath.sub_ext(container).basename)
+      @logcmdline = @outputpath.sub_ext('')
+      @logfile = Pathname.new(@outputpath.sub_ext('-0.log'))
 
       @vc = vc if vc && !vc.in(nocodec) # video codec
       @vb = vb if vb && !vc.in(nocodec) # video bitrate
