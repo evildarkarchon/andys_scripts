@@ -81,6 +81,11 @@ module VideoInfo
       var
     end
 
+    def querynp(input, **values)
+      var = @db.execute(input, values)
+      var
+    end
+
     def vacuum
       @db.execute 'vacuum'
     end
