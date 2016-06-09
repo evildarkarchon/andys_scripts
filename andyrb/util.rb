@@ -142,6 +142,14 @@ end
 
 class Object
   def in(*arr)
+    # print arr
+    # print "\n"
+    # print self
+    # print "\n"
+    # arr = arr[0] if arr[0].respond_to?(:each) && arr.respond_to?(:length) && arr.length == 1
+    arr.flatten!
+    arr.uniq!
+    # print("#{arr}\n")
     arr.include? self
   end
 end
