@@ -5,7 +5,7 @@ require 'filesize'
 require 'filemagic'
 require 'find'
 require 'subprocess'
-# rubocop:disable Style/MultilineOperationIndentation, Performance/StringReplacement
+# rubocop:disable Style/MultilineOperationIndentation, Performance/StringReplacement, Style/CommentIndentation
 # insert documentation here
 require_relative 'mood'
 module VideoInfo
@@ -14,25 +14,34 @@ module VideoInfo
 
   def self.find(directory, printresults = false)
     magic = FileMagic.new
+    dirpath = Pathname.new(directory)
+    initdirectories = Dir.glob("#{directory}/**/*.sqlite")
     directories = []
-    Find.find(directory) do |path|
+    initdirectories.each do |i|
+      result = magic.file(i) if FileTest.file?(i)
+      dirpath = Pathname.new(i).realpath
+      initdirectories.delete(i) unless result.include?('SQLite 3.x')
+      next unless result.include?('SQLite 3.x')
+      puts dirpath.dirname.to_s if result.include?('SQLite 3.x') && printresults
+      directories << dirpath.to_s
+    end
+    # blacklist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka', '.jpg', '.jpeg', '.gif', '.png']
+=begin
+    directories = Find.find(directory).select do |path|
       result = magic.file(path) if FileTest.file?(path)
-      pathpath = Pathname.new(path)
-      directories << pathpath.dirname if result && result.to_s.include?('SQLite 3.x') && !pathpath.extname.include?('.bak') && !pathpath.extname.include?('.test')
-      # puts path if result && result.to_s.include?('SQLite 3.x database')
+      dbpath = Pathname.new(path)
+      puts dbpath
+      result.to_s.include?('SQLite 3.x') && !dbpath.extname.include?('.bak') && !dbpath.extname.include?('.test')
     end
-    if printresults
-      directories.each do |path|
-        puts "'#{path}'"
-      end
-    end
+=end
     directories
   end
 
   class Database
-    def initialize(dbpath = Pathname.new('./videoinfo.sqlite'))
-      @db = SQLite3::Database.new(dbpath.to_s)
+    def initialize(dbpath = './videoinfo.sqlite')
       @dbpath = Pathname.new(dbpath)
+      @dbpath = @dbpath.realpath if @dbpath.exist?
+      @db = SQLite3::Database.new(@dbpath.to_s)
       @db.type_translation = true
       @db.auto_vacuum= true unless @db.auto_vacuum # rubocop:disable Style/RedundantPartheses, Style/SpaceAroundOperators
       @db.cache_size= -2000 unless @db.cache_size <= -2000 # rubocop:disable Style/RedundantPartheses, Style/SpaceAroundOperators
@@ -84,7 +93,7 @@ module VideoInfo
     end
 
     def resetvideoinfo
-      puts(Mood.happy('Regenerating Videoinfo Table'))
+      puts(Mood.happy("Regenerating Videoinfo Table for #{@dbpath.realpath}"))
       @db.execute 'drop table if exists videoinfo'
       @db.execute CreateStatement
       @db.execute 'vacuum'
@@ -113,7 +122,7 @@ module VideoInfo
       @dbpath = Pathname.new(dbpath)
       @rtjcount = 0
       @rtvcount = 0
-      @vi = Database.new(@dbpath.to_s)
+      @vi = Database.new(@dbpath.realpath.to_s)
       # @db = SQLite3::Database.new(@dbpath.to_s)
       @ffprobe = Util::FindApp.which('ffprobe')
       raise 'ffprobe not found.' unless @ffprobe
@@ -127,6 +136,7 @@ module VideoInfo
       # end
       # placeholders.to_s.gsub('[', '').gsub(']', '')
       # puts placeholders.to_s
+      jsondata = JSON.parse(inputjson)
       placeholders = ':' + inputhash.keys.join(', :')
       viquery = "insert into videoinfo (#{columns}) values (#{placeholders})"
       if verbose
@@ -134,11 +144,12 @@ module VideoInfo
         puts inputhash
       end
       begin
+        puts Mood.happy("Writing metadata for #{jsondata['format']['filename']}")
         @vi.write(viquery, inputhash)
       rescue SQLite3::SQLException => e
         @rtvcount += 1
         @vi.createvitable
-        puts(Mood.neutral("Try \##{@rtvcount}"))
+        puts(Mood.neutral("Try \##{@rtvcount}")) if verbose == true
         retry if @rtvcount <= 5
       end
       # query = @db.prepare("insert into videoinfo (filename, duration, duration_raw, streams, bitrate_total, bitrate_0, bitrate_0_raw, type_0, codec_0, bitrate_1, bitrate_1_raw, type_1, codec_1, container, width, height, frame_rate, hash) values (:filename, :duration, :duration_raw, :streams, :bitrate_total, :bitrate_0, :bitrate_0_raw, :type_0, :codec_0, :bitrate_1, :bitrate_1_raw, :type_1, :codec_1, :container, :width, :height, :frame_rate, :hash)")
@@ -150,14 +161,19 @@ module VideoInfo
       rescue SQLite3::SQLException => e
         puts e.message
         @vi.createjsontable
-        rtjcount += 1
+        @rtjcount += 1
         retry if @rtjcount <= 5
       end
     end
 
     def existing
-      existing = @vi.readhash('select filename, hash from videoinfo')
-      existing = nil if existing.nil? || existing.empty?
+      existing = nil
+      begin
+        existing = @vi.readhash('select filename, hash from videoinfo')
+        existing = nil if existing.nil? || existing.empty?
+      rescue SQLite3::SQLException
+        existing = nil
+      end
       existing
     end
 
@@ -196,17 +212,16 @@ module VideoInfo
     def json(filename, verbose = false)
       output = nil
       testresult = nil
-      filepath = Pathname.new(filename).realpath
       begin
-        testresult = @vi.read('select filename from videojson where filename = ?', filepath.basename)
+        testresult = @vi.read('select jsondata from videojson where filename = ?', File.basename(filename)).to_s
       rescue SQLite3::SQLException
         @vi.createjsontable
         @rtjcount += 1
-        puts(Mood.neutral("Try \##{@rtjcount}"))
+        puts(Mood.neutral("Try \##{@rtjcount}")) if verbose == true
         retry if @rtjcount <= 5
       else
         output = testresult unless testresult.nil? || testresult.empty?
-        output = Subprocess.check_output(['ffprobe', '-i', filepath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
+        output = Subprocess.check_output(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
         puts output if verbose
       end
       output
@@ -250,16 +265,16 @@ module VideoInfo
       jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags'].key?('BPS') && \
       jsondata['streams'][1]['tags']['BPS'].to_i < 1000
 
-      outhash['bitrate_1_raw'] = jsondata['streams'][1]['bit_rate'] if jsondata['streams'][1].key?('bit_rate')
-      outhash['bitrate_1_raw'] = jsondata['streams'][1]['tags']['BPS'] if jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags'].key?('BPS')
+      outhash['bitrate_1_raw'] = jsondata['streams'][1]['bit_rate'] if jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('bit_rate')
+      outhash['bitrate_1_raw'] = jsondata['streams'][1]['tags']['BPS'] if jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags'].key?('BPS')
 
-      outhash['type_1'] = jsondata['streams'][1]['codec_type'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('codec_type')
-      outhash['codec_1'] = jsondata['streams'][1]['codec_name'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('codec_name')
+      outhash['type_1'] = jsondata['streams'][1]['codec_type'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('codec_type')
+      outhash['codec_1'] = jsondata['streams'][1]['codec_name'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('codec_name')
 
       outhash['height'] = jsondata['streams'][0]['height'] if jsondata['streams'][0]['height']
-      outhash['height'] = jsondata['streams'][1]['height'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('height')
+      outhash['height'] = jsondata['streams'][1]['height'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('height')
       outhash['width'] = jsondata['streams'][0]['width'] if jsondata['streams'][0].key?('width')
-      outhash['width'] = jsondata['streams'][1]['width'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('width')
+      outhash['width'] = jsondata['streams'][1]['width'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('width')
       outhash['frame_rate'] = nil
       begin
         outhash['frame_rate'] = eval(jsondata['streams'][0]['avg_frame_rate']).to_f # rubocop:disable Lint/Eval
