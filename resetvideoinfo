@@ -40,9 +40,11 @@ else
   directories.uniq!
   directories.flatten!
 end
+
 directories = directories.join('') if directories.respond_to?(:each) && directories.respond_to?(:length) && directories.length == 1
 filelist = []
 initlist = []
+
 if directories.respond_to?(:each) && directories.respond_to?(:length) && directories.length > 1
   directories.each do |d|
     dbpath = Pathname.new(d).realpath
@@ -97,7 +99,9 @@ else
   end
   # puts filelist
 end
+
 digests = VideoInfo::Generate.digest(filelist)
+
 filelist.each do |file|
   filepath = Pathname.new(file)
   # puts filepath.dirname
