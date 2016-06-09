@@ -76,6 +76,11 @@ module VideoInfo
       output
     end
 
+    def query(input, *values)
+      var = @db.execute(input, values)
+      var
+    end
+
     def vacuum
       @db.execute 'vacuum'
     end
@@ -105,16 +110,16 @@ module VideoInfo
       @db.execute CreateStatementJSON
       @db.execute 'vacuum'
     end
-  end
 
-  def deleteentry(criteria, value)
-    puts(Mood.happy("Deleting #{value} from videoinfo"))
-    @db.execute 'delete from videoinfo where ? = ?', [criteria, value]
-  end
+    def deleteentry(criteria, value)
+      puts(Mood.happy("Deleting #{value} from videoinfo"))
+      @db.execute 'delete from videoinfo where ? = ?', [criteria, value]
+    end
 
-  def deletefileentry(value)
-    puts(Mood.happy("Deleting #{value} from videoinfo"))
-    @db.execute 'delete from videoinfo where filename = ?', [value]
+    def deletefileentry(value)
+      puts(Mood.happy("Deleting #{value} from videoinfo"))
+      @db.execute 'delete from videoinfo where filename = ?', [value]
+    end
   end
 
   class Generate
@@ -222,7 +227,7 @@ module VideoInfo
       else
         output = testresult unless testresult.nil? || testresult.empty?
         output = Subprocess.check_output(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
-        puts output if verbose
+        puts output if verbose && verbose == true
       end
       output
     end
