@@ -1,6 +1,4 @@
 #!/usr/bin/env ruby
-require 'ostruct'
-require 'optparse'
 require 'pathname'
 
 require_relative 'andyrb/mood'
