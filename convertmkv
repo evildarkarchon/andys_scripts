@@ -13,7 +13,7 @@ require_relative 'andyrb/videoinfo'
 class Options
   def self.parse(args)
     options = OpenStruct.new
-    options.db = Pathname.new('./videoinfo.sqlite').realpath
+    options.db = Pathname.new('./videoinfo.sqlite')
     options.gvi = true
     options.sort = true
     options.ffmpeg = false
@@ -40,6 +40,7 @@ class Options
 end
 
 options = Options.parse(ARGV)
+options.db = options.db.realpath if options.db.exist? && options.gvi == true
 options.files = Util::SortEntries.sort(ARGV) if options.sort == true
 options.files = ARGV unless options.sort == true
 
@@ -60,11 +61,11 @@ raise 'Can not find mkvmerge or ffmpeg.' if mkvmerge.nil? && ffmpeg.nil?
 
 vi = nil
 vi = VideoInfo::Database.new(options.db.to_s) if options.db.exist?
-puts vi
+puts vi if options.debug == true
 gvi = nil
-gvi = VideoInfo::Generate.new(options.db.to_s) if options.db.exist? && options.gvi
-gvi = VideoInfo::Generate.new(options.outputdb.to_s) if options.outputdb && options.gvi
-puts gvi
+gvi = VideoInfo::Generate.new(options.db.to_s) if options.db.exist? && options.gvi == true
+gvi = VideoInfo::Generate.new(options.outputdb.to_s) if options.outputdb && options.gvi == true
+puts gvi if options.debug == true
 
 flat = Class.new do
   define_method :genvi do |filename|
@@ -83,10 +84,10 @@ flat = Class.new do
       filelist.write("file '#{file}'\n")
       filelist.write("duration #{dur}\n") if dur
     end
-    Util::Program.runprogram([ffmpeg, '-f', 'concat', '-safe', '0', '-i', filelist.path, '-c', 'copy', '-hide_banner', '-y', options.output.to_s]) unless options.debug
+    Util::Program.runprogram([ffmpeg, '-f', 'concat', '-safe', '0', '-i', filelist.path, '-c', 'copy', '-hide_banner', '-y', options.output.to_s]) unless options.debug == true
     Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', options.output.to_s]) unless options.debug
     genvi(options.output.to_s) if options.gvi
-    puts filelist.read if options.debug
+    puts filelist.read if options.debug == true
   end
 
   define_method :mkvmergeconcat do
@@ -94,8 +95,8 @@ flat = Class.new do
     filelist = options.files.join(' + ')
     filelist = filelist.split
     command = basecommand + filelist
-    Util::Program.runprogram(command) unless options.debug
-    genvi(options.output.to_s) if options.gvi
+    Util::Program.runprogram(command) unless options.debug == true
+    genvi(options.output.to_s) if options.gvi == true
   end
 
   define_method :backup do |filename|
@@ -111,8 +112,8 @@ options.output.mkpath unless options.output.exist? || options.combine
 
 if options.combine
   raise 'Output specified is not a file' if options.output.exist? && !options.output.file?
-  flat.new.mkvmergeconcat unless options.ffmpeg
-  flat.new.ffmpegconcat if options.ffmpeg
+  flat.new.mkvmergeconcat unless options.ffmpeg && options.debug == false
+  flat.new.ffmpegconcat if options.ffmpeg == true && options.debug == false
   options.files.each do |file|
     flat.new.backup(file)
   end
@@ -123,10 +124,10 @@ else
     fileoutpath = options.output.join(filepath.sub_ext('.mkv').basename.to_s)
     puts Mood.happy("Muxing #{file} to a matroska file.")
     if options.ffmpeg
-      Util::Program.runprogram([ffmpeg, '-i', filepath.realpath.to_s, '-c', 'copy', '-f', 'matroska', '-hide_banner', '-y', fileoutpath.to_s]) unless options.debug
-      Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', fileoutpath.to_s]) unless options.debug
+      Util::Program.runprogram([ffmpeg, '-i', filepath.realpath.to_s, '-c', 'copy', '-f', 'matroska', '-hide_banner', '-y', fileoutpath.to_s]) unless options.debug == true
+      Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', fileoutpath.to_s]) unless options.debug == true
     else
-      Util::Program.runprogram([mkvmerge, '-o', fileoutpath.to_s, '=', file]) unless options.debug
+      Util::Program.runprogram([mkvmerge, '-o', fileoutpath.to_s, '=', file]) unless options.debug == true
     end
     flat.new.genvi(fileoutpath.to_s) if options.gvi && !file.include?('+')
     flat.new.backup(file) if options.backup
