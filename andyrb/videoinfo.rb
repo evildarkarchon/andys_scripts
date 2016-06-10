@@ -159,7 +159,8 @@ module VideoInfo
       rescue SQLite3::SQLException => e
         @rtvcount += 1
         @vi.createvitable
-        puts(Mood.neutral("Try \##{@rtvcount}")) if verbose == true
+        puts Mood.neutral('Retrying')
+        puts Mood.neutral("Try \##{@rtvcount}") if verbose == true
         retry if @rtvcount <= 5
       end
       # query = @db.prepare("insert into videoinfo (filename, duration, duration_raw, streams, bitrate_total, bitrate_0, bitrate_0_raw, type_0, codec_0, bitrate_1, bitrate_1_raw, type_1, codec_1, container, width, height, frame_rate, hash) values (:filename, :duration, :duration_raw, :streams, :bitrate_total, :bitrate_0, :bitrate_0_raw, :type_0, :codec_0, :bitrate_1, :bitrate_1_raw, :type_1, :codec_1, :container, :width, :height, :frame_rate, :hash)")
