@@ -112,4 +112,5 @@ filelist.each do |file|
   jsondata = gvi.json(name)
   metadata = VideoInfo::Generate.hash(file, jsondata, digests[name])
   gvi.write(metadata, jsondata)
+  digests.delete(name)
 end
