@@ -30,7 +30,7 @@ options = Options.parse(ARGV)
 options.files = []
 options.files = ARGV unless ARGV.nil? || ARGV.empty?
 if options.files.empty?
-  Find.find(Pathname.getwd.to_s) do |path|
+  Find.find(Dir.getwd) do |path|
     if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
       Find.prune # Don't look any further into this directory.
     else
