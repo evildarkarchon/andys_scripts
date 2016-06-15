@@ -10,5 +10,5 @@ oldhashfile.py
 findvideoinfo*
 *_videoutil
 apswtrace.py
-*_old.py
-*_old
+*_old*
+*_bad*
