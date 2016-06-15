@@ -43,8 +43,8 @@ module VideoInfo
       @dbpath = @dbpath.realpath if @dbpath.exist?
       @db = SQLite3::Database.new(@dbpath.to_s)
       @db.type_translation = true
-      @db.auto_vacuum= true unless @db.auto_vacuum # rubocop:disable Style/RedundantPartheses, Style/SpaceAroundOperators
-      @db.cache_size= -2000 unless @db.cache_size <= -2000 # rubocop:disable Style/RedundantPartheses, Style/SpaceAroundOperators
+      @db.auto_vacuum= true unless @db.auto_vacuum # rubocop:disable Style/SpaceAroundOperators
+      @db.cache_size= -2000 unless @db.cache_size <= -2000 # rubocop:disable Style/SpaceAroundOperators
       @db.execute 'vacuum'
     end
 
@@ -73,6 +73,7 @@ module VideoInfo
       output = @db.execute(query, inputvalues)
       output = nil if output.empty?
       @db.results_as_hash = false
+      return output[0] if output.is_a?(Array) && output.length == 1
       output
     end
 
@@ -202,7 +203,7 @@ module VideoInfo
         end
         # puts 'Good' if whitelist.include?(magic.file(entry))
         # puts 'Bad' unless whitelist.include?(magic.file(entry))
-        outlist << entry if whitelist.include?(magic.file(entry)) && existinghash.respond_to?(:keys) && !entry.in(existinghash.keys) && !testmode
+        outlist << entry if whitelist.include?(magic.file(entry)) && existinghash.respond_to?(:keys) && !entry.in?(existinghash.keys) && !testmode
         if !existinghash || existinghash.nil? || existinghash.empty?
           outlist << entry if whitelist.include?(magic.file(entry)) && !testmode
         end
