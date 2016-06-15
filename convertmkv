@@ -8,8 +8,6 @@ require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
 require_relative 'andyrb/videoinfo'
 
-# rubocop:disable Style/GlobalVars
-
 class Options
   def self.parse(args)
     options = OpenStruct.new
