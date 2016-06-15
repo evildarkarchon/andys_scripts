@@ -79,11 +79,8 @@ module Util
   class DateDiff
     def self.getdiff(timestamp)
       now = Date.today
-      if timestamp.is_a?(Time)
-        than = timestamp.to_date
-      else
-        than = Time.at(timestamp).to_date
-      end
+      than = timestamp.to_date if timestamp.is_a?(Time)
+      than = Time.at(timestamp).to_date unless than.nil? || than.is_a?(Date)
       diff = now - than
       return diff.to_i if diff.respond_to?(:to_i)
       diff
@@ -141,7 +138,7 @@ module Util
 end
 
 class Object
-  def in(*arr)
+  def in?(*arr)
     # print arr
     # print "\n"
     # print self
