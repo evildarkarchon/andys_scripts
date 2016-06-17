@@ -20,7 +20,7 @@ class Options
       opts.on('-m', '--maintainence', 'Performs simple maintainence operations on the database.') { |m| options.m = m }
       opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { |regen| options.regen = regen }
       opts.on('--reset-json', 'Drops and recreates the videojson table.') { |reset_json| options.reset_json = reset_json }
-      opts.on('--reset-all', 'Drops and recreates both the videoinfo and videojson tables.') { |regen_all| options.regen_all = regen_all }
+      opts.on('--reset-all', 'Drops and recreates both the videoinfo and videojson tables.') { |reset_all| options.reset_all = reset_all }
     end
     optparse.parse!(args)
     options
@@ -62,16 +62,31 @@ if options.maintainence
 end
 
 initlist = []
+
 if options.files && options.files.respond_to?(:each)
   options.files.each do |entry|
     path = Pathname.new(entry).realpath
     initlist << path.to_s if path.file?
-    path.descend { |file| initlist << file.to_s if file.file? } if path.directory?
+    if path.directory? # rubocop:disable Style/Next
+      Find.find(path) do |direntry|
+        if File.basename(entry)[0] == ?. # rubocop:disable Style/CharacterLiteral
+          Find.prune # Don't look any further into this directory.
+        else
+          initlist << direntry.to_s if File.file? direntry # rubocop:disable Metrics/BlockNesting
+          next
+        end
+      end
+    end
   end
 end
 
+initlist.flatten!
+initlist.uniq!
+
+existing = {}
 existing = gvi.existing
-filelist = Util::SortEntries.sort(VideoInfo::Generate.filelist(initlist, existing, options.debug))
+filelist = Util::SortEntries.sort(VideoInfo::Generate.filelist(initlist, options.debug))
+filelist.delete_if { |h| existing.keys.include? h } unless existing.nil? || existing.empty?
 if options.debug
   puts 'Initial list:'
   print initlist
@@ -90,9 +105,12 @@ if filelist.empty?
   exit
 end
 
-digests = VideoInfo::Generate.digest(filelist)
+digests = Util::HashFile.genhash(filelist)
+print "#{digests}\n" if options.debug
+print "#{filelist}\n" if options.debug
 filelist.each do |file|
-  puts(Mood.happy("Extracting metadata from #{file}"))
+  print "#{digests[file]}\n" if options.debug
+  print "#{file}\n" if options.debug
   jsondata = gvi.json(file, options.debug)
-  VideoInfo::Generate.hash(file, jsondata, digests[file]) { |h, j| gvi.write(h, j, options.debug) }
+  VideoInfo::Generate.hash(file, jsondata, digests) { |h, j| gvi.write(h, j, options.debug) }
 end
