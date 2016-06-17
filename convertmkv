@@ -71,8 +71,7 @@ flat = Class.new do
     outhash = Util::HashFile.genhash(filepath.to_s)
     puts Mood.happy("Extracting metadata from #{filepath}")
     jsondata = gvi.json(filename, options.debug)
-    metadata = VideoInfo::Generate.hash(filename, jsondata, outhash)
-    gvi.write(metadata, jsondata, options.debug)
+    VideoInfo::Generate.hash(filename, jsondata, outhash) { |h, j| gvi.write(h, j, options.debug) }
   end
 
   define_method :ffmpegconcat do
