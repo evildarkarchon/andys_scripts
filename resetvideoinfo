@@ -84,8 +84,7 @@ else
     if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
       Find.prune # Don't look any further into this directory.
     else
-      initpath = Pathname.new(path.to_s)
-      initlist << initpath.to_s if initpath.file?
+      initlist << path.to_s if File.file? path
       next
     end
   end
@@ -100,7 +99,7 @@ else
   # puts filelist
 end
 
-digests = VideoInfo::Generate.digest(filelist)
+digests = Util::HashFile.genhash(filelist)
 
 filelist.each do |file|
   filepath = Pathname.new(file)
@@ -110,6 +109,6 @@ filelist.each do |file|
   name = filepath.to_s
   puts(Mood.happy("Extracting metadata from #{file}"))
   jsondata = gvi.json(name)
-  VideoInfo::Generate.hash(file, jsondata, digests[name]) { |h, j| gvi.write(h, j) }
+  VideoInfo::Generate.hash(file, jsondata, digests) { |h, j| gvi.write(h, j) }
   digests.delete(name)
 end
