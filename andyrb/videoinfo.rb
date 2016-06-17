@@ -170,7 +170,7 @@ module VideoInfo
       # query.execute
       begin
         cached = @vi.read('select filename from videojson where filename = ?', inputhash['filename'])
-        puts Mood.happy("Caching JSON for #{inputhash['filename']}") if cache.nil? || cached.empty?
+        puts Mood.happy("Caching JSON for #{inputhash['filename']}") if cached.nil? || cached.empty?
         @vi.write('insert into videojson (filename, jsondata) values (?, ?)', inputhash['filename'], inputjson) if cached.nil? || cached.empty?
       rescue SQLite3::SQLException => e
         puts e.message
@@ -297,13 +297,13 @@ module VideoInfo
       outhash['width'] = jsondata['streams'][1]['width'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('width')
       outhash['frame_rate'] = nil
       begin
-        outhash['frame_rate'] = calc.evaluate(jsondata['streams'][0]['avg_frame_rate']).to_f
+        outhash['frame_rate'] = calc.evaluate(jsondata['streams'][0]['avg_frame_rate']).to_f.round(2)
         # puts outhash['frame_rate']
       rescue ZeroDivisionError
         outhash['frame_rate'] = nil
       end
       begin
-        testvar = calc.evaluate(jsondata['streams'][1]['avg_frame_rate']) if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('avg_frame_rate')
+        testvar = calc.evaluate(jsondata['streams'][1]['avg_frame_rate']).to_f.round(2) if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('avg_frame_rate')
         outhash['frame_rate'] = testvar if outhash['frame_rate'].nil? || outhash['frame_rate'] < 1.0
         # puts outhash['frame_rate']
       rescue ZeroDivisionError
