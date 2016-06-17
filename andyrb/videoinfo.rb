@@ -34,6 +34,7 @@ module VideoInfo
       result.to_s.include?('SQLite 3.x') && !dbpath.extname.include?('.bak') && !dbpath.extname.include?('.test')
     end
 =end
+    yield directories if block_given?
     directories
   end
 
@@ -210,6 +211,7 @@ module VideoInfo
         puts(Mood.happy(entry)) if whitelist.include?(magic.file(entry)) && testmode
       end
       magic.close
+      yield outlist if block_given?
       outlist
     end
 
@@ -301,7 +303,8 @@ module VideoInfo
       rescue ZeroDivisionError
         outhash['frame_rate'] = nil if outhash['frame_rate'].nil?
       end
-      return outhash # rubocop:disable Style/RedundantReturn
+      yield outhash, inputjson if block_given?
+      outhash
     end
   end
 end
