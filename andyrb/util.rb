@@ -35,14 +35,16 @@ module Util
     #
     #   which('ruby') #=> /usr/bin/ruby
     def self.which(cmd)
+      exe = nil
       exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
       ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
         exts.each do |ext|
-          exe = File.join(path, "#{cmd}#{ext}")
-          return exe if File.executable?(exe) && !File.directory?(exe)
+          which = File.join(path, "#{cmd}#{ext}")
+          exe = which if File.executable?(which) && !File.directory?(which)
         end
       end
-      return nil # rubocop:disable Style/RedundantReturn
+      yield exe if block_given?
+      exe
     end
   end
 
@@ -69,6 +71,7 @@ module Util
         hashes[filelist] = sha256.hexdigest
         # puts hashes
       end
+      yield hashes if block_given?
       hashes
     end
   end
@@ -83,6 +86,7 @@ module Util
       than = Time.at(timestamp).to_date unless than.nil? || than.is_a?(Date)
       diff = now - than
       return diff.to_i if diff.respond_to?(:to_i)
+      yield diff if block_given?
       diff
     end
   end
@@ -101,6 +105,7 @@ module Util
         privuser = Etc.getpwuid(user.to_i)
       end
       value = true if currentuser.uid == privuser.uid
+      yield value if block_given?
       value
     end
   end
@@ -118,6 +123,7 @@ module Util
         sorted = unsorted
         sorted.sort_by! { |m| m.group.name.downcase }
       end
+      yield sorted if block_given?
       sorted
     end
   end
