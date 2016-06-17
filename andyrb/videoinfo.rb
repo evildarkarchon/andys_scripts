@@ -12,7 +12,7 @@ module VideoInfo
   CreateStatement = 'CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, streams integer, bitrate_total text, bitrate_0 text, bitrate_0_raw integer, type_0 text, codec_0 text, bitrate_1 text, bitrate_1_raw integer, type_1 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'.freeze
   CreateStatementJSON = 'CREATE TABLE IF NOT EXISTS videojson (id INTEGER PRIMARY KEY, filename TEXT UNIQUE, jsondata JSON)'.freeze
 
-  def self.find(directory, printresults = false)
+  def self.find(directory)
     magic = FileMagic.new
     dirpath = Pathname.new(directory)
     initdirectories = Dir.glob("#{directory}/**/*.sqlite")
@@ -22,7 +22,6 @@ module VideoInfo
       dirpath = Pathname.new(i).realpath
       initdirectories.delete(i) unless result.include?('SQLite 3.x')
       next unless result.include?('SQLite 3.x')
-      puts dirpath.dirname.to_s if result.include?('SQLite 3.x') && printresults
       directories << dirpath.to_s
     end
     # blacklist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka', '.jpg', '.jpeg', '.gif', '.png']
@@ -160,8 +159,8 @@ module VideoInfo
         @vi.write(viquery, inputhash)
       rescue SQLite3::SQLException => e
         @rtvcount += 1
+        puts Mood.neutral('VideoInfo table not found, creating and retrying.')
         @vi.createvitable
-        puts Mood.neutral('Retrying')
         puts Mood.neutral("Try \##{@rtvcount}") if verbose == true
         retry if @rtvcount <= 5
       end
@@ -236,7 +235,7 @@ module VideoInfo
       else
         output = testresult unless testresult.nil? || testresult.empty?
         output = Subprocess.check_output(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
-        puts output if verbose && verbose == true
+        puts output if defined? verbose && verbose == true
       end
       output
     end
