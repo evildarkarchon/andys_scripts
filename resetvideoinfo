@@ -110,7 +110,6 @@ filelist.each do |file|
   name = filepath.to_s
   puts(Mood.happy("Extracting metadata from #{file}"))
   jsondata = gvi.json(name)
-  metadata = VideoInfo::Generate.hash(file, jsondata, digests[name])
-  gvi.write(metadata, jsondata)
+  VideoInfo::Generate.hash(file, jsondata, digests[name]) { |h, j| gvi.write(h, j) }
   digests.delete(name)
 end
