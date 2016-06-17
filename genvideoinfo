@@ -94,6 +94,5 @@ digests = VideoInfo::Generate.digest(filelist)
 filelist.each do |file|
   puts(Mood.happy("Extracting metadata from #{file}"))
   jsondata = gvi.json(file, options.debug)
-  metadata = VideoInfo::Generate.hash(file, jsondata, digests[file])
-  gvi.write(metadata, jsondata, options.debug)
+  VideoInfo::Generate.hash(file, jsondata, digests[file]) { |h, j| gvi.write(h, j, options.debug) }
 end
