@@ -5,6 +5,7 @@ require 'filesize'
 require 'filemagic'
 require 'find'
 require 'subprocess'
+require 'dentaku'
 # rubocop:disable Style/MultilineOperationIndentation, Performance/StringReplacement, Style/CommentIndentation
 # insert documentation here
 require_relative 'mood'
@@ -189,11 +190,11 @@ module VideoInfo
       existing
     end
 
-    def self.filelist(filelist, existinghash = nil, testmode = false)
+    def self.filelist(filelist, testmode = false)
       whitelist = ['video/x-flv', 'video/mp4', 'video/mp2t', 'video/3gpp', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/webm', 'video/x-matroska', 'video/msvideo', 'video/avi', 'application/vnd.rm-realmedia', 'audio/x-pn-realaudio', 'audio/x-matroska', 'audio/ogg', 'video/ogg', 'audio/vorbis', 'video/theora', 'video/3gpp2', 'audio/x-wav', 'audio/wave', 'video/dvd', 'video/mpeg', 'application/vnd.rn-realmedia-vbr', 'audio/vnd.rn-realaudio', 'audio/x-realaudio']
       magic = FileMagic.new(:mime_type)
       sortlist = Util::SortEntries.sort(filelist)
-      existinghash = nil if existinghash.nil? || existinghash.empty?
+      # existinghash = nil if existinghash.nil? || existinghash.empty?
       puts 'Files to be examined:' if testmode
       outlist = []
       sortlist.each do |entry|
@@ -201,12 +202,10 @@ module VideoInfo
           puts magic.flags
           puts magic.file(entry)
         end
-        # puts 'Good' if whitelist.include?(magic.file(entry))
-        # puts 'Bad' unless whitelist.include?(magic.file(entry))
-        outlist << entry if whitelist.include?(magic.file(entry)) && existinghash.respond_to?(:keys) && !entry.in?(existinghash.keys) && !testmode
-        if !existinghash || existinghash.nil? || existinghash.empty?
-          outlist << entry if whitelist.include?(magic.file(entry)) && !testmode
-        end
+        # outlist << entry if whitelist.include?(magic.file(entry)) && existinghash.respond_to?(:keys) && !entry.in?(existinghash.keys) && !testmode
+        # if !existinghash || existinghash.nil? || existinghash.empty?
+        outlist << entry if whitelist.include?(magic.file(entry)) && !testmode
+        # end
         puts(Mood.happy(entry)) if whitelist.include?(magic.file(entry)) && testmode
       end
       magic.close
@@ -214,6 +213,7 @@ module VideoInfo
       outlist
     end
 
+=begin
     def self.digest(filelist)
       outhash = {}
       filelist.each do |file|
@@ -221,6 +221,7 @@ module VideoInfo
       end
       outhash
     end
+=end
 
     def json(filename, verbose = false)
       output = nil
@@ -235,7 +236,7 @@ module VideoInfo
       else
         output = testresult unless testresult.nil? || testresult.empty?
         output = Subprocess.check_output(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
-        puts output if defined? verbose && verbose == true
+        puts output if verbose == true
       end
       output
     end
@@ -243,7 +244,9 @@ module VideoInfo
     def self.hash(filename, inputjson, filehash)
       jsondata = JSON.parse(inputjson)
       filepath = Pathname.new(filename)
+      calc = Dentaku::Calculator.new
       outhash = {}
+      # print "#{filehash}\n"
 
       outhash['filename'] = filepath.basename.to_s
       outhash['hash'] = filehash[filename]
@@ -290,13 +293,13 @@ module VideoInfo
       outhash['width'] = jsondata['streams'][1]['width'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('width')
       outhash['frame_rate'] = nil
       begin
-        outhash['frame_rate'] = eval(jsondata['streams'][0]['avg_frame_rate']).to_f # rubocop:disable Lint/Eval
+        outhash['frame_rate'] = calc.evaluate(jsondata['streams'][0]['avg_frame_rate']).to_f
         # puts outhash['frame_rate']
       rescue ZeroDivisionError
         outhash['frame_rate'] = nil
       end
       begin
-        testvar = eval(jsondata['streams'][1]['avg_frame_rate']) if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('avg_frame_rate') # rubocop:disable Lint/Eval
+        testvar = calc.evaluate(jsondata['streams'][1]['avg_frame_rate']) if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('avg_frame_rate')
         outhash['frame_rate'] = testvar if outhash['frame_rate'].nil? || outhash['frame_rate'] < 1.0
         # puts outhash['frame_rate']
       rescue ZeroDivisionError
