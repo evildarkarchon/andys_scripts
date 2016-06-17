@@ -170,6 +170,7 @@ module VideoInfo
       # query.execute
       begin
         cached = @vi.read('select filename from videojson where filename = ?', inputhash['filename'])
+        puts Mood.happy("Caching JSON for #{inputhash['filename']}") if cache.nil? || cached.empty?
         @vi.write('insert into videojson (filename, jsondata) values (?, ?)', inputhash['filename'], inputjson) if cached.nil? || cached.empty?
       rescue SQLite3::SQLException => e
         puts e.message
