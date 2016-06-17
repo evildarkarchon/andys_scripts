@@ -226,6 +226,7 @@ module VideoInfo
     def json(filename, verbose = false)
       output = nil
       testresult = nil
+      file = Pathname.new(filename).realpath
       begin
         testresult = @vi.read('select jsondata from videojson where filename = ?', File.basename(filename)).to_s
       rescue SQLite3::SQLException
@@ -235,6 +236,8 @@ module VideoInfo
         retry if @rtjcount <= 5
       else
         output = testresult unless testresult.nil? || testresult.empty?
+        puts(Mood.happy("Reading metadata from cache for #{file}")) unless testresult.nil? || testresult.empty?
+        puts(Mood.happy("Extracting metadata from #{file}")) if testresult.nil? || testresult.empty?
         output = Subprocess.check_output(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
         puts output if verbose == true
       end
