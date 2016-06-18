@@ -59,14 +59,14 @@ module Util
           filedata = File.read(file)
           # hmac = OpenSSL::HMAC.new(filedata, OpenSSL::Digest::SHA256.new)
           sha256 = Digest::SHA256.new
-          puts Mood.happy("Calculating hash for #{file}")
+          puts Mood.happy { "Calculating hash for #{file}" }
           sha256 << filedata
           hashes[file] = sha256.hexdigest
         end
       else
         filedata = File.read(filelist)
         sha256 = Digest::SHA256.new
-        puts Mood.happy("Calculating hash for #{filelist}")
+        puts Mood.happy { "Calculating hash for #{filelist}" }
         sha256 << filedata
         hashes[filelist] = sha256.hexdigest
         # puts hashes
