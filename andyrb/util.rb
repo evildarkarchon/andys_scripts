@@ -9,6 +9,28 @@ require 'subprocess'
 require_relative 'mood'
 # rubocop disable:Metrics/MethodLength
 module Util
+  def self.hashfile(filelist)
+    hashes = {}
+    if filelist.respond_to?(:each)
+      filelist.each do |file|
+        filedata = File.read(file)
+        # hmac = OpenSSL::HMAC.new(filedata, OpenSSL::Digest::SHA256.new)
+        sha256 = Digest::SHA256.new
+        puts Mood.happy { "Calculating hash for #{file}" }
+        sha256 << filedata
+        hashes[file] = sha256.hexdigest
+      end
+    else
+      filedata = File.read(filelist)
+      sha256 = Digest::SHA256.new
+      puts Mood.happy { "Calculating hash for #{filelist}" }
+      sha256 << filedata
+      hashes[filelist] = sha256.hexdigest
+      # puts hashes
+    end
+    yield hashes if block_given?
+    hashes
+  end
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
     # Generates pretty JSON and writes it to a file.
@@ -45,34 +67,6 @@ module Util
       end
       yield exe if block_given?
       exe
-    end
-  end
-
-  class HashFile
-    # Convenience function to calculate hashes on a file or a list of files.
-    # Params:
-    # +filelist+:: iterator or string that specifies the file (or files) to be hashed and returns the result in a ruby hash (ruby, your terminology sucks).
-    def self.genhash(filelist)
-      hashes = {}
-      if filelist.respond_to?(:each)
-        filelist.each do |file|
-          filedata = File.read(file)
-          # hmac = OpenSSL::HMAC.new(filedata, OpenSSL::Digest::SHA256.new)
-          sha256 = Digest::SHA256.new
-          puts Mood.happy { "Calculating hash for #{file}" }
-          sha256 << filedata
-          hashes[file] = sha256.hexdigest
-        end
-      else
-        filedata = File.read(filelist)
-        sha256 = Digest::SHA256.new
-        puts Mood.happy { "Calculating hash for #{filelist}" }
-        sha256 << filedata
-        hashes[filelist] = sha256.hexdigest
-        # puts hashes
-      end
-      yield hashes if block_given?
-      hashes
     end
   end
 
