@@ -15,7 +15,7 @@ class Options
     options.debug = false
 
     optparse = OptionParser.new do |opts|
-      opts.on('-db', '--database file', 'Location where the database will be written') { |db| options.db = Pathname.new(db) }
+      opts.on('--database file', 'Location where the database will be written') { |db| options.db = Pathname.new(db) }
       opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") { |debug| options.debug = debug }
       opts.on('-m', '--maintainence', 'Performs simple maintainence operations on the database.') { |m| options.m = m }
       opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { |regen| options.regen = regen }
@@ -105,7 +105,7 @@ if filelist.empty?
   exit
 end
 
-digests = Util::HashFile.genhash(filelist)
+digests = Util.hashfile(filelist)
 print "#{digests}\n" if options.debug
 print "#{filelist}\n" if options.debug
 filelist.each do |file|
