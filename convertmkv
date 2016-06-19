@@ -68,7 +68,7 @@ puts gvi if options.debug == true
 flat = Class.new do
   define_method :genvi do |filename|
     filepath = Pathname.new(filename).realpath
-    outhash = Util::HashFile.genhash(filepath.to_s)
+    outhash = Util.hashfile(filepath.to_s)
     puts Mood.happy("Extracting metadata from #{filepath}")
     jsondata = gvi.json(filename, options.debug)
     VideoInfo::Generate.hash(filename, jsondata, outhash) { |h, j| gvi.write(h, j, options.debug) }
