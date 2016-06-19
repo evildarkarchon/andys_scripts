@@ -31,6 +31,10 @@ module Util
     yield hashes if block_given?
     hashes
   end
+
+  def self.block
+    yield
+  end
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
     # Generates pretty JSON and writes it to a file.
