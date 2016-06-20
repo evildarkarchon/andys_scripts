@@ -6,7 +6,7 @@ require 'filemagic'
 require 'find'
 require 'subprocess'
 require 'dentaku'
-# rubocop:disable Style/MultilineOperationIndentation, Performance/StringReplacement, Style/CommentIndentation
+# rubocop:disable Style/MultilineOperationIndentation, Performance/StringReplacement
 # insert documentation here
 require_relative 'mood'
 module VideoInfo
@@ -16,24 +16,17 @@ module VideoInfo
   def self.find(directory)
     magic = FileMagic.new
     dirpath = Pathname.new(directory)
-    initdirectories = Dir.glob("#{directory}/**/*.sqlite")
+    initdirectories = Dir.glob("#{directory}/**/*")
     directories = []
     initdirectories.each do |i|
+      result = ''
       result = magic.file(i) if FileTest.file?(i)
       dirpath = Pathname.new(i).realpath
       initdirectories.delete(i) unless result.include?('SQLite 3.x')
       next unless result.include?('SQLite 3.x')
-      directories << dirpath.to_s
+      directories << dirpath.dirname.to_s
     end
-    # blacklist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka', '.jpg', '.jpeg', '.gif', '.png']
-=begin
-    directories = Find.find(directory).select do |path|
-      result = magic.file(path) if FileTest.file?(path)
-      dbpath = Pathname.new(path)
-      puts dbpath
-      result.to_s.include?('SQLite 3.x') && !dbpath.extname.include?('.bak') && !dbpath.extname.include?('.test')
-    end
-=end
+    directories.uniq!
     yield directories if block_given?
     directories
   end
@@ -166,7 +159,7 @@ module VideoInfo
         @rtvcount += 1
         puts Mood.neutral { 'VideoInfo table not found, creating and retrying.' }
         @vi.createvitable
-        puts Mood.neutral { "Try \##{@rtvcount}" } if verbose == true
+        puts Mood.neutral { "Try \##{@rtvcount}" } if verbose
         retry if @rtvcount <= 5
       end
       # query = @db.prepare("insert into videoinfo (filename, duration, duration_raw, streams, bitrate_total, bitrate_0, bitrate_0_raw, type_0, codec_0, bitrate_1, bitrate_1_raw, type_1, codec_1, container, width, height, frame_rate, hash) values (:filename, :duration, :duration_raw, :streams, :bitrate_total, :bitrate_0, :bitrate_0_raw, :type_0, :codec_0, :bitrate_1, :bitrate_1_raw, :type_1, :codec_1, :container, :width, :height, :frame_rate, :hash)")
@@ -195,39 +188,29 @@ module VideoInfo
       existing
     end
 
-    def self.filelist(filelist, testmode = false)
+    def self.filelist(filelist, testmode = false, sort = true)
       whitelist = ['video/x-flv', 'video/mp4', 'video/mp2t', 'video/3gpp', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/webm', 'video/x-matroska', 'video/msvideo', 'video/avi', 'application/vnd.rm-realmedia', 'audio/x-pn-realaudio', 'audio/x-matroska', 'audio/ogg', 'video/ogg', 'audio/vorbis', 'video/theora', 'video/3gpp2', 'audio/x-wav', 'audio/wave', 'video/dvd', 'video/mpeg', 'application/vnd.rn-realmedia-vbr', 'audio/vnd.rn-realaudio', 'audio/x-realaudio']
       magic = FileMagic.new(:mime_type)
-      sortlist = Util::SortEntries.sort(filelist)
-      # existinghash = nil if existinghash.nil? || existinghash.empty?
+      filelist = Util::SortEntries.sort(filelist) if sort
       puts 'Files to be examined:' if testmode
       outlist = []
-      sortlist.each do |entry|
+      filelist.each do |entry|
         if testmode
           puts magic.flags
           puts magic.file(entry)
         end
-        # outlist << entry if whitelist.include?(magic.file(entry)) && existinghash.respond_to?(:keys) && !entry.in?(existinghash.keys) && !testmode
-        # if !existinghash || existinghash.nil? || existinghash.empty?
         outlist << entry if whitelist.include?(magic.file(entry)) && !testmode
-        # end
         puts Mood.happy { entry } if whitelist.include?(magic.file(entry)) && testmode
       end
       magic.close
-      outlist = Util::SortEntries.sort(outlist)
+      outlist = Util.block do
+        out = Util::SortEntries.sort(outlist) if sort
+        out = outlist unless sort
+        out
+      end
       yield outlist if block_given?
       outlist
     end
-
-=begin
-    def self.digest(filelist)
-      outhash = {}
-      filelist.each do |file|
-        outhash[file] = Util.hashfile(file)
-      end
-      outhash
-    end
-=end
 
     def json(filename, verbose = false)
       output = nil
@@ -282,7 +265,7 @@ module VideoInfo
         jsondata['streams'][0]['bit_rate'].to_i >= 1_000_000
 
         out = Filesize.from(jsondata['streams'][0]['tags']['BPS'].to_s + 'b').to('Mb').round(2).to_s + 'Mb/s' if jsondata['streams'][0].key?('tags') && jsondata['streams'][0]['tags'].key?('BPS') && \
-        jsondata['streams'][0]['tags']['BPS'].to_i.between?(1000, 999_999)
+        jsondata['streams'][0]['tags']['BPS'].to_i >= 1_000_000
 
         out = Filesize.from(jsondata['streams'][0]['bit_rate'].to_s + 'b').to('Kb').round.to_s + 'Kb/s' if jsondata['streams'][0].key?('bit_rate') && jsondata['streams'][0]['bit_rate'].to_i.between?(1000, 999_999)
 
