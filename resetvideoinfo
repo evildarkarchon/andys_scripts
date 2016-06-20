@@ -76,8 +76,7 @@ else
   dbpath = Pathname.new(directories).realpath
   dbpath = dbpath.dirname if dbpath.file?
   dir = dbpath.to_s
-  vi = VideoInfo::Database.new(dbpath.join('videoinfo.sqlite')) if dbpath.join('videoinfo.sqlite').exist?
-  # puts 'Bad' unless dbpath.join('videoinfo.sqlite').exist?
+  vi = VideoInfo::Database.new(dbpath.join('videoinfo.sqlite'))
   vi.resetvideoinfo unless options.reset_json == true
   vi.resetjson if options.reset_json == true || options.reset_all == true
   Find.find(dir) do |path|
