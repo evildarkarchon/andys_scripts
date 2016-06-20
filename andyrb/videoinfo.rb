@@ -58,6 +58,7 @@ module VideoInfo
       output = nil if output.empty?
       output = output[0] if output.respond_to?(:length) && output.length == 1 && output.respond_to?(:index)
       output = output[0] if output.respond_to?(:length) && output.length == 1 && output.respond_to?(:index)
+      yield output if block_given?
       output
     end
 
@@ -67,17 +68,20 @@ module VideoInfo
       output = @db.execute(query, inputvalues)
       output = nil if output.empty?
       @db.results_as_hash = false
-      return output[0] if output.is_a?(Array) && output.length == 1
+      output = output[0] if output.is_a?(Array) && output.length == 1
+      yield output if block_given?
       output
     end
 
     def query(input, *values)
       var = @db.execute(input, values)
+      yield var if block_given?
       var
     end
 
     def querynp(input, **values)
       var = @db.execute(input, values)
+      yield var if block_given?
       var
     end
 
@@ -221,7 +225,7 @@ module VideoInfo
       rescue SQLite3::SQLException
         @vi.createjsontable
         @rtjcount += 1
-        puts Mood.neutral "Try \##{@rtjcount}" if verbose == true
+        puts Mood.neutral "Try \##{@rtjcount}" if verbose
         retry if @rtjcount <= 5
       else
         output = testresult unless testresult.nil? || testresult.empty?
@@ -232,7 +236,7 @@ module VideoInfo
         end
         puts out # See what i did there, lol
         output = Subprocess.check_output(['ffprobe', '-i', filename, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s if testresult.nil? || testresult.empty?
-        puts output if verbose == true
+        puts output if verbose
       end
       output
     end
