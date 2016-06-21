@@ -89,23 +89,18 @@ module Util
     end
   end
 
-  # Checks if the current user's user id is equal to the specified "privileged" user.
-  # Params:
-  # +user+:: The user that is indicated to have sufficient privileges for the task.
-  class IsPrivileged
-    def self.check(user = 'root')
-      currentuser = Etc.getpwuid
-      privuser = nil
-      value = false
-      if user.respond_to?(:to_s)
-        privuser = Etc.getpwnam(user)
-      elsif user.respond_to?(:to_i)
-        privuser = Etc.getpwuid(user.to_i)
-      end
-      value = true if currentuser.uid == privuser.uid
-      yield value if block_given?
-      value
+  def self.privileged?(user = 'root')
+    currentuser = Etc.getpwuid
+    privuser = nil
+    value = false
+    if user.respond_to?(:to_s)
+      privuser = Etc.getpwnam(user)
+    elsif user.respond_to?(:to_i)
+      privuser = Etc.getpwuid(user.to_i)
     end
+    value = true if currentuser.uid == privuser.uid
+    yield value if block_given?
+    value
   end
 
   # Class to sort the entries in a given variable.
@@ -148,8 +143,8 @@ class Object
     # print self
     # print "\n"
     # arr = arr[0] if arr[0].respond_to?(:each) && arr.respond_to?(:length) && arr.length == 1
-    arr.flatten!
-    arr.uniq!
+    arr.flatten! if arr.respond_to?(:flatten!)
+    arr.uniq! if arr.respond_to?(:uniq!)
     # print("#{arr}\n")
     arr.include? self
   end
