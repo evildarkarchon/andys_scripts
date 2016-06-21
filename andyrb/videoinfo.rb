@@ -13,12 +13,15 @@ module VideoInfo
   CreateStatement = 'CREATE TABLE IF NOT EXISTS videoinfo (id integer primary key, filename text unique, duration text, duration_raw real, streams integer, bitrate_total text, bitrate_0 text, bitrate_0_raw integer, type_0 text, codec_0 text, bitrate_1 text, bitrate_1_raw integer, type_1 text, codec_1 text, container text, width integer, height integer, frame_rate real, hash text unique)'.freeze
   CreateStatementJSON = 'CREATE TABLE IF NOT EXISTS videojson (id INTEGER PRIMARY KEY, filename TEXT UNIQUE, jsondata JSON)'.freeze
 
-  def self.find(directory)
+  def self.find(directory, verbose = false)
     magic = FileMagic.new
     dirpath = Pathname.new(directory)
+    blacklist = /jpg|gif|png|flv|mp4|mkv|webm|vob|ogg|drc|avi|wmv|yuv|rm|rmvb|asf|m4v|mpg|mp2|mpeg|mpe|mpv|3gp|3g2|mxf|roq|nsv|f4v|wav|ra|mka|pdf|odt|docx|webp|swf|cb7|zip|7z|xml|log/i
     initdirectories = Dir.glob("#{directory}/**/*")
+    initdirectories.delete_if { |i| Pathname.new(i).extname =~ blacklist && File.file?(i) }
     directories = []
     initdirectories.each do |i|
+      puts Mood.happy { "Serching for databases in #{i}" } if verbose
       result = ''
       result = magic.file(i) if FileTest.file?(i)
       dirpath = Pathname.new(i).realpath
@@ -141,23 +144,19 @@ module VideoInfo
       raise 'ffprobe not found.' unless @ffprobe
     end
 
-    def write(inputhash, inputjson, verbose = false)
+    def write(inputhash, inputjson, verbose = false, filename = nil)
       columns = inputhash.keys.to_a.join(', ').gsub(':', '').gsub('[', '').gsub(']', '')
-      # placeholders = ''
-      # inputhash[0].keys.each do |key|
-      #  placeholders + key.to_sym.to_s
-      # end
-      # placeholders.to_s.gsub('[', '').gsub(']', '')
-      # puts placeholders.to_s
       jsondata = JSON.parse(inputjson)
       placeholders = ':' + inputhash.keys.join(', :')
       viquery = "insert into videoinfo (#{columns}) values (#{placeholders})"
-      if verbose
+
+      if verbose == true
         puts viquery
         puts inputhash
       end
+
       begin
-        puts Mood.happy { "Writing metadata for #{jsondata['format']['filename']}" }
+        puts Mood.happy { name = "Writing metadata for #{jsondata['format']['filename']}" unless filename; name = "Writing metadata for #{Pathname.new(filename).realpath}" if filename; name } # rubocop:disable Style/Semicolon
         @vi.write(viquery, inputhash)
       rescue SQLite3::SQLException => e
         @rtvcount += 1
@@ -166,9 +165,7 @@ module VideoInfo
         puts Mood.neutral { "Try \##{@rtvcount}" } if verbose
         retry if @rtvcount <= 5
       end
-      # query = @db.prepare("insert into videoinfo (filename, duration, duration_raw, streams, bitrate_total, bitrate_0, bitrate_0_raw, type_0, codec_0, bitrate_1, bitrate_1_raw, type_1, codec_1, container, width, height, frame_rate, hash) values (:filename, :duration, :duration_raw, :streams, :bitrate_total, :bitrate_0, :bitrate_0_raw, :type_0, :codec_0, :bitrate_1, :bitrate_1_raw, :type_1, :codec_1, :container, :width, :height, :frame_rate, :hash)")
-      # query.bind_params(inputhash)
-      # query.execute
+
       begin
         cached = @vi.read('select filename from videojson where filename = ?', inputhash['filename'])
         puts Mood.happy { "Caching JSON for #{inputhash['filename']}" } if cached.nil? || cached.empty?
