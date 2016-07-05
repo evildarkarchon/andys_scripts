@@ -71,3 +71,57 @@ options.shutup = mkvpropedit # remove these 2 when these variables are actually 
 options.shutup2 = vi
 
 raise 'ffmpeg not found.' if ffmpeg.nil?
+
+config = File.open options.config { |configfile| JSON.parse configfile } if File.exist? options.config
+# unless defined?(config) && config.respond_to?(:to_h)
+#  defaults = Util.block do
+#    out = {}
+#
+#    out
+# end
+#  options.shutup5 = defaults
+# end
+options.shutup3 = config
+
+def backup(source, backupdir)
+  backuppath = Pathname.new(backupdir)
+  sourcepath = Pathname.new(source)
+
+  backup.mkpath unless backuppath.exist?
+  raise 'Backup directory is a file.' if backuppath.exist? && backuppath.file?
+  sourcepath.rename(backuppath.join(sourcepath.basename)) if sourcepath.exist?
+end
+
+options.files.each do |file|
+  options.shutup4 = file
+  bitrate = Util.block do
+    path = Pathname.new(file).basename.to_s
+    dbinfo = vi.readhash('select bitrate_0_raw, bitrate_1_raw, type_0, type_1 from videoinfo where filename=?', path)
+    # print "#{dbinfo}\n"
+    bitrates = {}
+
+    bitrates['video'] = dbinfo['bitrate_0_raw'].to_s if dbinfo['type_0'].to_s == 'video'
+    bitrates['video'] = dbinfo['bitrate_1_raw'].to_s if dbinfo['type_1'].to_s == 'video'
+
+    bitrates['audio'] = dbinfo['bitrate_0_raw'].to_s if dbinfo['type_0'].to_s == 'audio'
+    bitrates['audio'] = dbinfo['bitrate_1_raw'].to_s if dbinfo['type_1'].to_s == 'audio'
+
+    bitrates
+  end
+  framerates = Util.block do
+    filepath = Pathname.new(file).basename.to_s
+    dbinfo = vi.read('select frame_rate from videoinfo where filename = ?', filepath)
+    dbinfo
+  end
+  options.shutup5 = framerates
+  options.shutup6 = bitrate
+
+  cmdline = Util.block do
+    cmd = [ffmpeg, '-i', file]
+    
+    cmd
+  end
+
+  backup(file, options.backup) if options.backup
+  # insert command-line generation, command invocation, backup and database cleanup code here.
+end
