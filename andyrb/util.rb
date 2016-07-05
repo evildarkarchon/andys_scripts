@@ -32,8 +32,10 @@ module Util
     hashes
   end
 
-  def self.block
-    yield
+  def self.block(*args, **kwargs)
+    yield args unless !defined?(args) || args.nil? || args.empty?
+    yield kwargs unless !defined?(kwargs) || kwargs.nil? || kwargs.empty?
+    yield if kwargs.empty? && args.empty?
   end
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
