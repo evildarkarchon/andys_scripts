@@ -3,24 +3,29 @@ require 'ostruct'
 require 'optparse'
 require 'pathname'
 require 'find'
+require 'fileutils'
+require 'data_mapper'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
-require_relative 'andyrb/videoinfo'
+require_relative 'andyrb/videoinfo_dm'
 
+# rubocop:disable Style/Semicolon
 class Options
   def self.parse(args)
     options = OpenStruct.new
     options.db = Pathname.new('./videoinfo.sqlite')
     options.debug = false
+    options.verbose = false
 
     optparse = OptionParser.new do |opts|
-      opts.on('--database file', 'Location where the database will be written') { |db| options.db = Pathname.new(db) }
-      opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") { |debug| options.debug = debug }
+      opts.on('--database file', 'Location where the database will be written') { |d| options.db = Pathname.new(d) }
+      opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") { |d| options.debug = d; options.verbose = d }
       opts.on('-m', '--maintainence', 'Performs simple maintainence operations on the database.') { |m| options.m = m }
-      opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { |regen| options.regen = regen }
-      opts.on('--reset-json', 'Drops and recreates the videojson table.') { |reset_json| options.reset_json = reset_json }
-      opts.on('--reset-all', 'Drops and recreates both the videoinfo and videojson tables.') { |reset_all| options.reset_all = reset_all }
+      opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { |r| options.regen = r }
+      opts.on('--reset-json', 'Drops and recreates the videojson table.') { |r| options.reset_json = r }
+      opts.on('--reset-all', 'Drops and recreates both the videoinfo and videojson tables.') { |r| options.reset_all = r }
+      opts.on('-v', '--verbose', 'Activates Verbose Mode') { |v| options.verbose = v }
     end
     optparse.parse!(args)
     options
@@ -44,20 +49,38 @@ if options.debug
   puts options
   puts options.files
 end
-
-vi = VideoInfo::Database.new(options.db.to_s)
-gvi = VideoInfo::Generate.new(options.db.to_s)
+FileUtils.touch(options.db.basename.to_s) unless options.db.file?
+DataMapper::Model.raise_on_save_failure = true
+DataMapper.setup(:default, "sqlite:#{options.db.realpath}")
+DataMapper::Logger.new($stdout, :debug) if options.debug || options.verbose
+db = DataMapper.repository(:default).adapter
+vi = GenerateVideoInfo::Videoinfo.new
+# print "#{vi.inspect}\n"
+vj = GenerateVideoInfo::Videojson.new
+options.shutup = vj
+gvi = GenerateVideoInfo::Data.new(options.db.realpath, options.verbose)
+DataMapper.finalize
+DataMapper.auto_upgrade! unless options.reset_all
+DataMapper.auto_migrate! if options.reset_all
+# db.execute('drop table if exists videoinfo') if options.reset_all || options.regen
+# if !db.storage_exists?('videoinfo')
+if options.regen && !options.reset_all
+  db.execute('drop table if exists videoinfo')
+  puts Mood.neutral('Resetting videoinfo table')
+  DataMapper.auto_upgrade!
+  db.execute('vacuum')
+end
 
 if options.reset_json && !options.reset_all
-  vi.resetjson
+  puts Mood.neutral('Resetting JSON Cache')
+  db.execute('drop table if exists videojson')
+  DataMapper.auto_upgrade!
+  db.execute('vacuum')
   exit
 end
-vi.resetvideoinfo if options.regen || options.reset_all
-
-vi.resetjson if options.reset_all
 
 if options.maintainence
-  vi.vacuum
+  db.execute('vacuum')
   exit
 end
 
@@ -85,8 +108,9 @@ initlist.uniq!
 
 existing = {}
 existing = gvi.existing
-filelist = VideoInfo::Generate.filelist(initlist, options.debug)
-filelist.delete_if { |h| existing.keys.include? h } unless existing.nil? || existing.empty?
+# print "#{existing}\n"
+filelist = GenerateVideoInfo.genfilelist(initlist, options.debug)
+filelist.delete_if { |h| existing.each { |e| h.in? e[:filename] } } unless existing.nil? || existing.empty?
 if options.debug
   puts 'Initial list:'
   print initlist
@@ -111,6 +135,17 @@ print "#{filelist}\n" if options.debug
 filelist.each do |file|
   print "#{digests[file]}\n" if options.debug
   print "#{file}\n" if options.debug
-  jsondata = gvi.json(file, options.debug)
-  VideoInfo::Generate.hash(file, jsondata, digests) { |h, j| gvi.write(h, j, options.debug) }
+  jsondata = gvi.json(file, digests, options.verbose)
+  unless options.debug
+    GenerateVideoInfo.genhash(file, jsondata, digests) do |h|
+      begin
+        puts Mood.happy("Writing metadata for #{File.basename(file)}")
+        vi.attributes = h
+        vi.save
+      rescue DataMapper::SaveFailureError
+        vi.errors.each { |e| puts e } if options.verbose
+      end
+    end
+  end
+  print "#{GenerateVideoInfo.genhash(file, jsondata, digests)}\n" if options.debug
 end
