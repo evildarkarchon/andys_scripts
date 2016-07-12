@@ -65,7 +65,8 @@ DataMapper.auto_migrate! if options.reset_all
 # db.execute('drop table if exists videoinfo') if options.reset_all || options.regen
 # if !db.storage_exists?('videoinfo')
 if options.regen && !options.reset_all
-  db.execute('drop table if exists videoinfo')
+  GenerateVideoInfo::Videoinfo.all.destroy
+  # db.execute('drop table if exists videoinfo')
   puts Mood.neutral('Resetting videoinfo table')
   DataMapper.auto_upgrade!
   db.execute('vacuum')
@@ -73,7 +74,8 @@ end
 
 if options.reset_json && !options.reset_all
   puts Mood.neutral('Resetting JSON Cache')
-  db.execute('drop table if exists videojson')
+  GenerateVideoInfo::Videojson.all.destroy
+  # db.execute('drop table if exists videojson')
   DataMapper.auto_upgrade!
   db.execute('vacuum')
   exit
@@ -135,15 +137,16 @@ print "#{filelist}\n" if options.debug
 filelist.each do |file|
   print "#{digests[file]}\n" if options.debug
   print "#{file}\n" if options.debug
+  insert = GenerateVideoInfo::Videoinfo.new
   jsondata = gvi.json(file, digests, options.verbose)
   unless options.debug
     GenerateVideoInfo.genhash(file, jsondata, digests) do |h|
       begin
         puts Mood.happy("Writing metadata for #{File.basename(file)}")
-        vi.attributes = h
-        vi.save
+        insert.attributes = h
+        insert.save
       rescue DataMapper::SaveFailureError
-        vi.errors.each { |e| puts e } if options.verbose
+        insert.errors.each { |e| puts e } if options.verbose
       end
     end
   end

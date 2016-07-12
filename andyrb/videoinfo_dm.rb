@@ -69,6 +69,7 @@ module GenerateVideoInfo
     def json(filepath, hashes, verbose = false)
       out = nil
       filepath = Pathname.new(filepath) unless filepath.respond_to?(:exists)
+      insert = Videojson.new
       # puts Videojson.count(filename: filepath.basename.to_s)
       if @db.storage_exists?('videojson') && Videojson.count(filename: filepath.basename.to_s) >= 1
         puts Mood.happy("Reading metadata from cache for #{filepath}")
@@ -78,15 +79,15 @@ module GenerateVideoInfo
         out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
         begin
           puts Mood.happy("Caching JSON for #{filepath.basename}")
-          @vj.attributes = { filename: filepath.basename, jsondata: out }
+          insert.attributes = { filename: filepath.basename, jsondata: out }
           shutup = [filepath.basename.to_s, hashes[filepath.realpath.to_s]]
-          print shutup
+          # print shutup
           @vi.attributes = { filename: shutup[0], filehash: shutup[1] }
           print @vi.attributes
-          @vj.save
+          insert.save
           print "\n"
         rescue DataMapper::SaveFailureError
-          @vj.errors.each { |e| puts e } if verbose
+          insert.errors.each { |e| puts e } if verbose
           @vi.errors.each { |e| puts e } if verbose
         end
       end
