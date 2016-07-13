@@ -66,8 +66,9 @@ module GenerateVideoInfo
       out
     end
 
-    def json(filepath, hashes, verbose = false)
+    def json(filepath, verbose = false, repo = nil)
       out = nil
+      Videojson.storage_names[repo] = 'videojson' if repo
       filepath = Pathname.new(filepath) unless filepath.respond_to?(:exists)
       insert = Videojson.new
       # puts Videojson.count(filename: filepath.basename.to_s)
@@ -80,15 +81,13 @@ module GenerateVideoInfo
         begin
           puts Mood.happy("Caching JSON for #{filepath.basename}")
           insert.attributes = { filename: filepath.basename, jsondata: out }
-          shutup = [filepath.basename.to_s, hashes[filepath.realpath.to_s]]
-          # print shutup
-          @vi.attributes = { filename: shutup[0], filehash: shutup[1] }
-          print @vi.attributes
+          # print @vi.attributes
           insert.save
-          print "\n"
+          # print "\n"
         rescue DataMapper::SaveFailureError
           insert.errors.each { |e| puts e } if verbose
-          @vi.errors.each { |e| puts e } if verbose
+          raise if verbose
+          puts Mood.sad("Save failure error raised for #{filepath.basename}")
         end
       end
       out
@@ -104,7 +103,7 @@ module GenerateVideoInfo
     # print "#{filehash}\n"
 
     outhash[:filename] = filepath.basename.to_s
-    outhash[:filehash] = filehash[filename]
+    outhash[:filehash] = filehash[filepath.realpath.to_s]
     outhash[:container] = jsondata['format']['format_name']
     outhash[:duration] = Time.at(jsondata['format']['duration'].to_f).utc.strftime('%H:%M:%S')
     outhash[:duration_raw] = jsondata['format']['duration']
