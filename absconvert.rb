@@ -5,10 +5,11 @@ require 'pathname'
 require 'json'
 require 'filemagic'
 require 'subprocess'
+require 'data_mapper'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
-require_relative 'andyrb/videoinfo'
+require_relative 'andyrb/videoinfo_dm'
 
 class Options
   def self.parse(args)
@@ -22,7 +23,7 @@ class Options
     options.audiobitrate = nil
     options.audiofilter = nil
 
-    options.dbpath = Pathname.new('./videoinfo.sqlite')
+    options.db = Pathname.new('./videoinfo.sqlite')
     options.converttest = true
     options.config = Pathname.new(Dir.home).join('.config/absconvert.json')
     options.container = nil
@@ -32,6 +33,7 @@ class Options
     options.backup = nil
     options.outputdir = Pathname.new('..').realpath unless Dir.pwd == Dir.home
     options.outputdir = Pathname.new(Dir.home) if Dir.pwd == Dir.home
+    options.verbose = false
 
     optparse = OptionParser.new do |opts|
       opts.on('--video-codec [codec]', 'Video codec for the output video.') { |vcodec| options.videocodec = vcodec }
@@ -45,7 +47,7 @@ class Options
       opts.on('--audio-bitrate [bitrate]', 'Bitrate of the output audio.') { |abitrate| options.audiobitrate = abitrate }
       opts.on('--audio-codec [codec]', 'Codec of the output audio.') { |acodec| options.audiocodec = acodec }
       opts.on('--audio-filter [filter]', 'Filter to be used for the output audio.') { |afilter| options.audiofilter = afilter }
-      opts.on('--database [location]', 'Location of the videoinfo database') { |db| options.dbpath = Pathname.new(db) }
+      opts.on('--database [location]', 'Location of the videoinfo database') { |db| optons.db = Pathname.new(db) }
       opts.on('--convert-test', "Don't delete any videoinfo entries.") { |ct| options.converttest = ct }
       opts.on('--config [path]', '-c [path]', 'Location of the configuration json file') { |config| options.config = Pathname.new(config) }
       opts.on('--container [extension]', 'Container to be used for the output file (the dot must be included).') { |ext| options.container = ext }
@@ -53,6 +55,7 @@ class Options
       opts.on('--debug', '-d', 'Print variables and exit.') { options.debug = true }
       opts.on('--backup [dir]', '-b [dir]', 'Location of the backup directory (if any)') { |backup| options.backup = Pathname.new(backup) }
       opts.on('--output [dir]', '-o [dir]', 'Location of the output directory') { |output| options.outputdir = Pathname.new(output) }
+      opts.on('--verbose', '-v', 'Make the script a bit more chatty.') { |v| options.verbose = v }
     end
     optparse.parse!(args)
     options
@@ -62,10 +65,14 @@ end
 options = Options.parse(ARGV)
 options.files = ARGV
 
-vi = VideoInfo::Database.new(options.dbpath.to_s)
+DataMapper.setup(:default, "sqlite:#{options.db.realpath}")
+DataMapper::Logger.new($stdout, :debug) if options.verbose
+vi = GenerateVideoInfo::Videoinfo.new
 
 mkvpropedit = Util::FindApp.which('mkvpropedit')
 ffmpeg = Util::FindApp.which('ffmpeg')
+
+nocodec = %w(none copy)
 
 options.shutup = mkvpropedit # remove these 2 when these variables are actually used.
 options.shutup2 = vi
@@ -82,7 +89,6 @@ config = File.open options.config { |configfile| JSON.parse configfile } if File
 #  options.shutup5 = defaults
 # end
 options.shutup3 = config
-
 def backup(source, backupdir)
   backuppath = Pathname.new(backupdir)
   sourcepath = Pathname.new(source)
@@ -92,34 +98,45 @@ def backup(source, backupdir)
   sourcepath.rename(backuppath.join(sourcepath.basename)) if sourcepath.exist?
 end
 
-options.files.each do |file|
-  options.shutup4 = file
-  bitrate = Util.block do
+db = Class.new do
+  define_method :bitrate do |file|
     path = Pathname.new(file).basename.to_s
-    dbinfo = vi.readhash('select bitrate_0_raw, bitrate_1_raw, type_0, type_1 from videoinfo where filename=?', path)
-    # print "#{dbinfo}\n"
+    query = GenerateVideoInfo::Videoinfo.all(filename: path, fields: [:bitrate_0_raw, :type_0, :bitrate_1_raw, :type_1])
+
     bitrates = {}
 
-    bitrates['video'] = dbinfo['bitrate_0_raw'].to_s if dbinfo['type_0'].to_s == 'video'
-    bitrates['video'] = dbinfo['bitrate_1_raw'].to_s if dbinfo['type_1'].to_s == 'video'
+    bitrates['video'] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'video'
+    bitrates['video'] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'video'
 
-    bitrates['audio'] = dbinfo['bitrate_0_raw'].to_s if dbinfo['type_0'].to_s == 'audio'
-    bitrates['audio'] = dbinfo['bitrate_1_raw'].to_s if dbinfo['type_1'].to_s == 'audio'
+    bitrates['audio'] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'audio'
+    bitrates['audio'] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'audio'
 
     bitrates
   end
+end
+
+command = Class.new do
+  define_method :list do |filename, passnum, passmax|
+    raise ArgumentError unless passnum.between?(1, 2)
+    raise ArgumentError unless passmax.between?(1, 2)
+    cmd = ['ffmpeg', '-i', filename]
+    cmd << ['-c:v', options.videocodec] unless options.videocodec.nil? || options.videocodec == 'none'
+    cmd << '-vn' if options.videocodec.nil? || options.videocodec == 'none'
+    cmd << ['-b:v', db.new.bitrate(filename)] if options.videobitrate.nil? && !options.videocodec.in?(nocodec)
+    cmd << ['-b:v', options.videobitrate] if !options.videobitrate.nil? && !options.videocodec.in?(nocodec)
+  end
+end
+options.files.each do |file|
+  options.shutup4 = file
   framerates = Util.block do
     filepath = Pathname.new(file).basename.to_s
-    dbinfo = vi.read('select frame_rate from videoinfo where filename = ?', filepath)
-    dbinfo
+    dbinfo = GenerateVideoInfo::Videoinfo.all(filename: filepath, fields: [:frame_rate])
+    frame_rate = dbinfo[0][:frame_rate]
+    frame_rate
   end
   options.shutup5 = framerates
   options.shutup6 = bitrate
 
-  cmdline = Util.block do
-    cmd = [ffmpeg, '-i', file]
-    cmd
-  end
   options.shutup7 = cmdline
   backup(file, options.backup) if options.backup
   # insert command-line generation, command invocation, backup and database cleanup code here.
