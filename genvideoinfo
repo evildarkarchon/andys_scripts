@@ -54,20 +54,27 @@ DataMapper::Model.raise_on_save_failure = true
 DataMapper.setup(:default, "sqlite:#{options.db.realpath}")
 DataMapper::Logger.new($stdout, :debug) if options.debug || options.verbose
 db = DataMapper.repository(:default).adapter
-vi = GenerateVideoInfo::Videoinfo.new
+# vi = GenerateVideoInfo::Videoinfo.new
 # print "#{vi.inspect}\n"
-vj = GenerateVideoInfo::Videojson.new
-options.shutup = vj
 gvi = GenerateVideoInfo::Data.new(options.db.realpath, options.verbose)
 DataMapper.finalize
-DataMapper.auto_upgrade! unless options.reset_all
+begin
+  DataMapper.auto_upgrade! unless options.reset_all
+rescue DataObjects::SyntaxError
+  DataMapper.auto_migrate!
+end
 DataMapper.auto_migrate! if options.reset_all
 # db.execute('drop table if exists videoinfo') if options.reset_all || options.regen
 # if !db.storage_exists?('videoinfo')
 if options.regen && !options.reset_all
-  GenerateVideoInfo::Videoinfo.all.destroy
-  # db.execute('drop table if exists videoinfo')
   puts Mood.neutral('Resetting videoinfo table')
+  begin
+    GenerateVideoInfo::Videoinfo.auto_upgrade! # avoid not null errors
+    GenerateVideoInfo::Videoinfo.all.destroy
+  rescue DataObjects::SyntaxError
+    GenerateVideoInfo::Videoinfo.auto_migrate!
+  end
+  # db.execute('drop table if exists videoinfo')
   DataMapper.auto_upgrade!
   db.execute('vacuum')
 end
@@ -76,7 +83,11 @@ if options.reset_json && !options.reset_all
   puts Mood.neutral('Resetting JSON Cache')
   GenerateVideoInfo::Videojson.all.destroy
   # db.execute('drop table if exists videojson')
-  DataMapper.auto_upgrade!
+  begin
+    GenerateVideoInfo::Videojson.auto_upgrade!
+  rescue DataObjects::SyntaxError
+    GenerateVideoInfo::Videojson.auto_migrate!
+  end
   db.execute('vacuum')
   exit
 end
@@ -138,7 +149,7 @@ filelist.each do |file|
   print "#{digests[file]}\n" if options.debug
   print "#{file}\n" if options.debug
   insert = GenerateVideoInfo::Videoinfo.new
-  jsondata = gvi.json(file, digests, options.verbose)
+  jsondata = gvi.json(file, options.verbose)
   unless options.debug
     GenerateVideoInfo.genhash(file, jsondata, digests) do |h|
       begin
