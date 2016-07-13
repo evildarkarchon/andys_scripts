@@ -41,7 +41,7 @@ module VideoInfo
       @db = SQLite3::Database.new(@dbpath.to_s)
       @db.type_translation = true
       @db.auto_vacuum = true unless @db.auto_vacuum
-      @db.cache_sizeb = -2000 unless @db.cache_size <= -2000
+      @db.cache_size = -2000 unless @db.cache_size <= -2000
       @db.execute 'vacuum'
     end
 
