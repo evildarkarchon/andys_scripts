@@ -118,10 +118,9 @@ options.files.each do |file|
 
   cmdline = Util.block do
     cmd = [ffmpeg, '-i', file]
-    
     cmd
   end
-
+  options.shutup7 = cmdline
   backup(file, options.backup) if options.backup
   # insert command-line generation, command invocation, backup and database cleanup code here.
 end
