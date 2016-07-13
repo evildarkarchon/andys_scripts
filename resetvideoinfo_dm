@@ -6,7 +6,7 @@ require 'find'
 
 # require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
-require_relative 'andyrb/videoinfo'
+require_relative 'andyrb/videoinfo_dm'
 
 class Options
   def self.parse(args)
@@ -103,8 +103,12 @@ digests = Util.hashfile(filelist)
 filelist.each do |file|
   filepath = Pathname.new(file)
   # puts filepath.dirname
-  gvi = VideoInfo::Generate.new(filepath.dirname.join('videoinfo.sqlite')) if filepath.file?
-  gvi = VideoInfo::Generate.new(filepath.join('videoinfo.sqlite')) if filepath.directory?
+  FileUtils.touch(options.db.basename.to_s) unless options.db.file?
+  DataMapper::Model.raise_on_save_failure = true
+  DataMapper.setup(:default, "sqlite:#{filepath.dirname.join('videoinfo.sqlite')}") if filepath.file?
+  DataMapper.setup(:default, "sqlite:#{filepath.join('videoinfo.sqlite')}") if filepath.directory?
+  DataMapper::Logger.new($stdout, :debug) if options.debug || options.verbose
+  db = DataMapper.repository(:default).adapter
   name = filepath.to_s
   jsondata = gvi.json(name)
   VideoInfo::Generate.hash(file, jsondata, digests) { |h, j| gvi.write(h, j, verbose: false, filename: file) }
