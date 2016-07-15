@@ -36,7 +36,7 @@ class Options
     options.debug = false
 
     options.backup = nil
-    options.outputdir = case od
+    options.outputdir = case
     when Dir.pwd == Dir.home
       Pathname.new(Dir.home)
     else
@@ -46,7 +46,7 @@ class Options
 
     optparse = OptionParser.new do |opts|
       opts.on('--video-codec [codec]', 'Video codec for the output video.') do |vcodec|
-        options.videocodec = case vc
+        options.videocodec = case
         when vcodec == 'none'
           options.novideo = true
           nil
@@ -65,7 +65,7 @@ class Options
       opts.on('--no-video', 'Disable video channel') { |nv| options.videocodec = nil; options.novideo == nv } # rubocop:disable Style/Semicolon
       opts.on('--audio-bitrate [bitrate]', 'Bitrate of the output audio.') { |abitrate| options.audiobitrate = abitrate }
       opts.on('--audio-codec [codec]', 'Codec of the output audio.') do |acodec|
-        options.audiocodec = case ac
+        options.audiocodec = case
         when acodec == 'none'
           options.noaudio = true
           nil
@@ -140,13 +140,13 @@ command = Class.new do
   define_method :list do |filename, passmax, passnum = nil|
     filepath = Pathname.new(filename)
     bitrates = db.new.bitrate(filename)
-    framerate = case fr
+    framerate = case
     when options.framerate
       options.framerate
     else
       db.new.frame_rate(filename)
     end # rubocop:disable Lint/EndAlignment
-    vcodec = case vc
+    vcodec = case
     when options.novideo
       '-vn'
     when config['defaults']['video']
@@ -156,7 +156,7 @@ command = Class.new do
     end # rubocop:disable Lint/EndAlignment
 
     unless options.novideo
-      vbitrate = case vb
+      vbitrate = case
       when options.videobitrate
         options.videobitrate
       when bitrates[:video]
@@ -165,7 +165,7 @@ command = Class.new do
     end
 
     unless options.novideo
-      vcodecopts = case vco
+      vcodecopts = case
       when config['codecs'][options.videocodec]
         config['codecs'][options.videocodec]
       when options.videocodecopts
@@ -173,7 +173,7 @@ command = Class.new do
       end # rubocop:disable Lint/EndAlignment
     end
 
-    acodec = case ac
+    acodec = case
     when passnum == 1, options.noaudio
       '-an'
     when !config['defaults']['audio']
@@ -183,7 +183,7 @@ command = Class.new do
     end # rubocop:disable Lint/EndAlignment
 
     unless options.noaudio
-      acodecopts = case aco
+      acodecopts = case
       when config['codecs'][options.audiocodec]
         config['codecs'][options.audiocodec]
       when options.audiocodecopts
@@ -192,7 +192,7 @@ command = Class.new do
     end
 
     unless options.noaudio
-      abitrate = case ab
+      abitrate = case
       when options.audiobitrate
         options.audiobitrate
       when bitrates[:audio]
@@ -201,7 +201,7 @@ command = Class.new do
     end
 
     if !options.noaudio && opitions.audiofilter || !options.noaudio && config['defaults']['audiofilter']
-      afilter = case af
+      afilter = case
       when config['defaults']['audiofilter']
         config['defaults']['audiofilter']
       when options.audiofilter
@@ -225,7 +225,7 @@ command = Class.new do
     cmd << acodecopts if acodecopts
     cmd << afilter if afilter
     cmd << ['-hide_banner', '-y']
-    cmd << case output
+    cmd << case
     when passnum == 1 && passmax == 2
       ['-format', 'matroska', '/dev/null']
     when passnum == 2 && passmax == 2, passmax = 1
