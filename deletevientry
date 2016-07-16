@@ -1,24 +1,17 @@
-#!/usr/bin/env python3.5
-# pylint: disable=line-too-long
-import argparse
+#!/usr/bin/env ruby
+require 'pathname'
 
-from andy.videoinfo import VideoInfo
-from andy.util import Mood
+require_relative 'andyrb/mood'
+require_relative 'andyrb/util'
+require_relative 'andyrb/videoinfo_dm'
 
-args = argparse.ArgumentParser()
-args.add_argument("--database", "-db", help="Location of the database file.")
-args.add_argument("files", nargs="*", help="Entries to be deleted (by filename).")
+files = ARGV
 
-options = vars(args.parse_args())
+raise 'No files specified' unless files.length >= 1
 
-if not options["database"]:
-    vi = VideoInfo.cwd()
-else:
-    vi = VideoInfo(options["database"])
-
-if "files" not in options or not isinstance(options["files"], list) or options["files"] is None:
-    print("{} No files specified.".format(Mood.sad()))
-    raise ValueError
-
-for filename in options["files"]:
-    vi.deletefileentry(filename)
+files.each do |f|
+  path = Pathname.new(f)
+  puts Mood.happy("Deleting #{path.basename}'s entry from the database.")
+  del = GenerateVideoInfo::Videoinfo.all(filename: f.basename.to_s)
+  del.destroy
+end
