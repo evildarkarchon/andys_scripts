@@ -1,170 +1,297 @@
-#!/usr/bin/env python3.5
-# pylint: disable=line-too-long
-import argparse
-import json
-import locale
-import pathlib
-from collections import ChainMap
-import shlex
-import sys
-import subprocess
+#!/usr/bin/env ruby
+require 'ostruct'
+require 'optparse'
+require 'pathname'
+require 'json'
+require 'filemagic'
+require 'subprocess'
+require 'data_mapper'
+require 'shellwords'
 
-try:
-    import magic
-except ImportError:
-    pass
+require_relative 'andyrb/mood'
+require_relative 'andyrb/util'
+require_relative 'andyrb/videoinfo_dm'
 
-from andy.abs import ABSCONVERT
-from andy.util import Mood, Util
+# rubocop:disable Style/CaseIndentation
 
-locale.setlocale(locale.LC_ALL, "en_US.utf-8")
+class Options
+  def self.parse(args)
+    options = OpenStruct.new
+    options.videocodec = nil
+    options.videocodecopts = nil
+    options.videobitrate = nil
+    options.framerate = nil
+    options.passes = 2
 
-args = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    options.audiocodec = nil
+    options.audiocodecopts = nil
+    options.audiobitrate = nil
+    options.audiofilter = nil
 
-video = args.add_argument_group(description="Video options:")
-audio = args.add_argument_group(description="Audio Options:")
-config = args.add_argument_group(description="Configuration/Testing options:")
-fileargs = args.add_argument_group(description="Options for file manipulation:")
+    options.db = Pathname.new('./videoinfo.sqlite')
+    options.converttest = true
+    options.config = Pathname.new(Dir.home).join('.config/absconvert.json')
+    options.container = nil
+    options.sort = true
+    options.debug = false
 
-video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
-video.add_argument("--video-bitrate", "-vb", help="Bitrate for the video codec.")
-video.add_argument("--video-codec", "-vc", help="Video codec to use.")
-video.add_argument("--frame-rate", "-fr", dest="frame_rate", help="Frame Rate of the video for if ffmpeg has a problem detecting it automatically (especially helps with mpeg-1 files).")
-# video.add_argument("--video-options", "-vo", help="Options to pass to ffmpeg regarding the video codec.")  # WIP
+    options.backup = nil
+    options.converttest = false
+    options.stats = true
+    options.outputdir = case
+    when Dir.pwd == Dir.home
+      Pathname.new(Dir.home)
+    else
+      Pathname.new('..').realpath
+    end # rubocop:disable Lint/EndAlignment
+    options.verbose = false
 
-audio.add_argument("--audio-bitrate", "-ab", help="Bitrate for the audio codec.")
-audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
-audio.add_argument("--filter", "-f", help="Filter to be applied to the audio.")
-# audio.add_argument("--audio-options", "-ao", help="Options to pass to ffmpeg regarding the audio codec")  # WIP
+    optparse = OptionParser.new do |opts|
+      opts.on('--video-codec [codec]', 'Video codec for the output video.') do |vcodec|
+        options.videocodec = case
+        when vcodec == 'none'
+          options.novideo = true
+          nil
+        else
+          vcodec
+        end # rubocop:disable Lint/EndAlignment
+      end
+      opts.on('--video-bitrate [bitrate]', 'Video bitrate for the output video.') { |vbitrate| options.videobitrate = vbitrate }
+      opts.on('--passes [pass]', '-p [pass]', 'Number of video encoding passes.') do |passes|
+        raise ArgumentError unless passes.respond_to?(:to_i)
+        raise ArgumentError unless passes.between?(1, 2)
+        options.passes = passes.to_i
+      end
+      opts.on('--video-codec-opts [opts]', 'Options to pass to the video codec') { |vco| options.videocodecopts = vco.shellsplit }
+      opts.on('--frame-rate [rate]', '-f [rate]', 'Manually specify the frame rate (e.g. useful for MPEG2-PS files)') { |fr| options.framerate = fr.to_f if fr.respond_to?(:to_f) }
+      opts.on('--no-video', 'Disable video channel') { |nv| options.videocodec = nil; options.novideo == nv } # rubocop:disable Style/Semicolon
+      opts.on('--audio-bitrate [bitrate]', 'Bitrate of the output audio.') { |abitrate| options.audiobitrate = abitrate }
+      opts.on('--audio-codec [codec]', 'Codec of the output audio.') do |acodec|
+        options.audiocodec = case
+        when acodec == 'none'
+          options.noaudio = true
+          nil
+        else
+          acodec
+        end # rubocop:disable Lint/EndAlignment
+      end
+      opts.on('--audio-filter [filter]', 'Filter to be used for the output audio.') { |afilter| options.audiofilter = afilter }
+      opts.on('--audio-codec-opts [opts]', 'Options to pass to the audio codec.') { |aco| options.audiocodecopts = aco.shellsplit }
+      opts.on('--no-audio', 'Disable audio channel') { |na| options.audiocodec = nil; options.noaudio = na } # rubocop:disable Style/Semicolon
+      opts.on('--database [location]', 'Location of the videoinfo database') { |db| optons.db = Pathname.new(db) }
+      opts.on('--convert-test', "Don't delete any videoinfo entries.") { |ct| options.converttest = ct }
+      opts.on('--config [path]', '-c [path]', 'Location of the configuration json file') { |config| options.config = Pathname.new(config) }
+      opts.on('--container [extension]', 'Container to be used for the output file (the dot must be included).') { |ext| options.container = ext }
+      opts.on('--no-sort', "Don't sort the file list.") { options.sort = false }
+      opts.on('--no-stats', "Don't add statistics tags to the output file(s)") { options.stats = false }
+      opts.on('--debug', '-d', 'Print variables and exit.') { options.debug = true }
+      opts.on('--backup [dir]', '-b [dir]', 'Location of the backup directory (if any)') { |backup| options.backup = Pathname.new(backup) }
+      opts.on('--output [dir]', '-o [dir]', 'Location of the output directory') { |output| options.outputdir = Pathname.new(output) }
+      opts.on('--verbose', '-v', 'Make the script a bit more chatty.') { |v| options.verbose = v }
+      opts.on('--convert-test', "Don't delete any database entries.") { |c| options.converttest = c }
+    end
+    optparse.parse!(args)
+    options
+  end
+end
 
-config.add_argument("--database", "-db", help="Location of the video info database.")
-config.add_argument("--convert-test", dest="converttest", action="store_true", help="Conversion test, doesn't delete entrys from database.")
-config.add_argument("--config", "-c", default=str(pathlib.Path.home().joinpath(".config", "absconvert.json")), help="Location of the configuration file (JSON format).")
-config.add_argument("--container", "-ct", help="Container format to put the video in.")
-config.add_argument("--no-sort", "-ns", action="store_true", help="Don't sort the list of file(s) to be encoded.")
-config.add_argument("--debug", "-d", action="store_true", help="Print variables and exit.")
+options = Options.parse(ARGV)
+options.files = ARGV
 
-fileargs.add_argument("--backup", "-b", help="Directory where files will be moved when encoded.")
-fileargs.add_argument("--output-dir", "-o", dest="output", help="Directory to output the encoded file(s) to (defaults to previous directory unless you are in your home directory).")
+DataMapper.setup(:default, "sqlite:#{options.db.realpath}")
+DataMapper::Logger.new($stdout, :debug) if options.verbose
+# vi = GenerateVideoInfo::Videoinfo.new
 
-args.add_argument("files", nargs="*", help="Files to encode.")
+mkvpropedit = Util::FindApp.which('mkvpropedit')
+ffmpeg = Util::FindApp.which('ffmpeg')
 
-cmdline = vars(args.parse_args())
+raise 'ffmpeg not found.' if ffmpeg.nil?
 
+configfile = File.open options.config if File.exist? options.config
+config = JSON.parse configfile.read if File.exist? options.config
+configfile.close
+print "#{config}\n" if options.debug
 
-def filterfilelist(filelist):
-    try:
-        whitelist = ["video/x-flv", "video/mp4", "video/mp2t", "video/3gpp", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/webm",
-                     "video/x-matroska", "video/msvideo", "video/avi", "application/vnd.rm-realmedia", "audio/x-pn-realaudio", "audio/x-matroska",
-                     "audio/ogg", "video/ogg", "audio/vorbis", "video/theora", "video/3gpp2", "audio/x-wav", "audio/wave", "video/dvd", "video/mpeg",
-                     "application/vnd.rn-realmedia-vbr", "audio/vnd.rn-realaudio", "audio/x-realaudio"]
+def backup(source, backupdir)
+  backuppath = Pathname.new(backupdir)
+  sourcepath = Pathname.new(source)
 
-        with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
-            for filename in filelist:
-                filepath = pathlib.Path(filename)
-                if m.id_filename(filename) in whitelist and filepath.is_file():
-                    yield str(filepath)
-    except NameError:
-        whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg',
-                     '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
-        for filename in filelist:
-            filepath = pathlib.Path(filename)
-            if filepath.suffix in whitelist and filepath.is_file():
-                yield str(filepath)
+  backup.mkpath unless backuppath.exist?
+  raise 'Backup directory is a file.' if backuppath.exist? && backuppath.file?
+  puts Mood.happy("Moving #{source} to #{backupdir}")
+  sourcepath.rename(backuppath.join(sourcepath.basename)) if sourcepath.exist?
+end
 
+db = Class.new do
+  define_method :bitrate do |file|
+    path = Pathname.new(file).basename.to_s
+    query = GenerateVideoInfo::Videoinfo.all(filename: path, fields: [:bitrate_0_raw, :type_0, :bitrate_1_raw, :type_1])
 
-def configdict():
-    if ('config' not in cmdline or not cmdline["config"]) or not pathlib.Path(cmdline["config"]).exists():
-        print("{} Could not find configuration file or one was not specified, generating one with default values.".format(Mood.neutral()))
-        defaultconfig = {}
+    bitrates = {}
 
-        defaultconfig["defaults"] = {}
-        defaultconfig["defaults"]["video"] = "libvpx-vp9"
-        defaultconfig["defaults"]["audio"] = "libopus"
-        defaultconfig["defaults"]["container"] = "mkv"
-        defaultconfig["defaults"]["passes"] = 2
-        defaultconfig["defaults"]["audiofilter"] = ["aresample=async=1:min_comp=0.001:first_pts=0"]
+    bitrates[:video] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'video'
+    bitrates[:video] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'video'
 
-        defaultconfig["codecs"] = {}
-        defaultconfig["codecs"]["libvpx-vp9"] = ["-threads", "4", "-tile-columns", "6", "-frame-parallel", "1", "-speed", "1"]
+    bitrates[:audio] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'audio'
+    bitrates[:audio] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'audio'
 
-        if not cmdline["debug"]:
-            Util.genjson(defaultconfig, str(pathlib.Path.home().joinpath(".config", "absconvert.json")))
+    bitrates
+  end
+  define_method :frame_rate do |filename|
+    filepath = Pathname.new(filename)
+    dbinfo = GenerateVideoInfo::Videoinfo.all(filename: filepath.basename.to_s, fields: [:frame_rate])
+    frame_rate = dbinfo[0][:frame_rate]
+    frame_rate
+  end
+end
+command = Class.new do
+  define_method :list do |filename, passnum, passmax|
+    filepath = Pathname.new(filename)
+    bitrates = db.new.bitrate(filename)
+    framerate = case
+    when options.framerate
+      options.framerate
+    else
+      db.new.frame_rate(filename)
+    end # rubocop:disable Lint/EndAlignment
+    vcodec = case
+    when options.novideo
+      '-vn'
+    when config['defaults']['video']
+      ['-c:v', config['defaults']['video']]
+    when options.videocodec
+      ['-c:v', options.videocodec]
+    end # rubocop:disable Lint/EndAlignment
 
-        return ChainMap(cmdline, defaultconfig)
-    else:
-        with open(cmdline["config"]) as jsonsource:
-            config = json.loads(jsonsource.read())  # pylint: disable=W0621
+    unless options.novideo
+      vbitrate = case
+      when options.videobitrate
+        ['-b:v', options.videobitrate.to_s]
+      when bitrates[:video]
+        ['-b:v', bitrates[:video].to_s]
+      end # rubocop:disable Lint/EndAlignment
+    end
 
-        return ChainMap(cmdline, config)
-options = configdict()
+    unless options.novideo
+      vcodecopts = case
+      when options.videocodecopts
+        options.videocodecopts
+      when config['codecs'][options.videocodec]
+        config['codecs'][options.videocodec]
+      end # rubocop:disable Lint/EndAlignment
+    end
 
-assert (isinstance(options, ChainMap)), "Options Variable must be a ChainMap"
+    acodec = case
+    when passnum == 1, options.noaudio
+      '-an'
+    when !config['defaults']['audio']
+      config['defaults']['audio']
+    when options.audiocodec
+      ['-c:a', options.audiocodec]
+    else
+      ['-c:a', 'libopus']
+    end # rubocop:disable Lint/EndAlignment
 
-if "backup" not in options:
-    options["backup"] = None
+    unless options.noaudio
+      acodecopts = case
+      when options.audiocodecopts
+        options.audiocodecopts
+      when config['codecs'][options.audiocodec]
+        config['codecs'][options.audiocodec]
+      end # rubocop:disable Lint/EndAlignment
+    end
 
-if not options["output"]:
-    if str(pathlib.Path.cwd()) == str(pathlib.Path.home()):
-        options["output"] = str(pathlib.Path.home())
-    else:
-        options["output"] = str(pathlib.Path("..").resolve())
+    unless options.noaudio
+      abitrate = case
+      when options.audiobitrate
+        ['-b:a', options.audiobitrate.to_s]
+      when bitrates[:audio]
+        ['-b:a', bitrates[:audio].to_s]
+      end # rubocop:disable Lint/EndAlignment
+    end
 
-if "database" not in options or not options["database"]:
-    options["database"] = None
+    if !options.noaudio && options.audiofilter || !options.noaudio && config['defaults']['audiofilter']
+      afilter = case
+      when config['defaults']['audiofilter']
+        ['-af', config['defaults']['audiofilter']]
+      when options.audiofilter
+        ['-af', options.audiofilter]
+      end # rubocop:disable Lint/EndAlignment
+    end
+    outcon = case
+    when options.container
+      ".#{options.container}"
+    when config['defaults']['container']
+      ".#{config['defaults']['container']}"
+    else
+      '.mkv'
+    end # rubocop:disable Lint/EndAlignment
+    # print "#{passmax}\n"
+    cmd = ['ffmpeg', '-i', filename]
+    cmd << vcodec
+    cmd << ['-pass', passnum.to_s] if passmax == 2
+    cmd << vbitrate if vbitrate
+    cmd << ['-pass', passnum.to_s, '-passlogfile', filepath.sub_ext('').to_s] if passmax == 2
+    cmd << vcodecopts if vcodecopts
+    cmd << ['-filter:v', "fps = #{framerate}"] if framerate
+    cmd << acodec
+    cmd << abitrate if abitrate
+    cmd << acodecopts if acodecopts
+    cmd << afilter if afilter
+    cmd << ['-hide_banner', '-y']
+    cmd << case
+    when passnum == 1 && passmax == 2
+      ['-f', 'matroska', '/dev/null']
+    when passnum == 2 && passmax == 2, passmax = 1
+      options.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
+    end # rubocop:disable Lint/EndAlignment
+    cmd.flatten!
+  end
+end
+options.files.each do |file|
+  outcon = case
+  when options.container
+    ".#{options.container}"
+  when config['defaults']['container']
+    ".#{config['defaults']['container']}"
+  else
+    '.mkv'
+  end # rubocop:disable Lint/EndAlignment
+  filepath = Pathname.new(file)
+  outpath = Pathname.new(options.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
+  logpath = filepath.sub_ext('-0.log') if options.passes == 2
+  if options.passes == 2
+    cmdpass1 = command.new.list(file, 1, 2)
+    cmdpass2 = command.new.list(file, 2, 2)
+  elsif options.passes == 1
+    cmd1pass = command.new.list(file, 1)
+  end
+  if options.debug
+    print "#{cmdpass1}\n"
+    print "#{cmdpass2}\n"
+    print "#{cmd1pass}\n"
+  end
+  begin
+    Util::Program.runprogram(cmdpass1) if options.passes == 2 && !options.debug
+    Util::Program.runprogram(cmdpass2) if options.passes == 2 && !options.debug
+    Util::Program.runprogram(cmd1pass) if options.passes == 1 && !options.debug
+  rescue Subprocess::NonZeroExit => e
+    puts Mood.sad('Removing unfinished output file.')
+    outpath.delete if outpath.exist?
+    raise e
+  else
+    Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', outpath.to_s]) if options.stats
+    unless options.converttest || options.debug
+      del = GenerateVideoInfo::Videoinfo.all(filename: filepath.basename.to_s)
+      deljson = GenerateVideoInfo::Videojson.all(filename: filepath.basename.to_s)
+      del.destroy
+      deljson.destroy
+    end
+    puts Mood.happy('In convert testing mode, not deleting database entry') if options.converttest
+  ensure
+    logpath.delete if options.passes == 2 && !options.debug
+  end
 
-absconvert = ABSCONVERT(database=options["database"], debug=options["debug"], backup=options["backup"], output=options["output"], converttest=options["converttest"])
-
-if options["container"]:
-    options["container"] = ".{}".format(options["container"])
-elif not options["container"]:
-    options["container"] = ".{}".format(options["defaults"]["container"])
-
-if not options["video_codec"]:
-    options["video_codec"] = options["defaults"]["video"]
-
-if not options["audio_codec"]:
-    options["audio_codec"] = options["defaults"]["audio"]
-
-if not options["filter"]:
-    options["filter"] = options["defaults"]["audiofilter"]
-elif cmdline["filter"] and isinstance(cmdline["filter"], str):
-    options["filter"] = shlex.split(options["filter"])
-
-if options["audio_codec"] in options["codecs"]:
-    options["audiocodecopts"] = options["codecs"][options["audio_codec"]]
-else:
-    options["audiocodecopts"] = None
-
-if options["video_codec"] in options["codecs"]:
-    options["videocodecopts"] = options["codecs"][options["video_codec"]]
-else:
-    options["videocodecopts"] = None
-
-if not options["passes"]:
-    options["passes"] = options["defaults"]["passes"]
-
-options["files"] = list(filterfilelist(options["files"]))
-
-if len(options["files"]) is 0:
-    print("{} There are no valid files to be encoded.".format(Mood.happy()))
-    sys.exit(0)
-
-if not options["no_sort"]:
-    options["files"] = Util.sortentries(options["files"])
-
-if "frame_rate" not in options:
-    options["frame_rate"] = None
-
-if options["debug"]:
-    print(options)
-
-for files in options["files"]:
-    try:
-        # Note to self, change these arguments from looking like keyword arguments to looking like positional arguments to reduce clutter.
-        absconvert.convert(files, videocodec=options["video_codec"], videobitrate=options["video_bitrate"], audiocodec=options["audio_codec"],
-                            audiofilteropts=options["filter"], passes=options["passes"], audiocodecopts=options["audiocodecopts"],  # noqa
-                            audiobitrate=options["audio_bitrate"], videocodecopts=options["videocodecopts"], container=options["container"],  # noqa
-                            framerate=options["frame_rate"])  # noqa
-    except (KeyboardInterrupt, subprocess.CalledProcessError, ChildProcessError):
-        break
+  backup(file, options.backup.to_s) if options.backup
+  # insert command-line generation, command invocation, backup and database cleanup code here.
+end
