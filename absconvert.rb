@@ -36,6 +36,7 @@ class Options
     options.debug = false
 
     options.backup = nil
+    options.converttest = false
     options.outputdir = case
     when Dir.pwd == Dir.home
       Pathname.new(Dir.home)
@@ -85,6 +86,7 @@ class Options
       opts.on('--backup [dir]', '-b [dir]', 'Location of the backup directory (if any)') { |backup| options.backup = Pathname.new(backup) }
       opts.on('--output [dir]', '-o [dir]', 'Location of the output directory') { |output| options.outputdir = Pathname.new(output) }
       opts.on('--verbose', '-v', 'Make the script a bit more chatty.') { |v| options.verbose = v }
+      opts.on('--convert-test', "Don't delete any database entries.") { |c| options.converttest = c }
     end
     optparse.parse!(args)
     options
@@ -236,6 +238,8 @@ command = Class.new do
 end
 options.files.each do |file|
   filepath = Pathname.new(file)
+  outpath = Pathname.new(options.outputdir).join(filepath.basename.to_s)
+  logpath = Pathname.new(options.outputdir).join(filepath.basename.sub_ext('-0.log').to_s) if options.passes == 2
   if options.passes == 2
     cmdpass1 = command.new.list(file, passnum: 1, passmax: 2)
     cmdpass2 = command.new.list(file, passnum: 2, passmax: 2)
@@ -247,13 +251,19 @@ options.files.each do |file|
     Util::Program.runprogram(cmdpass2) if options.passes == 2
     Util::Program.runprogram(cmd1pass) if options.passes == 1
   rescue Subprocess::NonZeroExit => e
+    puts Mood.sad('Removing unfinished output file.')
+    outpath.delete
     raise e
   else
     Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', options.outputdir.join(filepath.basename.to_s).to_s])
-    del = GenerateVideoInfo::Videoinfo.all(filename: sourcepath.basename.to_s)
-    deljson = GenerateVideoInfo::Videojson.all(filename: sourcepath.basename.to_s)
-    del.destroy
-    deljson.destroy
+    unless options.converttest
+      del = GenerateVideoInfo::Videoinfo.all(filename: sourcepath.basename.to_s)
+      deljson = GenerateVideoInfo::Videojson.all(filename: sourcepath.basename.to_s)
+      del.destroy
+      deljson.destroy
+    end
+  ensure
+    logpath.delete if options.passes == 2 && logpath.exists?
   end
 
   backup(file, options.backup) if options.backup
