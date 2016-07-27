@@ -39,22 +39,19 @@ module Util
   end
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
-    # Generates pretty JSON and writes it to a file.
-    # Params:
-    # +filename+:: Name of the file to write to.
-    # +inputhash+:: hash that will be converted to JSON.
-    def self.write(filename, inputhash)
-      input = inputhash.to_h if inputhash.respond_to?(:to_h)
-      outputfile = open(filename, 'w')
-      outputfile.write(JSON.pretty_generate(input))
+    def initialize(input)
+      raise 'Input must be able to be converted to a JSON string.' unless input.respond_to?(:to_json)
+      @output = JSON.parse(input.to_json)
+      @output = JSON.pretty_generate(@output)
     end
 
-    # Generates pretty JSON and prints it to stdout.
-    # Params:
-    # +inputhash+:: Hash that will be converted to JSON
-    def self.print(inputhash)
-      input = inputhash.to_h if inputhash.respond_to?(:to_h)
-      puts JSON.pretty_generate(input)
+    def write(filename)
+      outputfile = open(filename, 'w')
+      outputfile.write(@output)
+    end
+
+    def print_output
+      puts @output
     end
   end
 
@@ -124,13 +121,16 @@ module Util
   end
 
   class Program
-    def self.runprogram(program, use_sudo = false, sudo_user = nil)
+    def self.runprogram(program, use_sudo = false, sudo_user = nil, parse_output = false)
       cmdline = []
       sudo_user = 'root' if use_sudo && !sudo_user
       cmdline << ['sudo', '-u', sudo_user] if use_sudo
       cmdline << program
       cmdline.flatten!
-      Subprocess.check_call(cmdline)
+      Subprocess.check_call(cmdline) unless parse_output
+      output = Subprocess.check_output(cmdline) if parse_output
+      yield output if block_given? && output
+      output if output
     end
   end
   class << Program
@@ -140,14 +140,8 @@ end
 
 class Object
   def in?(*arr)
-    # print arr
-    # print "\n"
-    # print self
-    # print "\n"
-    # arr = arr[0] if arr[0].respond_to?(:each) && arr.respond_to?(:length) && arr.length == 1
     arr.flatten! if arr.respond_to?(:flatten!)
     arr.uniq! if arr.respond_to?(:uniq!)
-    # print("#{arr}\n")
     arr.include? self
   end
 end
