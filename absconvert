@@ -108,11 +108,10 @@ ffmpeg = Util::FindApp.which('ffmpeg')
 raise 'ffmpeg not found.' if ffmpeg.nil?
 
 configfile = nil
-config = nil
 configfile = File.open Args.config if File.exist? Args.config
-config = JSON.parse configfile.read if configfile.respond_to?(:read)
+Config = JSON.parse configfile.read if configfile.respond_to?(:read)
 configfile.close if configfile.respond_to?(:close)
-print "#{config}\n" if Args.debug && config
+print "#{config}\n" if Args.debug && Config
 
 def backup(source, backupdir)
   backuppath = Pathname.new(backupdir)
@@ -179,8 +178,9 @@ db = Class.new do
   end
 end
 =end
-command = Class.new do
-  define_method :list do |filename, passnum, passmax|
+class Command
+  attr_reader :list
+  def initialize(filename, passnum, passmax)
     filepath = Pathname.new(filename)
     db = Database.new(filename)
     db.bitrate!
@@ -195,8 +195,8 @@ command = Class.new do
     vcodec = case
     when Args.novideo
       '-vn'
-    when config['defaults']['video']
-      ['-c:v', config['defaults']['video']]
+    when Config['defaults']['video']
+      ['-c:v', Config['defaults']['video']]
     when Args.videocodec
       ['-c:v', Args.videocodec]
     end # rubocop:disable Lint/EndAlignment
@@ -214,16 +214,16 @@ command = Class.new do
       vcodecopts = case
       when Args.videocodecopts
         Args.videocodecopts
-      when config['codecs'][Args.videocodec]
-        config['codecs'][Args.videocodec]
+      when Config['codecs'][Args.videocodec]
+        Config['codecs'][Args.videocodec]
       end # rubocop:disable Lint/EndAlignment
     end
 
     acodec = case
     when passnum == 1, Args.noaudio
       '-an'
-    when !config['defaults']['audio']
-      config['defaults']['audio']
+    when !Config['defaults']['audio']
+      Config['defaults']['audio']
     when Args.audiocodec
       ['-c:a', Args.audiocodec]
     else
@@ -234,8 +234,8 @@ command = Class.new do
       acodecopts = case
       when Args.audiocodecopts
         Args.audiocodecopts
-      when config['codecs'][Args.audiocodec]
-        config['codecs'][Args.audiocodec]
+      when Config['codecs'][Args.audiocodec]
+        Config['codecs'][Args.audiocodec]
       end # rubocop:disable Lint/EndAlignment
     end
 
@@ -248,10 +248,10 @@ command = Class.new do
       end # rubocop:disable Lint/EndAlignment
     end
 
-    if !Args.noaudio && Args.audiofilter || !Args.noaudio && config['defaults']['audiofilter']
+    if !Args.noaudio && Args.audiofilter || !Args.noaudio && Config['defaults']['audiofilter']
       afilter = case
-      when config['defaults']['audiofilter']
-        ['-af', config['defaults']['audiofilter']]
+      when Config['defaults']['audiofilter']
+        ['-af', Config['defaults']['audiofilter']]
       when Args.audiofilter
         ['-af', Args.audiofilter]
       end # rubocop:disable Lint/EndAlignment
@@ -259,41 +259,40 @@ command = Class.new do
     outcon = case
     when Args.container
       ".#{Args.container}"
-    when config['defaults']['container']
-      ".#{config['defaults']['container']}"
+    when Config['defaults']['container']
+      ".#{Config['defaults']['container']}"
     else
       '.mkv'
     end # rubocop:disable Lint/EndAlignment
     # print "#{passmax}\n"
-    cmd = ['ffmpeg', '-i', filename]
-    cmd << vcodec
-    cmd << ['-pass', passnum.to_s] if passmax == 2
-    cmd << vbitrate if vbitrate
-    cmd << ['-pass', passnum.to_s, '-passlogfile', filepath.sub_ext('').to_s] if passmax == 2
-    cmd << vcodecopts if vcodecopts
-    cmd << ['-filter:v', "fps = #{framerate}"] if framerate
-    cmd << acodec
-    cmd << abitrate if abitrate
-    cmd << acodecopts if acodecopts
-    cmd << afilter if afilter
-    cmd << ['-hide_banner', '-y']
-    cmd << case
+    @list = ['ffmpeg', '-i', filename]
+    @list << vcodec
+    @list << ['-pass', passnum.to_s] if passmax == 2
+    @list << vbitrate if vbitrate
+    @list << ['-pass', passnum.to_s, '-passlogfile', filepath.sub_ext('').to_s] if passmax == 2
+    @list << vcodecopts if vcodecopts
+    @list << ['-filter:v', "fps = #{framerate}"] if framerate
+    @list << acodec
+    @list << abitrate if abitrate
+    @list << acodecopts if acodecopts
+    @list << afilter if afilter
+    @list << ['-hide_banner', '-y']
+    @list << case
     when passnum == 1 && passmax == 2
       ['-f', 'matroska', '/dev/null']
     when passnum == 2 && passmax == 2, passmax = 1
       Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
     end # rubocop:disable Lint/EndAlignment
-    cmd.flatten!
-    cmd.compact!
-    cmd
+    @list.flatten!
+    @list.compact!
   end
 end
 Args.files.each do |file|
   outcon = case
   when Args.container
     ".#{Args.container}"
-  when config['defaults']['container']
-    ".#{config['defaults']['container']}"
+  when Config['defaults']['container']
+    ".#{Config['defaults']['container']}"
   else
     '.mkv'
   end # rubocop:disable Lint/EndAlignment
@@ -301,10 +300,10 @@ Args.files.each do |file|
   outpath = Pathname.new(Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
   logpath = filepath.sub_ext('-0.log') if Args.passes == 2
   if Args.passes == 2
-    cmdpass1 = command.new.list(file, 1, 2)
-    cmdpass2 = command.new.list(file, 2, 2)
+    cmdpass1 = Command.new(file, 1, 2).list
+    cmdpass2 = Command.new(file, 2, 2).list
   elsif Args.passes == 1
-    cmd1pass = command.new.list(file, 1)
+    cmd1pass = Command.new(file, passmax: 1).list
   end
   if Args.debug
     print "#{cmdpass1}\n"
