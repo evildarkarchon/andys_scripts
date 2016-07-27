@@ -107,10 +107,12 @@ ffmpeg = Util::FindApp.which('ffmpeg')
 
 raise 'ffmpeg not found.' if ffmpeg.nil?
 
+configfile = nil
+config = nil
 configfile = File.open options.config if File.exist? options.config
-config = JSON.parse configfile.read if File.exist? options.config
-configfile.close
-print "#{config}\n" if options.debug
+config = JSON.parse configfile.read if configfile.respond_to?(:read)
+configfile.close if configfile.respond_to?(:close)
+print "#{config}\n" if options.debug && config
 
 def backup(source, backupdir)
   backuppath = Pathname.new(backupdir)
