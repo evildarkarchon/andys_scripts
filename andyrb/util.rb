@@ -124,10 +124,17 @@ module Util
       cmdline << ['sudo', '-u', sudo_user] if use_sudo
       cmdline << program
       cmdline.flatten!
-      Subprocess.check_call(cmdline) unless parse_output
-      output = Subprocess.check_output(cmdline) if parse_output
-      yield output if block_given? && output
-      output if output
+      cmdline.compact!
+      output = nil
+      begin
+        Subprocess.check_call(cmdline) unless parse_output
+        output = Subprocess.check_output(cmdline) if parse_output
+      rescue Interrupt
+        exit
+      else
+        yield output if block_given? && output
+        output if output
+      end
     end
   end
   class << Program
