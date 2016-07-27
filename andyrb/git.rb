@@ -12,7 +12,7 @@ class Git
     attr_accessor :use_sudo, :sudo_user, :wd
     if !@use_sudo && !Util.privileged?(@sudo_user)
       @use_sudo = true
-      puts Mood.neutral { 'use_sudo was not set properly, using auto-detection, fix the code asap.' }
+      puts Mood.neutral { 'use_sudo was not set properly, defaulting to root, fix the code asap.' }
     end
     if @use_sudo && !@sudo_user
       @sudo_user = 'root'
