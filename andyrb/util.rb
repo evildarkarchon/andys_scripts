@@ -39,6 +39,7 @@ module Util
   end
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
+    attr_reader :output
     def initialize(input)
       raise 'Input must be able to be converted to a JSON string.' unless input.respond_to?(:to_json)
       @output = JSON.parse(input.to_json)
@@ -48,10 +49,6 @@ module Util
     def write(filename)
       outputfile = open(filename, 'w')
       outputfile.write(@output)
-    end
-
-    def print_output
-      puts @output
     end
   end
 
