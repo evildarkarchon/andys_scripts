@@ -1,6 +1,8 @@
 require 'ostruct'
 require 'optparse'
 require 'pathname'
+require 'xz'
+require 'tempfile'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
@@ -13,7 +15,7 @@ require_relative 'andyrb/util'
 
 # insert begin block with code to dump database and compress the output.
 
-# pgdump command line = "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"
+# pg_dump command line = "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres", "-f", "tempfilevar.path"
 
 # raise Interrupt for ctrl-C
 
