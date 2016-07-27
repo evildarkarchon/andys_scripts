@@ -95,11 +95,11 @@ class Options
   end
 end
 
-options = Options.parse(ARGV)
-options.files = ARGV
+Args = Options.parse(ARGV)
+Args.files = ARGV
 
-DataMapper.setup(:default, "sqlite:#{options.db.realpath}")
-DataMapper::Logger.new($stdout, :debug) if options.verbose
+DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
+DataMapper::Logger.new($stdout, :debug) if Args.verbose
 # vi = GenerateVideoInfo::Videoinfo.new
 
 mkvpropedit = Util::FindApp.which('mkvpropedit')
@@ -109,10 +109,10 @@ raise 'ffmpeg not found.' if ffmpeg.nil?
 
 configfile = nil
 config = nil
-configfile = File.open options.config if File.exist? options.config
+configfile = File.open Args.config if File.exist? Args.config
 config = JSON.parse configfile.read if configfile.respond_to?(:read)
 configfile.close if configfile.respond_to?(:close)
-print "#{config}\n" if options.debug && config
+print "#{config}\n" if Args.debug && config
 
 def backup(source, backupdir)
   backuppath = Pathname.new(backupdir)
@@ -124,6 +124,38 @@ def backup(source, backupdir)
   sourcepath.rename(backuppath.join(sourcepath.basename)) if sourcepath.exist?
 end
 
+class Database
+  attr_reader :bitrates, :frame_rate
+  def initialize(filename)
+    @filename = filename
+  end
+
+  def bitrate!
+    path = Pathname.new(@filename).basename.to_s
+    query = GenerateVideoInfo::Videoinfo.all(filename: path, fields: [:bitrate_0_raw, :type_0, :bitrate_1_raw, :type_1])
+
+    @bitrates = {}
+    @bitrates[:video] = nil
+    @bitrates[:audio] = nil
+
+    unless Args.videobitrate
+      @bitrates[:video] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'video'
+      @bitrates[:video] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'video'
+    end
+
+    unless Args.audiobitrate
+      @bitrates[:audio] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'audio'
+      @bitrates[:audio] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'audio'
+    end
+  end
+
+  def framerate!
+    filepath = Pathname.new(@filename)
+    dbinfo = GenerateVideoInfo::Videoinfo.all(filename: filepath.basename.to_s, fields: [:frame_rate])
+    @frame_rate = dbinfo[0][:frame_rate]
+  end
+end
+=begin
 db = Class.new do
   define_method :bitrate do |file|
     path = Pathname.new(file).basename.to_s
@@ -146,83 +178,87 @@ db = Class.new do
     frame_rate
   end
 end
+=end
 command = Class.new do
   define_method :list do |filename, passnum, passmax|
     filepath = Pathname.new(filename)
-    bitrates = db.new.bitrate(filename)
+    db = Database.new(filename)
+    db.bitrate!
+    db.framerate! unless Args.novideo
+    bitrates = db.bitrates
     framerate = case
-    when options.framerate
-      options.framerate
-    else
-      db.new.frame_rate(filename)
+    when Args.framerate
+      Args.framerate
+    when db.frame_rate
+      db.frame_rate
     end # rubocop:disable Lint/EndAlignment
     vcodec = case
-    when options.novideo
+    when Args.novideo
       '-vn'
     when config['defaults']['video']
       ['-c:v', config['defaults']['video']]
-    when options.videocodec
-      ['-c:v', options.videocodec]
+    when Args.videocodec
+      ['-c:v', Args.videocodec]
     end # rubocop:disable Lint/EndAlignment
 
-    unless options.novideo
+    unless Args.novideo
       vbitrate = case
-      when options.videobitrate
-        ['-b:v', options.videobitrate.to_s]
+      when Args.videobitrate
+        ['-b:v', Args.videobitrate.to_s]
       when bitrates[:video]
         ['-b:v', bitrates[:video].to_s]
       end # rubocop:disable Lint/EndAlignment
     end
 
-    unless options.novideo
+    unless Args.novideo
       vcodecopts = case
-      when options.videocodecopts
-        options.videocodecopts
-      when config['codecs'][options.videocodec]
-        config['codecs'][options.videocodec]
+      when Args.videocodecopts
+        Args.videocodecopts
+      when config['codecs'][Args.videocodec]
+        config['codecs'][Args.videocodec]
       end # rubocop:disable Lint/EndAlignment
     end
 
     acodec = case
-    when passnum == 1, options.noaudio
+    when passnum == 1, Args.noaudio
       '-an'
     when !config['defaults']['audio']
       config['defaults']['audio']
-    when options.audiocodec
-      ['-c:a', options.audiocodec]
+    when Args.audiocodec
+      ['-c:a', Args.audiocodec]
     else
       ['-c:a', 'libopus']
     end # rubocop:disable Lint/EndAlignment
 
-    unless options.noaudio
+    unless Args.noaudio
       acodecopts = case
-      when options.audiocodecopts
-        options.audiocodecopts
-      when config['codecs'][options.audiocodec]
-        config['codecs'][options.audiocodec]
+      when Args.audiocodecopts
+        Args.audiocodecopts
+      when config['codecs'][Args.audiocodec]
+        config['codecs'][Args.audiocodec]
       end # rubocop:disable Lint/EndAlignment
     end
 
-    unless options.noaudio
+    unless Args.noaudio
       abitrate = case
-      when options.audiobitrate
-        ['-b:a', options.audiobitrate.to_s]
+      when Args.audiobitrate
+        ['-b:a', Args.audiobitrate.to_s]
       when bitrates[:audio]
         ['-b:a', bitrates[:audio].to_s]
       end # rubocop:disable Lint/EndAlignment
     end
 
-    if !options.noaudio && options.audiofilter || !options.noaudio && config['defaults']['audiofilter']
+    if !Args.noaudio && Args.audiofilter || !Args.noaudio && config['defaults']['audiofilter']
       afilter = case
       when config['defaults']['audiofilter']
         ['-af', config['defaults']['audiofilter']]
-      when options.audiofilter
-        ['-af', options.audiofilter]
+      when Args.audiofilter
+        ['-af', Args.audiofilter]
       end # rubocop:disable Lint/EndAlignment
     end
     outcon = case
-    when options.container
-      ".#{options.container}"
+    when Args.container
+      ".#{Args.container}"
     when config['defaults']['container']
       ".#{config['defaults']['container']}"
     else
@@ -245,55 +281,56 @@ command = Class.new do
     when passnum == 1 && passmax == 2
       ['-f', 'matroska', '/dev/null']
     when passnum == 2 && passmax == 2, passmax = 1
-      options.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
+      Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
     end # rubocop:disable Lint/EndAlignment
     cmd.flatten!
+    cmd.compact!
+    cmd
   end
 end
-options.files.each do |file|
+Args.files.each do |file|
   outcon = case
-  when options.container
-    ".#{options.container}"
+  when Args.container
+    ".#{Args.container}"
   when config['defaults']['container']
     ".#{config['defaults']['container']}"
   else
     '.mkv'
   end # rubocop:disable Lint/EndAlignment
   filepath = Pathname.new(file)
-  outpath = Pathname.new(options.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
-  logpath = filepath.sub_ext('-0.log') if options.passes == 2
-  if options.passes == 2
+  outpath = Pathname.new(Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
+  logpath = filepath.sub_ext('-0.log') if Args.passes == 2
+  if Args.passes == 2
     cmdpass1 = command.new.list(file, 1, 2)
     cmdpass2 = command.new.list(file, 2, 2)
-  elsif options.passes == 1
+  elsif Args.passes == 1
     cmd1pass = command.new.list(file, 1)
   end
-  if options.debug
+  if Args.debug
     print "#{cmdpass1}\n"
     print "#{cmdpass2}\n"
     print "#{cmd1pass}\n"
   end
   begin
-    Util::Program.runprogram(cmdpass1) if options.passes == 2 && !options.debug
-    Util::Program.runprogram(cmdpass2) if options.passes == 2 && !options.debug
-    Util::Program.runprogram(cmd1pass) if options.passes == 1 && !options.debug
+    Util::Program.runprogram(cmdpass1) if Args.passes == 2 && !Args.debug
+    Util::Program.runprogram(cmdpass2) if Args.passes == 2 && !Args.debug
+    Util::Program.runprogram(cmd1pass) if Args.passes == 1 && !Args.debug
   rescue Subprocess::NonZeroExit => e
     puts Mood.sad('Removing unfinished output file.')
     outpath.delete if outpath.exist?
     raise e
   else
-    Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', outpath.to_s]) if options.stats
-    unless options.converttest || options.debug
+    Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', outpath.to_s]) if Args.stats
+    unless Args.converttest || Args.debug
       del = GenerateVideoInfo::Videoinfo.all(filename: filepath.basename.to_s)
       deljson = GenerateVideoInfo::Videojson.all(filename: filepath.basename.to_s)
       del.destroy
       deljson.destroy
     end
-    puts Mood.happy('In convert testing mode, not deleting database entry') if options.converttest
+    puts Mood.happy('In convert testing mode, not deleting database entry') if Args.converttest
   ensure
-    logpath.delete if options.passes == 2 && !options.debug
+    logpath.delete if Args.passes == 2 && logpath.exist? && !Args.debug
   end
 
-  backup(file, options.backup.to_s) if options.backup
-  # insert command-line generation, command invocation, backup and database cleanup code here.
+  backup(file, Args.backup.to_s) if Args.backup
 end
