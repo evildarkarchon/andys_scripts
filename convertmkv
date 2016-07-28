@@ -5,6 +5,7 @@ require 'pathname'
 require 'fileutils'
 require 'data_mapper'
 require 'json'
+# require 'tmpdir'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
@@ -43,45 +44,48 @@ class Options
   end
 end
 
-options = Options.parse(ARGV)
-options.db = options.db.realpath if options.db.exist? && options.gvi == true
-options.outputdb = options.output.join('videoinfo.sqlite') if options.outputdb.nil?
-puts options.outputdb
-FileUtils.touch(options.db.to_s) unless options.db.file?
-FileUtils.touch(options.outputdb.to_s) if options.outputdb && !options.outputdb.file?
-options.files = Util::SortEntries.sort(ARGV) if options.sort == true
-options.files = ARGV unless options.sort == true
+Args = Options.parse(ARGV)
+Args.db = Args.db.realpath if Args.db.exist?
+Args.outputdb = Args.db if Args.outputdb.nil? && Args.output.directory?
+Args.outputdb = Args.db if Args.outputdb.nil? && !Args.output.exist?
+Args.outputdb = Args.db if Args.outputdb && Args.outputdb == Args.output + '/' + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
+Args.outputdb = Args.output.join('videoinfo.sqlite') if Args.outputdb.nil? && !Args.output.directory?(Args.output) && !Args.combine
+puts Args.outputdb
+FileUtils.touch(Args.db.to_s) unless Args.db.file?
+FileUtils.touch(Args.outputdb.to_s) if Args.outputdb && !Args.outputdb.parent.directory? && !Args.outputdb.file?
+Args.files = Util::SortEntries.sort(ARGV) if Args.sort
+Args.files = ARGV unless Args.sort
+print "#{Args.files}\n"
+MkvPropEdit = Util::FindApp.which('mkvpropedit')
+FFMPEG = Util::FindApp.which('ffmpeg')
+MkvMerge = Util::FindApp.which('mkvmerge')
 
-mkvpropedit = Util::FindApp.which('mkvpropedit')
-ffmpeg = Util::FindApp.which('ffmpeg')
-mkvmerge = Util::FindApp.which('mkvmerge')
+Args.ffmpeg = false if Args.combine
+puts Mood.neutral 'ffmpeg concatenation mode has been disabled for the time being, reverting to mkvmerge.' if Args.combine && Args.ffmpeg
 
-config = nil
 configfile = nil
-configfile = File.open(options.config) if File.exist? options.config
-config = JSON.parse(configfile.read) if configfile.respond_to?(:read)
-configfile.close if confile.respond_to?(:close)
+configfile = File.open(Args.config) if File.exist? Args.config
+Config = JSON.parse(configfile.read) if configfile.respond_to?(:read)
+configfile.close if configfile.respond_to?(:close)
 
-if ffmpeg.nil? && options.ffmpeg && !mkvmerge.nil?
+if FFMPEG.nil? && Args.ffmpeg && !MkvMerge.nil?
   puts Mood.neutral('ffmpeg not found, using mkvmerge instead.')
-  options.ffmpeg = false
+  Args.ffmpeg = false
 end
-if mkvmerge.nil? && !options.ffmpeg && !ffmpeg.nil?
+if MkvMerge.nil? && !Args.ffmpeg && !FFMPEG.nil?
   puts Mood.neutral('mkvmerge not found, using ffmpeg instead.')
-  options.ffmpeg = true
+  Args.ffmpeg = true
 end
-raise 'Can not find mkvpropedit.' if mkvpropedit.nil? && options.ffmpeg
-raise 'Can not find mkvmerge or ffmpeg.' if mkvmerge.nil? && ffmpeg.nil?
+raise 'Can not find mkvpropedit.' if MkvPropEdit.nil? && Args.ffmpeg
+raise 'Can not find mkvmerge or ffmpeg.' if MkvMerge.nil? && FFMPEG.nil?
 
-FileUtils.touch(options.db.to_s) unless options.db.file?
-FileUtils.touch(options.outputdb.to_s) if options.outputdb && !options.outputdb.file?
 DataMapper::Model.raise_on_save_failure = true
-DataMapper.setup(:default, "sqlite:#{options.db.realpath}")
-DataMapper.setup(:output, "sqlite:#{options.outputdb.realpath}") if options.outputdb
-DataMapper::Logger.new($stdout, :debug) if options.debug || options.verbose
+DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
+DataMapper.setup(:output, "sqlite:#{Args.outputdb.realpath}") if Args.outputdb
+DataMapper::Logger.new($stdout, :debug) # if Args.debug || Args.verbose
 # db = DataMapper.repository(:default).adapter
-vi = GenerateVideoInfo::Videoinfo.new
-gvi = GenerateVideoInfo::Data.new(options.db.realpath, options.verbose) if options.gvi
+Vi = GenerateVideoInfo::Videoinfo.new
+Gvi = GenerateVideoInfo::Data.new(Args.db.realpath, Args.verbose) if Args.gvi
 DataMapper.finalize
 begin
   DataMapper.auto_upgrade!
@@ -89,30 +93,36 @@ rescue DataObjects::SyntaxError
   DataMapper.auto_migrate!
 end
 
-flat = Class.new do
-  define_method :genvi do |filename|
-    filepath = Pathname.new(filename).realpath
+class Convenience
+  def initialize(filename)
+    @filename = filename
+  end
+
+  def genvi
+    filepath = Pathname.new(@filename).realpath
     insert = GenerateVideoInfo::Videoinfo.new
     outhash = Util.hashfile(filepath.realpath.to_s)
     print "#{outhash}\n"
     puts Mood.happy("Extracting metadata from #{filepath}")
-    DataMapper.repository(:output) do
-      GenerateVideoInfo::Videoinfo.storage_names[:output] = 'videoinfo'
-      GenerateVideoInfo::Videojson.storage_names[:output] = 'videojson'
-      begin
-        GenerateVideoInfo::Videoinfo.auto_upgrade!
-        GenerateVideoInfo::Videojson.auto_upgrade!
-      rescue DataObjects::SyntaxError
-        GenerateVideoInfo::Videoinfo.auto_migrate!
-        GenerateVideoInfo::Videojson.auto_migrate!
+    if Args.outputdb
+      DataMapper.repository(:output) do
+        GenerateVideoInfo::Videoinfo.storage_names[:output] = 'videoinfo'
+        GenerateVideoInfo::Videojson.storage_names[:output] = 'videojson'
+        begin
+          GenerateVideoInfo::Videoinfo.auto_upgrade!
+          GenerateVideoInfo::Videojson.auto_upgrade!
+        rescue DataObjects::SyntaxError
+          GenerateVideoInfo::Videoinfo.auto_migrate!
+          GenerateVideoInfo::Videojson.auto_migrate!
+        end
       end
     end
-    jsondata = gvi.json(filename, options.debug) unless options.outputdb
-    jsondata = DataMapper.repository(:output) { gvi.json(filename, options.debug, :output) } if options.outputdb
-    GenerateVideoInfo.genhash(filename, jsondata, outhash) do |h|
+    jsondata = Gvi.json(@filename, Args.debug) unless Args.outputdb
+    jsondata = DataMapper.repository(:output) { Gvi.json(@filename, Args.debug, :output) } if Args.outputdb
+    GenerateVideoInfo.genhash(@filename, jsondata, outhash) do |h|
       begin
-        puts Mood.happy("Writing metadata for #{File.basename(filename)}")
-        if !options.outputdb
+        puts Mood.happy("Writing metadata for #{File.basename(@filename)}")
+        if !Args.outputdb
           insert.attributes = h
           insert.save
         else
@@ -123,77 +133,92 @@ flat = Class.new do
           end
         end
       rescue DataMapper::SaveFailureError
-        insert.errors.each { |e| puts e } if options.verbose
+        insert.errors.each { |e| puts e } if Args.verbose
       end
     end
   end
 
-  define_method :ffmpegconcat do
-    filelist = Tempfile.new('mkv', mode: 'a+')
-    options.files.each do |file|
-      query = GenerateVideoInfo::Videoinfo.all(filename: file, fields: [:duration_raw])
-      dur = query[0][:duration_raw]
+=begin
+  def self.ffmpegconcat
+    filelistname = File.join(Dir.pwd, 'mkvfilelist')
+    FileUtils.touch(filelistname)
+    filelist = File.open(filelistname, 'a+')
+    filelist.write('ffconcat version 1.0')
+    Args.files.each do |file|
+      filepath = Pathname.new(file)
+      relpath = filepath.relative_path_from(Pathname.pwd).to_s if filepath.realpath.parent != Pathname.pwd
+      relpath = './' + filepath.basename.to_s
+      query = GenerateVideoInfo::Videoinfo.all(filename: File.basename(file))
+      dur = query[0][:duration_raw] unless query.nil?
       dur = nil if dur.respond_to?(:empty?) && dur.empty?
       # dur = db.select('select duration_raw from videoinfo where filename = ?', file)[0] if db
-      filelist.write("file '#{file}'\n")
+      filelist.write("file '#{relpath}'\n")
       filelist.write("duration #{dur}\n") if dur
     end
-    cmd = [ffmpeg, '-f', 'concat', '-safe', '0', '-i', filelist.path, '-c', 'copy', '-hide_banner', '-y', options.output.to_s]
-    Util::Program.runprogram(cmd) unless options.debug
-    Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', options.output.to_s]) unless options.debug
-    genvi(options.output.to_s) if options.gvi
-    puts filelist.read if options.debug
+    cmd = [FFMPEG, '-f', 'concat', '-safe', '0', '-i', filelistname, '-c', 'copy', '-hide_banner', '-y', Args.output.to_s]
+    begin
+      Util::Program.runprogram(cmd) unless Args.debug
+      Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', Args.output.to_s]) unless Args.debug
+      genvi(Args.output.to_s) if Args.gvi
+    ensure
+      puts filelist.read if Args.debug || Args.verbose
+      filelist.close
+      # FileUtils.rm(filelistname)
+    end
   end
+=end
 
-  define_method :mkvmergeconcat do
-    basecommand = [mkvmerge, '-o', options.output.to_s]
-    filelist = options.files.join(' + ')
+  def self.mkvmergeconcat
+    basecommand = [MkvMerge, '-o', Args.output.to_s]
+    filelist = Args.files.join(' + ')
     filelist = filelist.split
-    command = basecommand + config['mkvmerge'] + filelist
+    command = basecommand + Config['mkvmerge'] + filelist
     command.flatten!
     command.compact!
-    Util::Program.runprogram(command) unless options.debug
-    genvi(options.output.to_s) if options.gvi
+    Util::Program.runprogram(command) unless Args.debug
+    genvi(Args.output.to_s) if Args.gvi
   end
 
-  define_method :backup do |filename|
-    if !options.backup.nil? && options.backup.directory?
-      puts Mood.happy("Moving #{filename} to #{options.backup}")
-      FileUtils.mv(filename, options.backup.to_s) unless options.debug
-      unless vi.nil? || options.debug
-        vientry = GenerateVideoInfo::Videoinfo.all(filename: filename)
+  def backup
+    if !Args.backup.nil? && Args.backup.directory?
+      puts Mood.happy("Moving #{@filename} to #{Args.backup}")
+      FileUtils.mv(@filename, Args.backup.to_s) unless Args.debug
+      unless Vi.nil? || Args.debug
+        vientry = GenerateVideoInfo::Videoinfo.all(filename: @filename)
         vientry.destroy
       end
     end
   end
 end
 
-options.output.mkpath unless options.output.exist? || options.combine
+Args.output.mkpath unless Args.output.exist? || Args.combine
 
-if options.combine
-  raise 'Output specified is not a file' if options.output.exist? && !options.output.file?
-  flat.new.mkvmergeconcat unless options.ffmpeg && options.debug == false
-  flat.new.ffmpegconcat if options.ffmpeg == true && options.debug == false
-  options.files.each do |file|
-    flat.new.backup(file)
+if Args.combine
+  raise 'Output specified is not a file' if Args.output.exist? && !Args.output.file?
+  Convenience.mkvmergeconcat unless Args.ffmpeg && Args.debug == false
+  # Convenience.ffmpegconcat if Args.ffmpeg == true && Args.debug == false
+  Args.files.each do |file|
+    convenience = Convenience.new(file)
+    convenience.backup
   end
 else
-  raise 'Output specified is not a directory' unless options.output.directory?
-  options.files.each do |file|
+  raise 'Output specified is not a directory' unless Args.output.directory?
+  Args.files.each do |file|
+    convenience = Convenience.new(file)
     filepath = Pathname.new(file)
-    fileoutpath = options.output.join(filepath.sub_ext('.mkv').basename.to_s)
+    fileoutpath = Args.output.join(filepath.sub_ext('.mkv').basename.to_s)
     puts Mood.happy("Muxing #{file} to a matroska file.")
-    if options.ffmpeg
-      longcmd = [ffmpeg, '-i', filepath.realpath.to_s, '-c', 'copy', '-f', 'matroska', '-hide_banner', '-y', fileoutpath.to_s]
-      Util::Program.runprogram(longcmd) unless options.debug
-      Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', fileoutpath.to_s]) unless options.debug
+    if Args.ffmpeg
+      longcmd = [FFMPEG, '-i', filepath.realpath.to_s, '-c', 'copy', '-f', 'matroska', '-hide_banner', '-y', fileoutpath.to_s]
+      Util::Program.runprogram(longcmd) unless Args.debug
+      Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', fileoutpath.to_s]) unless Args.debug
     else
-      command = [mkvmerge, config['mkvmerge'], '-o', fileoutpath.to_s, '=', file]
+      command = [MkvMerge, Config['mkvmerge'], '-o', fileoutpath.to_s, '=', file]
       command.flatten!
       command.compact!
-      Util::Program.runprogram(command) unless options.debug
+      Util::Program.runprogram(command) unless Args.debug
     end
-    flat.new.genvi(fileoutpath.to_s) if options.gvi && fileoutpath.exist?
-    flat.new.backup(file) if options.backup
+    convenience.genvi if Args.gvi && fileoutpath.exist?
+    convenience.backup if Args.backup
   end
 end
