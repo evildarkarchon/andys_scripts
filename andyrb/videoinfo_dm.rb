@@ -78,9 +78,10 @@ module GenerateVideoInfo
       else
         puts Mood.happy("Extracting metadata from #{filepath.basename}")
         out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
+        cache = JSON.parse(out)
         begin
           puts Mood.happy("Caching JSON for #{filepath.basename}")
-          insert.attributes = { filename: filepath.basename, jsondata: out }
+          insert.attributes = { filename: filepath.basename, jsondata: JSON.generate(cache) }
           # print @vi.attributes
           insert.save
           # print "\n"
@@ -94,14 +95,11 @@ module GenerateVideoInfo
     end
   end
   def self.genhash(filename, inputjson, filehash)
-    # print "#{inputjson.inspect}\n"
     jsondata = JSON.parse(inputjson) if inputjson.is_a? String
     jsondata = JSON.parse(inputjson[0][:jsondata]) if inputjson.is_a? DataMapper::Collection
     filepath = Pathname.new(filename)
     calc = Dentaku::Calculator.new
     outhash = {}
-    # print "#{filehash}\n"
-
     outhash[:filename] = filepath.basename.to_s
     outhash[:filehash] = filehash[filepath.realpath.to_s]
     outhash[:container] = jsondata['format']['format_name']
@@ -116,46 +114,25 @@ module GenerateVideoInfo
       when jsondata['format']['bit_rate'].to_i < 1000
         jsondata['format']['bit_rate'].to_s + 'b/s'
       end # rubocop:disable Lint/EndAlignment
-    outhash[:bitrate_0] = case
-    when jsondata['streams'][0]['bit_rate'].to_i >= 1_000_00
-      Filesize.from(jsondata['streams'][0]['bit_rate'].to_s + 'b').to('Mb').round(2).to_s + 'Mb/s'
-    when jsondata['streams'][0]['tags']['BPS'].to_i >= 1_000_000
-      Filesize.from(jsondata['streams'][0]['tags']['BPS'].to_s + 'b').to('Mb').round(2).to_s + 'Mb/s'
-    when jsondata['streams'][0]['bit_rate'].to_i.between?(1000, 999_999)
-      Filesize.from(jsondata['streams'][0]['bit_rate'].to_s + 'b').to('Kb').round.to_s + 'Kb/s'
-    when jsondata['streams'][0]['bit_rate'].to_i < 1000
-      jsondata['streams'][0]['bit_rate'].to_s + 'b/s'
-    when jsondata['streams'][0]['tags']['BPS'].to_i.between?(1000, 999_999)
-      Filesize.from(jsondata['streams'][0]['tags']['BPS'].to_s + 'b').to('Kb').to_s + 'Kb/s'
-    when jsondata['streams'][0]['tags']['BPS'].to_i < 1000
-      jsondata['format']['bit_rate'].to_s + 'b/s'
-    end # rubocop:disable Lint/EndAlignment
 
     outhash[:bitrate_0_raw] = case
       when jsondata['streams'][0].key?('bit_rate')
         jsondata['streams'][0]['bit_rate']
       when jsondata['streams'][0]['tags'].key?('BPS')
         jsondata['streams'][0]['tags']['BPS']
+      end # rubocop:disable Lint/EndAlignment
+
+    outhash[:bitrate_0] = case
+    when outhash[:bitrate_0_raw].to_i >= 1_000_00
+      Filesize.from(outhash[:bitrate_0_raw].to_s + 'b').to('Mb').round(2).to_s + 'Mb/s'
+    when outhash[:bitrate_0_raw].to_i.between?(1000, 999_999)
+      Filesize.from(outhash[:bitrate_0_raw].to_s + 'b').to('Kb').round.to_s + 'Kb/s'
+    when outhash[:bitrate_0_raw].to_i < 1000
+      outhash[:bitrate_0_raw].to_s + 'b/s'
     end # rubocop:disable Lint/EndAlignment
 
     outhash[:type_0] = jsondata['streams'][0]['codec_type'] if jsondata['streams'][0].key?('codec_type')
     outhash[:codec_0] = jsondata['streams'][0]['codec_name'] if jsondata['streams'][0].key?('codec_name')
-
-    outhash[:bitrate_1] = case
-    when jsondata['streams'].length >= 2 && jsondata['streams'][1]['bit_rate'].to_i >= 1_000_000
-      Filesize.from(jsondata['streams'][1]['bit_rate'].to_s + 'b').to('Mb').round(2).to_s + 'Mb/s'
-    when jsondata['streams'].length >= 2 && jsondata['streams'][1]['bit_rate'].to_i.between?(1000, 999_999)
-      Filesize.from(jsondata['streams'][1]['bit_rate'].to_s + 'b').to('Kb').round.to_s + 'Kb/s'
-    when jsondata['streams'].length >= 2 && jsondata['streams'][1]['bit_rate'].to_i < 1000
-      jsondata['streams'][1]['bit_rate'].to_s + 'b/s'
-    when jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags']['BPS'].to_i >= 1_000_000
-      Filesize.from(jsondata['streams'][1]['tags']['BPS'].to_s + 'b').to('Mb').round(2).to_s + 'Mb/s'
-
-    when jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags']['BPS'].to_i.between?(1000, 999_999)
-      Filesize.from(jsondata['streams'][1]['tags']['BPS'].to_s + 'b').to('Kb').round.to_s + 'Kb/s'
-    when jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('tags') && jsondata['streams'][1]['tags']['BPS'].to_i < 1000
-      jsondata['streams'][1]['tags']['BPS'].to_s + 'b/s'
-    end # rubocop:disable Lint/EndAlignment
 
     outhash[:bitrate_1_raw] = case
     when jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('bit_rate')
@@ -164,6 +141,14 @@ module GenerateVideoInfo
       jsondata['streams'][1]['tags']['BPS']
     end # rubocop:disable Lint/EndAlignment
 
+    outhash[:bitrate_1] = case
+    when jsondata['streams'].length >= 2 && outhash[:bitrate_1_raw].to_i >= 1_000_000
+      Filesize.from(outhash[:bitrate_1_raw].to_s + 'b').to('Mb').round(2).to_s + 'Mb/s'
+    when jsondata['streams'].length >= 2 && outhash[:bitrate_1_raw].to_i.between?(1000, 999_999)
+      Filesize.from(outhash[:bitrate_1_raw].to_s + 'b').to('Kb').round.to_s + 'Kb/s'
+    when jsondata['streams'].length >= 2 && outhash[:bitrate_1_raw].to_i < 1000
+      outhash[:bitrate_1_raw].to_s + 'b/s'
+    end # rubocop:disable Lint/EndAlignment
     outhash[:type_1] = jsondata['streams'][1]['codec_type'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('codec_type')
     outhash[:codec_1] = jsondata['streams'][1]['codec_name'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('codec_name')
 
