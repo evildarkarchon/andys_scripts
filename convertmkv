@@ -49,12 +49,12 @@ Args.outputdb = Args.db if Args.outputdb.nil? && Args.output.directory?
 Args.outputdb = Args.db if Args.outputdb.nil? && !Args.output.exist?
 Args.outputdb = Args.db if Args.outputdb && Args.outputdb == Args.output + '/' + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
 Args.outputdb = Args.output.join('videoinfo.sqlite') if Args.outputdb.nil? && !Args.output.directory?(Args.output) && !Args.combine
-puts Args.outputdb
+# puts Args.outputdb
 FileUtils.touch(Args.db.to_s) unless Args.db.file?
 FileUtils.touch(Args.outputdb.to_s) if Args.outputdb && !Args.outputdb.parent.directory? && !Args.outputdb.file?
 Args.files = Util::SortEntries.sort(ARGV) if Args.sort
 Args.files = ARGV unless Args.sort
-print "#{Args.files}\n"
+# print "#{Args.files}\n"
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
 FFMPEG = Util::FindApp.which('ffmpeg')
 MkvMerge = Util::FindApp.which('mkvmerge')
