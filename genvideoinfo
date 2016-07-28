@@ -161,5 +161,5 @@ filelist.each do |file|
       end
     end
   end
-  print "#{GenerateVideoInfo.genhash(file, jsondata, digests)}\n" if options.debug
+  print "#{GenerateVideoInfo.genhash(file, jsondata, digests)}\n" if options.debug || options.verbose
 end
