@@ -80,9 +80,8 @@ module Util
       than = timestamp.to_date if timestamp.is_a?(Time)
       than = Time.at(timestamp).to_date unless than.nil? || than.is_a?(Date)
       diff = now - than
-      return diff.to_i if diff.respond_to?(:to_i)
+      return diff.to_i if diff.respond_to?(:to_i) && !block_given?
       yield diff if block_given?
-      diff
     end
   end
 
