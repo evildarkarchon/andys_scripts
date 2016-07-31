@@ -37,11 +37,13 @@ directories = []
 if options.directory.respond_to?(:each)
   options.directory.each do |i|
     directories << GenerateVideoInfo.find(i, true)
+    directories.compact!
     directories.uniq!
     directories.flatten!
   end
 else
   directories << GenerateVideoInfo.find(options.directory, true)
+  directories.compact!
   directories.uniq!
   directories.flatten!
 end
@@ -70,6 +72,7 @@ if directories.respond_to?(:each) && directories.respond_to?(:length) && directo
       end
     end
     initlist.flatten!
+    initlist.compact!
     initlist.uniq!
     filelist = Util::SortEntries.sort(GenerateVideoInfo.genfilelist(initlist))
     filelist.each do |i|
@@ -97,6 +100,7 @@ else
     end
   end
   initlist.flatten!
+  initlist.compact!
   initlist.uniq!
   filelist = Util::SortEntries.sort(GenerateVideoInfo.genfilelist(initlist))
   filelist.each do |i|
