@@ -19,14 +19,20 @@ class Options
     options.outputdir = Pathname.getwd
     options.backup = Pathname.getwd.join('Original Files')
     options.nobackup = false
+    options.archive = nil
+    options.backuparchive = nil
+    options.removeoriginal = false
 
     optparse = OptionParser.new do |opts|
-      opts.on('--quality [n]', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
+      # opts.on('--quality n', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
       opts.on('--verbose', '-v', 'Make cwebp less chatty.') { options.verbose = true }
       opts.on('--force-lossy', 'Produce lossless images.') { options.lossy = true }
-      opts.on('--output-dir [dir]', '-o [dir]', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
-      opts.on('--backup-dir [dir]', '-b [dir]', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
+      opts.on('--output-dir DIRECTORY', '-o DIRECTORY', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
+      opts.on('--backup-dir DIRECTORY', '-b DIRECTORY', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
       opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
+      opts.on('--archive FILENAME', 'Put the resulting images into a 7z archive.') { |archive| options.archive = archive }
+      opts.on('--backup-archive FILENAME', 'Put the original images into a 7z archive.') { |archive| options.backuparchive = archive }
+      opts.on('--remove-original', 'When making archives, toggles weather to remove the original file (default off)') { options.removeoriginal = true }
     end
     optparse.parse!(args)
     options
@@ -35,7 +41,7 @@ end
 
 Args = Options.parse(ARGV)
 Args.files = ARGV
-
+SevenZ = Util::FindApp.which('7za')
 Convert = Util::FindApp.which('convert')
 raise 'convert not found.' if Convert.nil?
 Args.backup.mkpath unless Args.backup.directory? || Args.nobackup
@@ -63,13 +69,43 @@ end
 
 Args.files.each do |file|
   cmdline = Command.new(file)
+  archivepath = Pathname.new(Args.archive) if Args.archive
+  backuparchivepath = Pathname.new(Args.backuparchive) if Args.backuparchive
   if cmdline.outpath.exist?
     puts Mood.neutral("#{cmdline.outpath} already exists, skipping.")
     next
   end
   puts Mood.happy("Converting #{cmdline.filepath.basename} to #{cmdline.outpath}")
-  Util::Program.runprogram(cmdline.list)
+  begin
+    Util::Program.runprogram(cmdline.list)
+  rescue Subprocess::NonZeroExit
+    puts Mood.sad("#{file} was not able to be converted, skipping.")
+    next
+  end
+  if Args.archive
+    puts Mood.happy("Adding #{cmdline.outpath} to #{archivepath}")
+    begin
+      Util::Program.runprogram([SevenZ, 'a', Args.archive, cmdline.outpath.to_s])
+    rescue Subprocess::NonZeroExit => e
+      raise e
+    else
+      puts Mood.happy("Removing #{cmdline.outpath}") if Args.removeoriginal
+      FileUtils.rm(cmdline.outpath.to_s) if Args.removeoriginal
+    end
+  end
+  if Args.backuparchive
+    puts Mood.happy("Adding #{cmdline.filepath} to #{backuparchivepath}")
+    begin
+      Util::Program.runprogram([SevenZ, 'a', Args.backuparchive, cmdline.filepath.to_s])
+    rescue Subprocess::NonZeroExit => e
+      raise e
+    else
+      puts Mood.happy("Removing #{cmdline.filepath}") if Args.removeoriginal
+      FileUtils.rm(cmdline.filepath.to_s) if Args.removeoriginal
+    end
+  end
   next if Args.nobackup
+  next if Args.backuparchive && !Args.removeoriginal
   puts Mood.happy("Moving #{cmdline.filepath.basename} to #{Args.backup}")
   FileUtils.mv(file, Args.backup.to_s)
 end
