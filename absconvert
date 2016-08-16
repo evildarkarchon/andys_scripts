@@ -102,10 +102,10 @@ DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
 # vi = GenerateVideoInfo::Videoinfo.new
 
-mkvpropedit = Util::FindApp.which('mkvpropedit')
-ffmpeg = Util::FindApp.which('ffmpeg')
+MkvPropEdit = Util::FindApp.which('mkvpropedit')
+FFmpeg = Util::FindApp.which('ffmpeg')
 
-raise 'ffmpeg not found.' if ffmpeg.nil?
+raise 'ffmpeg not found.' if FFmpeg.nil?
 
 configfile = nil
 configfile = File.open Args.config if File.exist? Args.config
@@ -265,7 +265,7 @@ class Command
       '.mkv'
     end # rubocop:disable Lint/EndAlignment
     # print "#{passmax}\n"
-    @list = ['ffmpeg', '-i', filename]
+    @list = [FFmpeg, '-i', filename]
     @list << vcodec
     @list << ['-pass', passnum.to_s] if passmax == 2
     @list << vbitrate if vbitrate
@@ -319,7 +319,7 @@ Args.files.each do |file|
     outpath.delete if outpath.exist?
     raise e
   else
-    Util::Program.runprogram([mkvpropedit, '--add-track-statistics-tags', outpath.to_s]) if Args.stats
+    Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', outpath.to_s]) if Args.stats
     unless Args.converttest || Args.debug
       del = GenerateVideoInfo::Videoinfo.all(filename: filepath.basename.to_s)
       deljson = GenerateVideoInfo::Videojson.all(filename: filepath.basename.to_s)
