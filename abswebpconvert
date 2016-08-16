@@ -15,7 +15,7 @@ class Options
     options = OpenStruct.new
     options.quality = '80'
     options.verbose = false
-    options.lossy = false
+    options.lossy = true
     options.lossless = false
     options.preset = 'default'
     options.outputdir = Pathname.getwd
@@ -57,12 +57,6 @@ class Command
     ext = @filepath.extname.downcase
     magic = FileMagic.new(:mime_type)
     @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s
-    lossless = ['.png', '.gif', '.tiff', '.tga', '.pcx', '.3fr', '.ari', '.arw', '.srf', '.sr2', '.bay', '.crw', '.cr2', '.cap']
-    lossless << ['.iiq', '.eip', '.dcs', '.dcr', '.drf', '.k25', '.kdc', '.dng', '.erf', '.fff', '.mef', '.mdc', '.mos', '.mrw']
-    lossless << ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
-    lossless << '.psd'
-    lossless.flatten!
-    lossless.compact!
     lossless_mime = ['image/png', 'image/gif', 'image/tiff', 'image/x-pcx', 'application/tga', 'application/x-tga']
     lossless_mime << ['application/x-targa', 'image/tga', 'image/x-tga', 'image/targa', 'image/x-targa']
     lossless_mime << 'image/vnd.adobe.photoshop'
@@ -73,9 +67,16 @@ class Command
     raw << ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
     raw.flatten!
     raw.compact!
+    lossless = ['-define', 'webp:lossless=true']
+    lossymode = false if lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)
+    losslessmode = true if lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)
+    lossymode = true if Args.lossy
+    losslessmode = false if Args.lossy && !Args.lossless
+    losslessmode = true if Args.lossless && !Args.lossy
+    # puts Args.lossy
+    # puts Args.lossless
     @list = [Convert, @filepath.to_s]
-    @list << ['-define', 'webp:lossless=true'] if lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext) && !Args.lossy
-    @list << ['-define', 'webp:lossless=true'] if !lossless_mime.include?(magic.file(@filepath.to_s)) || !raw.include?(ext) && Args.lossless
+    @list << lossless if losslessmode
     @list << ['-verbose'] if Args.verbose
     @list << @outpath.to_s
     @list.flatten!
