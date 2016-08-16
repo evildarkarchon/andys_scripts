@@ -14,7 +14,6 @@ module Util
     if filelist.respond_to?(:each)
       filelist.each do |file|
         filedata = File.read(file)
-        # hmac = OpenSSL::HMAC.new(filedata, OpenSSL::Digest::SHA256.new)
         sha256 = Digest::SHA256.new
         puts Mood.happy { "Calculating hash for #{file}" }
         sha256 << filedata
@@ -26,13 +25,12 @@ module Util
       puts Mood.happy { "Calculating hash for #{filelist}" }
       sha256 << filedata
       hashes[filelist] = sha256.hexdigest
-      # puts hashes
     end
     yield hashes if block_given?
     hashes
   end
 
-  def self.block(*args, **kwargs)
+  def self.block(*args, **kwargs) # Convenience method to quickly make code blocks.
     yield args unless !defined?(args) || args.nil? || args.empty?
     yield kwargs unless !defined?(kwargs) || kwargs.nil? || kwargs.empty?
     yield if kwargs.empty? && args.empty?
@@ -54,9 +52,6 @@ module Util
   end
 
   class FindApp
-    # Cross-platform way of finding an executable in the $PATH.
-    #
-    #   which('ruby') #=> /usr/bin/ruby
     def self.which(cmd)
       exe = nil
       exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
