@@ -97,6 +97,7 @@ Args.files.each do |file|
     Util::Program.runprogram(cmdline.list)
   rescue Subprocess::NonZeroExit
     puts Mood.sad("#{file} was not able to be converted, skipping.")
+    FileUtils.rm(cmdline.outpath.to_s) if cmdline.outpath.exist?
     next
   end
   if Args.archive
