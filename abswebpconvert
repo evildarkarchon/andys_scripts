@@ -15,7 +15,7 @@ class Options
     options = OpenStruct.new
     options.quality = '80'
     options.verbose = false
-    options.lossy = true
+    options.lossy = false
     options.lossless = false
     options.preset = 'default'
     options.outputdir = Pathname.getwd
@@ -27,9 +27,9 @@ class Options
 
     optparse = OptionParser.new do |opts|
       # opts.on('--quality n', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
-      opts.on('--verbose', '-v', 'Make cwebp less chatty.') { options.verbose = true }
-      opts.on('--force-lossy', 'Produce lossy images.') { options.lossy = true }
-      opts.on('--force-lossless', 'Produce lossless images.') { options.lossless = true }
+      opts.on('--verbose', '-v', 'Make convert more chatty.') { options.verbose = true }
+      opts.on('--lossy', 'Produce lossy images.') { options.lossy = true }
+      opts.on('--lossless', 'Produce lossless images.') { options.lossless = true }
       opts.on('--output-dir DIRECTORY', '-o DIRECTORY', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
       opts.on('--backup-dir DIRECTORY', '-b DIRECTORY', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
       opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
@@ -44,11 +44,15 @@ end
 
 Args = Options.parse(ARGV)
 Args.files = ARGV
+# Args.lossy = true if !Args.lossy && !Args.lossless
 raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
 SevenZ = Util::FindApp.which('7za')
 Convert = Util::FindApp.which('convert')
 raise 'convert not found.' if Convert.nil?
-Args.backup.mkpath unless Args.backup.directory? || Args.nobackup
+Args.backup.mkpath unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
+Args.outputdir.mkpath unless Args.outputdir.directory? && !Args.outputdir.file?
+raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory? && !Args.outputdir.file?
+raise "#{Args.backup} is not a directory." unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
 Args.backup = Args.backup.realpath unless Args.nobackup
 class Command
   attr_reader :list, :outpath, :filepath
@@ -68,13 +72,22 @@ class Command
     raw.flatten!
     raw.compact!
     lossless = ['-define', 'webp:lossless=true']
-    lossymode = false if lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)
-    losslessmode = true if lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)
-    lossymode = true if Args.lossy
-    losslessmode = false if Args.lossy && !Args.lossless
-    losslessmode = true if Args.lossless && !Args.lossy
-    # puts Args.lossy
-    # puts Args.lossless
+    lossymode = Args.lossy
+    losslessmode = Args.lossless
+
+    if (lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)) && !lossymode
+      lossymode = false
+      losslessmode = true
+      Args.lossy = false
+    end
+
+    losslessmode = false if lossymode
+
+    losslessmode = true if Args.lossless
+    lossymode = false if losslessmode
+    lossymode = true unless losslessmode
+    # puts lossymode
+    # puts losslessmode
     @list = [Convert, @filepath.to_s]
     @list << lossless if losslessmode
     @list << ['-verbose'] if Args.verbose
