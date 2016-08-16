@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+require 'ostruct'
+require 'optparse'
+require 'shellwords'
+require 'subprocess'
+require 'pathname'
+require 'fileutils'
+
+require_relative 'andyrb/mood'
+require_relative 'andyrb/util'
+
+class Options
+  def self.parse(args)
+    options = OpenStruct.new
+    options.quality = '80'
+    options.verbose = false
+    options.lossy = false
+    options.preset = 'default'
+    options.outputdir = Pathname.getwd
+    options.backup = Pathname.getwd.join('Original Files')
+    options.nobackup = false
+
+    optparse = OptionParser.new do |opts|
+      opts.on('--quality [n]', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
+      opts.on('--verbose', '-v', 'Make cwebp less chatty.') { options.verbose = true }
+      opts.on('--force-lossy', 'Produce lossless images.') { options.lossy = true }
+      opts.on('--output-dir [dir]', '-o [dir]', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
+      opts.on('--backup-dir [dir]', '-b [dir]', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
+      opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
+    end
+    optparse.parse!(args)
+    options
+  end
+end
+
+Args = Options.parse(ARGV)
+Args.files = ARGV
+
+Convert = Util::FindApp.which('convert')
+raise 'convert not found.' if Convert.nil?
+Args.backup.mkpath unless Args.backup.directory? || Args.nobackup
+Args.backup = Args.backup.realpath unless Args.nobackup
+class Command
+  attr_reader :list, :outpath, :filepath
+  def initialize(filename)
+    @filepath = Pathname.new(filename).realpath
+    ext = @filepath.extname.downcase
+    @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s
+    lossless = ['.png', '.gif', '.tiff', '.tga', '.pcx', '.3fr', '.ari', '.arw', '.srf', '.sr2', '.bay', '.crw', '.cr2', '.cap']
+    lossless << ['.iiq', '.eip', '.dcs', '.dcr', '.drf', '.k25', '.kdc', '.dng', '.erf', '.fff', '.mef', '.mdc', '.mos', '.mrw']
+    lossless << ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
+    lossless << '.psd'
+    lossless.flatten!
+    lossless.compact!
+    @list = [Convert, @filepath.to_s]
+    @list << ['-define', 'webp:lossless=true'] if lossless.include?(ext) && !Args.lossy
+    @list << ['-verbose'] if Args.verbose
+    @list << @outpath.to_s
+    @list.flatten!
+    @list.compact!
+  end
+end
+
+Args.files.each do |file|
+  cmdline = Command.new(file)
+  if cmdline.outpath.exist?
+    puts Mood.neutral("#{cmdline.outpath} already exists, skipping.")
+    next
+  end
+  puts Mood.happy("Converting #{cmdline.filepath.basename} to #{cmdline.outpath}")
+  Util::Program.runprogram(cmdline.list)
+  next if Args.nobackup
+  puts Mood.happy("Moving #{cmdline.filepath.basename} to #{Args.backup}")
+  FileUtils.mv(file, Args.backup.to_s)
+end
