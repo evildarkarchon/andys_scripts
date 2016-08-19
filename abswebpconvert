@@ -19,11 +19,13 @@ class Options
     options.lossless = false
     options.preset = 'default'
     options.outputdir = Pathname.getwd
-    options.backup = Pathname.getwd.join('Original Files')
+    # options.backup = Pathname.getwd.join('Original Files')
+    options.backup = nil
     options.nobackup = false
     options.archive = nil
-    options.backuparchive = nil
-    options.removeoriginal = false
+    options.backuparchive = Pathname.getwd.join("Original Files/#{Pathname.getwd.basename}.7z").to_s
+    options.removeoriginal = true
+    options.force = false
 
     optparse = OptionParser.new do |opts|
       opts.on('--quality n', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
@@ -35,7 +37,8 @@ class Options
       opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
       opts.on('--archive FILENAME', 'Put the resulting images into a 7z archive.') { |archive| options.archive = archive }
       opts.on('--backup-archive FILENAME', 'Put the original images into a 7z archive.') { |archive| options.backuparchive = archive }
-      opts.on('--remove-original', 'When making archives, toggles weather to remove the original file (default off)') { options.removeoriginal = true }
+      opts.on('--no-remove-original', 'Disables removing the original file when making archives') { options.removeoriginal = false }
+      opts.on('--force', '-f', 'Remove any files with the same name as the resulting file.') { options.force = true }
     end
     optparse.parse!(args)
     options
@@ -44,16 +47,23 @@ end
 
 Args = Options.parse(ARGV)
 Args.files = ARGV
+Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 # Args.lossy = true if !Args.lossy && !Args.lossless
 raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
 SevenZ = Util::FindApp.which('7za')
 Convert = Util::FindApp.which('convert')
 raise 'convert not found.' if Convert.nil?
-Args.backup.mkpath unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
+if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
+  Args.backup.mkpath unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
+end
 Args.outputdir.mkpath unless Args.outputdir.directory? && !Args.outputdir.file?
 raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory? && !Args.outputdir.file?
-raise "#{Args.backup} is not a directory." unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
-Args.backup = Args.backup.realpath unless Args.nobackup
+if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
+  raise "#{Args.backup} is not a directory." unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
+end
+if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
+  Args.backup = Args.backup.realpath unless Args.nobackup
+end
 class Command
   attr_reader :list, :outpath, :filepath
   def initialize(filename)
@@ -91,6 +101,7 @@ class Command
     @list = [Convert, @filepath.to_s]
     @list << ['-quality', Args.quality] if defined?(Args.quality) && Args.quality
     @list << lossless if losslessmode
+    @list << ['-define', 'webp:thread-level=1']
     @list << ['-verbose'] if Args.verbose
     @list << @outpath.to_s
     @list.flatten!
@@ -101,10 +112,17 @@ end
 Args.files.each do |file|
   cmdline = Command.new(file)
   archivepath = Pathname.new(Args.archive) if Args.archive
+  puts Mood.happy("Creating directory #{archivepath.parent}") if Args.archive && !archivepath.parent.mkpath.directory?
+  archivepath.parent.mkpath if Args.archive && !archivepath.parent.mkpath.directory?
   backuparchivepath = Pathname.new(Args.backuparchive) if Args.backuparchive
-  if cmdline.outpath.exist?
+  puts Mood.happy("Creating directory #{backuparchivepath.parent}") if Args.backuparchive && !backuparchivepath.parent.directory?
+  backuparchivepath.parent.mkpath if Args.backuparchive && !backuparchivepath.parent.directory?
+  if cmdline.outpath.exist? && !Args.force
     puts Mood.neutral("#{cmdline.outpath} already exists, skipping.")
     next
+  elsif cmdline.outpath.exist? && Args.force
+    puts Mood.neutral("Force mode active, deleting #{cmdline.outpath}")
+    Fileutils.rm(cmdline.outpath.to_s)
   end
   puts Mood.happy("Converting #{cmdline.filepath.basename} to #{cmdline.outpath}")
   begin
@@ -114,6 +132,9 @@ Args.files.each do |file|
     FileUtils.rm(cmdline.outpath.to_s) if cmdline.outpath.exist?
     puts e.message
     next
+  rescue Interrupt => e
+    FileUtils.rm(cmdline.outpath.to_s) if cmdline.outpath.exist?
+    exit 1
   end
   if Args.archive
     puts Mood.happy("Adding #{cmdline.outpath} to #{archivepath}")
@@ -141,6 +162,7 @@ Args.files.each do |file|
   end
   next if Args.nobackup
   next if Args.backuparchive && !Args.removeoriginal
+  next unless Args.backup.respond_to?(:exist?)
   puts Mood.happy("Moving #{cmdline.filepath.basename} to #{Args.backup}")
   FileUtils.mv(file, Args.backup.to_s)
 end
