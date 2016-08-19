@@ -36,7 +36,10 @@ class Options
       opts.on('--backup-dir DIRECTORY', '-b DIRECTORY', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
       opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
       opts.on('--archive FILENAME', 'Put the resulting images into a 7z archive.') { |archive| options.archive = archive }
-      opts.on('--backup-archive FILENAME', 'Put the original images into a 7z archive.') { |archive| options.backuparchive = archive }
+      opts.on('--backup-archive FILENAME', 'Put the original images into a 7z archive.') do |archive|
+        options.backuparchive = archive unless archive == 'none'
+        options.backuparchive = nil if archive == 'none'
+      end
       opts.on('--no-remove-original', 'Disables removing the original file when making archives') { options.removeoriginal = false }
       opts.on('--force', '-f', 'Remove any files with the same name as the resulting file.') { options.force = true }
     end
