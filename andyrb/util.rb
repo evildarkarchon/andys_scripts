@@ -125,7 +125,7 @@ module Util
         Subprocess.check_call(cmdline) unless parse_output
         output = Subprocess.check_output(cmdline) if parse_output
       rescue Interrupt
-        exit
+        exit 1
       else
         yield output if block_given? && output
         output if output
