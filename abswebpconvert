@@ -26,6 +26,7 @@ class Options
     options.backuparchive = Pathname.getwd.join("Original Files/#{Pathname.getwd.basename}.7z").to_s
     options.removeoriginal = true
     options.force = false
+    options.sort = true
 
     optparse = OptionParser.new do |opts|
       opts.on('--quality n', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
@@ -42,6 +43,7 @@ class Options
       end
       opts.on('--no-remove-original', 'Disables removing the original file when making archives') { options.removeoriginal = false }
       opts.on('--force', '-f', 'Remove any files with the same name as the resulting file.') { options.force = true }
+      opts.on('--no-sort', "Don't sort the argument list.") { options.sort = false }
     end
     optparse.parse!(args)
     options
@@ -49,7 +51,10 @@ class Options
 end
 
 Args = Options.parse(ARGV)
-Args.files = ARGV
+ARGV.compact! if ARGV.respond_to?(:compact!)
+Args.files = ARGV unless Args.sort
+Args.files = Util::SortEntries.sort(ARGV) if Args.sort
+
 Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 # Args.lossy = true if !Args.lossy && !Args.lossless
 raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
