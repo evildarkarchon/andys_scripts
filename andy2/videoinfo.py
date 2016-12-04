@@ -112,14 +112,16 @@ class VideoData:
         self.session = sessionbase()  # pylint: disable=c0103
 
     def parse(self, videofile, probe=None):
+        cache = None
         try:
             cache = self.session.query(VideoJSON).filter(VideoJSON.filename == videofile).one()
-            print(cache.json)
+            print("{} Information found in the cache.".format(Mood.happy()))
+            # print(cache.json)
         except sqlalchemy.orm.exc.NoResultFound:
             # if self.verbose:
             #    print("{} No entry in the cache.".format(Mood.neutral()))
             print("{} No entry in the cache.".format(Mood.neutral()))
-            cache = None
+
         if isinstance(cache, VideoJSON):
             return cache.json
         else:
