@@ -50,10 +50,12 @@ class Options
   end
 end
 
-Args = Options.parse(ARGV)
 ARGV.compact! if ARGV.respond_to?(:compact!)
+Args = Options.parse(ARGV)
+
 Args.files = ARGV unless Args.sort
 Args.files = Util::SortEntries.sort(ARGV) if Args.sort
+Args.files.delete_if { |e| e.include? '*.' }
 
 Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 # Args.lossy = true if !Args.lossy && !Args.lossless
