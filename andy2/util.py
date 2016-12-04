@@ -77,44 +77,18 @@ class Mood:
 
 class Util:
 
-    """Compilation class that houses all the convenience functions that I've either made myself or
-    have copy/pasted from stackoverflow."""
-    """
     @staticmethod
-    def evaluatestring(equation):
-        # Returns the result of a simple 2 number equation (brought back, convert from comment to triple-quote)
+    def namedtuplefromdict(srcdict, name, params):
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(params, (list, tuple, str)):
+            raise TypeError("params must be a list, tuple, or string.")
+        if not isinstance(srcdict, dict):
+            raise TypeError("srcdict must be a dictionary.")
 
-        integer = Word(nums).setParseAction(lambda t:int(t[0]))
-        variable = Word(alphas,exact=1)
-        operand = integer | variable
+        nt = collections.namedtuple(name, params)
+        return nt(**srcdict)
 
-        expop = Literal('^') # pylint: disable=w0612
-        signop = oneOf('+ -')
-        multop = oneOf('* /')
-        plusop = oneOf('+ -')
-        factop = Literal('!') # pylint: disable=w0612
-
-        expr = operatorPrecedence( operand,
-            [("!", 1, opAssoc.LEFT),
-             ("^", 2, opAssoc.RIGHT),
-             (signop, 1, opAssoc.RIGHT),
-             (multop, 2, opAssoc.LEFT),
-             (plusop, 2, opAssoc.LEFT),]
-            )
-        parsed = expr.parseString(equation)[0]
-        if isinstance(parsed, (str, int, float)):
-            return parsed
-        elif len(parsed) == 1:
-            return parsed[0]
-        elif parsed[1] == "/":
-            return parsed[0]/parsed[2]
-        elif parsed[1] == "*":
-            return parsed[0]*parsed[2]
-        elif parsed[1] == "+":
-            return parsed[0]+parsed[2]
-        elif parsed[1] == "-":
-            return parsed[0]-parsed[2]
-    """
     @staticmethod
     def genjson(dictionary, filename=None, printdata=False, indentjson=True):
         """Convenience function to take a dictionary, convert it to json, and either write it to a file or print it out.
