@@ -18,7 +18,7 @@ pgdump = shutil.which("pg_dump", mode=os.X_OK)
 
 args = argparse.ArgumentParser()
 args.add_argument("--cron", "-c", action="store_true", help="Activate this program in cron mode.")
-options = (vars(args.parse_args()))
+options = vars(args.parse_args())
 
 if options["cron"]:
     logformat = '%(asctime)-15s %(message)s'
@@ -37,14 +37,16 @@ database = "feeds"
 filename = str(pathlib.Path("/data/ttrssbackup").joinpath("feeds-{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz")))
 
 try:
+    if options["cron"]:
+        log.info("Dumping Database.")
+    else:
+        print("{} Dumping Database.".format(Mood.happy()))
+
+    data = Program.returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
+    if len(data) and not len(data) > 0:
+        raise "No data from pg_dump."
+
     with open(filename, mode="wb") as db:
-        if options["cron"]:
-            log.info("Dumping Database.")
-        else:
-            print("{} Dumping Database.".format(Mood.happy()))
-
-        data = Program.returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
-
         if options["cron"]:
             log.info("Compressing Data.")
         else:
