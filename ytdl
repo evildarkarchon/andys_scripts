@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+import pathlib
+import argparse
+# import shutil
+from datetime import datetime
+# import os
+# import json
+from andy2.util import Mood, Program
+from andy2.videoinfo import VideoData
+
+args = argparse.ArgumentParser()
+args.add_argument("--subdirectory", "-d", help="Subdirectory to download videos to.")
+args.add_argument("urls", nargs="*", help="URLs of videos to download.")
+
+urls = vars(args.parse_args())
+
+now = datetime.now().strftime("%Y%m%d")  # pylint: disable=e1101
+
+directory = pathlib.Path("/data/Videos/Youtube/{}".format(now))
+
+if urls["subdirectory"]:
+    directory = pathlib.Path(str(directory.joinpath(urls["subdirectory"])))
+
+if not directory.exists():
+    print("{} Creating directory {}".format(Mood.happy(), directory))
+    directory.mkdir(parents=True, exist_ok=True)
+
+# os.chdir(str(directory))
+
+# for vid in urls["urls"]:
+#    Program.runprogram(['youtube-dl', '--download-archive', '/data/Videos/Youtube/downloaded.txt', vid], workdir=str(directory))
+Program.runprogram(['youtube-dl', '--download-archive', '/data/Videos/Youtube/downloaded.txt'] + urls["urls"], workdir=str(directory))
+
+files = list(directory.iterdir())
+
+for i in files:
+    path = str(i)
+    if '.mkv' in path:
+        meta = VideoData.probe(path, quiet=True)
+        if "BPS" not in meta["streams"][0]["tags"] and "BPS" not in meta["streams"][1]["tags"]:
+            print("{} Adding statistic tags to {}".format(Mood.happy(), path))
+            Program.runprogram(['mkvpropedit', '--add-track-statistics-tags', path])
+    else:
+        pass
