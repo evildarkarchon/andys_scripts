@@ -137,15 +137,11 @@ class Database
     @bitrates[:video] = nil
     @bitrates[:audio] = nil
 
-    unless Args.videobitrate
-      @bitrates[:video] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'video'
-      @bitrates[:video] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'video'
-    end
+    @bitrates[:video] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'video' && !Args.videobitrate
+    @bitrates[:video] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'video' && !Args.videobitrate
 
-    unless Args.audiobitrate
-      @bitrates[:audio] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'audio'
-      @bitrates[:audio] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'audio'
-    end
+    @bitrates[:audio] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'audio' && !Args.audiobitrate
+    @bitrates[:audio] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'audio' && !Args.audiobitrate
   end
 
   def framerate!
