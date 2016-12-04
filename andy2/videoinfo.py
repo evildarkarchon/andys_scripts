@@ -9,13 +9,13 @@ import time
 from contextlib import contextmanager
 
 from humanize.filesize import naturalsize
-from sqlalchemy import Column, Float, Integer, String, create_engine # ForeignKey would go here.
+from sqlalchemy import Column, Float, Integer, String, create_engine  # ForeignKey would go here.
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker # relationship would go here.
+from sqlalchemy.orm import sessionmaker  # relationship would go here.
 # from sqlalchemy.schema import Table
 import sqlalchemy.orm.exc
-from andy.string_eval import NumericStringParser
+from andy2.string_eval import NumericStringParser
 
 try:
     from util import Mood, Program, Util  # noqa: F401  # pylint: disable=W0611
@@ -28,6 +28,7 @@ try:
 except ImportError:
     pass
 
+
 @contextmanager
 def sqa_session(basesess):
     try:
@@ -38,6 +39,7 @@ def sqa_session(basesess):
         raise
     finally:
         basesess.close()
+
 
 SQLBase = declarative_base()  # pylint: disable=c0103
 
@@ -67,6 +69,7 @@ class VideoInfo(SQLBase):
     def __repr__(self):
         return "<VideoInfo(filename={}, duration={}, duration_raw={}, numstreams={}, container={}, width={}, height={}, frame_rate={}, bitrate_total={}, bitrate_0={}, bitrate_0_raw={}, type_0={}, codec_0={}, bitrate_1={}, bitrate_1_raw={}, type_1={}, codec_1={}, filehash={})>".format(self.filename, self.duration, self.duration_raw, self.numstreams, self.container, self.width, self.height, self.frame_rate, self.bitrate_total, self.bitrate_0, self.bitrate_0_raw, self.type_0, self.codec_0, self.bitrate_1, self.bitrate_1_raw, self.type_1, self.codec_1, self.filehash)
 
+
 class VideoJSON(SQLBase):
     __tablename__ = 'videojson'
     id = Column(Integer, primary_key=True)
@@ -75,6 +78,7 @@ class VideoJSON(SQLBase):
 
     def __repr__(self):
         return "<VideoJSON(filename={}, json={})>".format(self.filename, self.json)
+
 
 class VideoData:
     def __init__(self, db, verbose=False, regen=False, regenjson=False):
@@ -94,10 +98,10 @@ class VideoData:
             #        con.execute("DROP TABLE videojson")
             #    con.execute('VACUUM')
             print("{} Deleting existing videoinfo table.".format(Mood.happy()))
-            VideoInfo.__table__.drop(self.dataengine) # pylint: disable=e1101
+            VideoInfo.__table__.drop(self.dataengine)  # pylint: disable=e1101
             if regenjson:
                 print("{} Deleting existing videojson table.".format(Mood.happy()))
-                VideoJSON.__table__.drop(self.dataengine) # pylint: disable=e1101
+                VideoJSON.__table__.drop(self.dataengine)   # pylint: disable=e1101
         print("{} Creating database tables.".format(Mood.happy()))
         SQLBase.metadata.create_all(self.dataengine)
         if verbose:
@@ -112,7 +116,7 @@ class VideoData:
             cache = self.session.query(VideoJSON).filter(VideoJSON.filename == videofile).one()
             print(cache.json)
         except sqlalchemy.orm.exc.NoResultFound:
-            #if self.verbose:
+            # if self.verbose:
             #    print("{} No entry in the cache.".format(Mood.neutral()))
             print("{} No entry in the cache.".format(Mood.neutral()))
             cache = None
@@ -136,40 +140,63 @@ class VideoData:
             print("{} Extracting information from {}".format(Mood.happy(), videofile))
             return json.loads(Program.returninfo([ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True))
 
+    @staticmethod
+    def probe(videofile, prog=None, quiet=False):
+        """Alternate version of the parse method that does not use the database.
+
+        videofile is the file to probe.
+
+        prog is the program to use to do the probing. If none is specified, ffprobe shall be searched for and used."""
+
+        ffprobe = None
+        if prog:
+            ok = os.access(prog, mode=os.X_OK, effective_ids=True)  # pylint: disable=c0103
+            if ok:
+                ffprobe = prog
+                del prog
+                del ok
+            else:
+                raise FileNotFoundError("Specified ffprobe compatible command not found or not executable by current user.")
+        else:
+            ffprobe = shutil.which("ffprobe", mode=os.X_OK)
+
+        if not ffprobe:
+            raise FileNotFoundError("Could not find ffprobe.")
+        if not quiet:
+            print("{} Extracting information from {}".format(Mood.happy(), videofile))
+        return json.loads(Program.returninfo([ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True))
 
     @classmethod
     def cwd(cls, verbosemode=False, regen=False, regenjson=False):  # pylint: disable=W0221
         """Class method to simplify and prettify accessing a videoinfo database in the current directory with the name "videoinfo.sqlite".
 
         verbosemode takes a True or False and passes it along to the parent class."""
-        if not pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists(): # pylint: disable=e1101
-            pathlib.Path.cwd().joinpath("videoinfo.sqlite").touch() # pylint: disable=e1101
+        if not pathlib.Path.cwd().joinpath("videoinfo.sqlite").exists():  # pylint: disable=e1101
+            pathlib.Path.cwd().joinpath("videoinfo.sqlite").touch()  # pylint: disable=e1101
         return cls(str(pathlib.Path.cwd().joinpath("videoinfo.sqlite")), verbosemode, regen, regenjson)
 
     @staticmethod
-    def gendict(filename, jsondata, filehash, verbose=False):
+    def gendict(filename, jsondata, filehash):
         if not isinstance(jsondata, dict):
             jsondata = json.loads(jsondata)
 
-        out = {}
-
-        out["filename"] = pathlib.Path(filename).name
-        out["hash"] = filehash
-        out["container"] = jsondata["format"]["format_name"]
-        out["duration"] = time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"]["duration"]))))
-        out["duration_raw"] = jsondata["format"]["duration"]
-        out["numstreams"] = int(jsondata["format"]["nb_streams"])
-        out["codec_0"] = jsondata["streams"][0]["codec_name"]
-        out["type_0"] = jsondata["streams"][0]["codec_type"]
+        yield "filename", pathlib.Path(filename).name
+        yield "hash", filehash
+        yield "container", jsondata["format"]["format_name"]
+        yield "duration", time.strftime("%H:%M:%S", time.gmtime(int(float(jsondata["format"]["duration"]))))
+        yield "duration_raw", jsondata["format"]["duration"]
+        yield "numstreams", int(jsondata["format"]["nb_streams"])
+        yield "codec_0", jsondata["streams"][0]["codec_name"]
+        yield "type_0", jsondata["streams"][0]["codec_type"]
         if isinstance(jsondata["streams"][1], dict) and jsondata["streams"][1]["codec_name"]:
-            out["codec_1"] = jsondata["streams"][1]["codec_name"]
+            yield "codec_1", jsondata["streams"][1]["codec_name"]
         else:
-            out["codec_1"] = None
+            yield "codec_1", None
 
         if isinstance(jsondata["streams"][1], dict) and jsondata["streams"][1]["codec_type"]:
-            out["type_1"] = jsondata["streams"][1]["codec_type"]
+            yield "type_1", jsondata["streams"][1]["codec_type"]
         else:
-            out["type_1"] = None
+            yield "type_1", None
 
         def bitrate(stream):
             if not isinstance(stream, int):
@@ -184,9 +211,9 @@ class VideoData:
                         return None
             except (KeyError, IndexError):
                 return None
-        out["bitrate_0"] = bitrate(0)
-        out["bitrate_1"] = bitrate(1)
-        out["bitrate_total"] = naturalsize(jsondata["format"]["bit_rate"]).replace(" MB", "Mbps").replace(" kB", "Kbps")
+        yield "bitrate_0", bitrate(0)
+        yield "bitrate_1", bitrate(1)
+        yield "bitrate_total", naturalsize(jsondata["format"]["bit_rate"]).replace(" MB", "Mbps").replace(" kB", "Kbps")
 
         def bitrate_raw(stream):
             if not isinstance(stream, int):
@@ -203,8 +230,8 @@ class VideoData:
             except (KeyError, IndexError):
                 return None
 
-        out["bitrate_0_raw"] = bitrate_raw(0)
-        out["bitrate_1_raw"] = bitrate_raw(1)
+        yield "bitrate_0_raw", bitrate_raw(0)
+        yield "bitrate_1_raw", bitrate_raw(1)
 
         def height():
             try:
@@ -237,24 +264,19 @@ class VideoData:
                     return None
             except (KeyError, IndexError):
                 return None
-        out["height"] = height()
-        out["width"] = width()
-        out["frame_rate"] = frame_rate()
-        out["jsondata"] = json.dumps(jsondata)
-
-        if verbose:
-            print("{} Video Info Dictionary:\n{}".format(Mood.happy(), out))
-
-        return out
+        yield "height", height()
+        yield "width", width()
+        yield "frame_rate", frame_rate()
+        yield "jsondata", json.dumps(jsondata)
 
     def genexisting(self):
         """Generator function that queries an existing videoinfo database and yields the filename and hash for any existing files in the database."""
         if self.session.query(VideoInfo).count() >= 1:
             out = self.session.query(VideoInfo).all()
-            #print(out)
+            # print(out)
             for i in out:
-                #print(i.filename)
-                #print(i.filehash)
+                # print(i.filename)
+                # print(i.filehash)
                 yield i.filename, i.filehash
         else:
             return None
@@ -303,6 +325,7 @@ class VideoData:
             else:
                 print("{} Calculating hash for {}".format(Mood.happy(), pathlib.Path(filename).name))
                 yield filename, Util.hashfile(filename)
+
 
 class FindVideoInfo:  # pylint: disable=R0903
 
