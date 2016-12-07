@@ -111,7 +111,7 @@ class VideoData:
         sessionbase = sessionmaker(bind=self.dataengine)
         self.session = sessionbase()  # pylint: disable=c0103
 
-    def parse(self, videofile, probe=None):
+    def parse(self, videofile, probe=None, quiet=False):
         cache = None
         try:
             cache = self.session.query(VideoJSON).filter(VideoJSON.filename == videofile).one()
@@ -139,7 +139,8 @@ class VideoData:
 
             if not ffprobe:
                 raise FileNotFoundError("Could not find ffprobe.")
-            print("{} Extracting information from {}".format(Mood.happy(), videofile))
+            if not quiet:
+                print("{} Extracting information from {}".format(Mood.happy(), videofile))
             return json.loads(Program.returninfo([ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True))
 
     @staticmethod
