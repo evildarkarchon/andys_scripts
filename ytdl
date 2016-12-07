@@ -10,6 +10,7 @@ from andy2.videoinfo import VideoData
 
 args = argparse.ArgumentParser()
 args.add_argument("--subdirectory", "-d", help="Subdirectory to download videos to.")
+args.add_argument("--force", "-f", help="Don't pass the download archive parameter to youtube-dl, thus forcing the download (will not put any new video ids on the list into the archive).")
 args.add_argument("urls", nargs="*", help="URLs of videos to download.")
 
 urls = vars(args.parse_args())
@@ -25,11 +26,14 @@ if not directory.exists():
     print("{} Creating directory {}".format(Mood.happy(), directory))
     directory.mkdir(parents=True, exist_ok=True)
 
+if urls["force"]:
+    prog = ['youtube-dl']
+else:
+    prog = ['youtube-dl', '--download-archive', '/data/Videos/Youtube/downloaded.txt']
 # os.chdir(str(directory))
-
 # for vid in urls["urls"]:
 #    Program.runprogram(['youtube-dl', '--download-archive', '/data/Videos/Youtube/downloaded.txt', vid], workdir=str(directory))
-Program.runprogram(['youtube-dl', '--download-archive', '/data/Videos/Youtube/downloaded.txt'] + urls["urls"], workdir=str(directory))
+Program.runprogram(prog + urls["urls"], workdir=str(directory))
 
 files = list(directory.iterdir())
 
