@@ -21,6 +21,11 @@ except ImportError:
     pass
 
 
+class Data:  # pylint: disable=r0903
+
+    pass
+
+
 class Color:  # pylint: disable=r0903
 
     def mood(self, currentmood=None):  # pylint: disable=r0201
