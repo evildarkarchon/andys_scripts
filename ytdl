@@ -33,9 +33,8 @@ if urls["force"]:
     prog = ['youtube-dl']
 else:
     prog = ['youtube-dl', '--download-archive', '/data/Videos/Youtube/downloaded.txt']
-# os.chdir(str(directory))
-# for vid in urls["urls"]:
-#    Program.runprogram(['youtube-dl', '--download-archive', '/data/Videos/Youtube/downloaded.txt', vid], workdir=str(directory))
+
+
 Program.runprogram(prog + urls["urls"], workdir=str(directory))
 
 files = list(directory.iterdir())
