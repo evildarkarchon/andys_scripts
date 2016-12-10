@@ -9,8 +9,8 @@ from sqlalchemy import create_engine  # , Column, Float, Integer, String
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine.reflection import Inspector
 
-from andy2.videoinfo import VideoData, VideoInfo, VideoJSON, sqa_session
-from andy2.util import Mood, Util, Program
+from andy2.videoinfo import VideoData, VideoInfo, VideoJSON, sqa_session  # noqa: F401
+from andy2.util import Mood, Util, Program  # noqa: F401
 
 args = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -20,13 +20,13 @@ config = args.add_argument_group(description="Configuration/Testing options:")
 fileargs = args.add_argument_group(description="Options for file manipulation:")
 
 video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
-video.add_argument("--video-bitrate", "-vb", help="Bitrate for the video codec.")
-video.add_argument("--video-codec", "-vc", help="Video codec to use.")
+video.add_argument("--video-bitrate", "-vb", dest="video_bitrate", help="Bitrate for the video codec.")
+video.add_argument("--video-codec", "-vc", dest="video_codec", help="Video codec to use.")
 video.add_argument("--frame-rate", "-fr", dest="frame_rate", help="Frame Rate of the video for if ffmpeg has a problem detecting it automatically (especially helps with mpeg-1 files).")
 # video.add_argument("--video-options", "-vo", help="Options to pass to ffmpeg regarding the video codec.")  # WIP
 
-audio.add_argument("--audio-bitrate", "-ab", help="Bitrate for the audio codec.")
-audio.add_argument("--audio-codec", "-ac", help="Audio codec to use.")
+audio.add_argument("--audio-bitrate", "-ab", dest="audio_bitrate", help="Bitrate for the audio codec.")
+audio.add_argument("--audio-codec", "-ac", dest="audio_codec", help="Audio codec to use.")
 audio.add_argument("--filter", "-f", help="Filter to be applied to the audio.")
 # audio.add_argument("--audio-options", "-ao", help="Options to pass to ffmpeg regarding the audio codec")  # WIP
 
@@ -86,6 +86,8 @@ def configdict():
             config = json.loads(jsonsource.read())  # pylint: disable=W0621
 
         return ChainMap(options, config)
+
+
 options = configdict()
 
 database = create_engine("sqlite:///{}".format(options["database"]))
@@ -94,3 +96,33 @@ session = sm()
 inspect = Inspector.from_engine(database)
 
 options["files"] = list(filterfilelist(options["files"]))
+
+
+class Metadata:  # pylint: disable=R0903
+    def __init__(self, filename):
+        self.filename = str(pathlib.Path(filename).name)
+        self.data = session.query(VideoInfo).filter(VideoInfo.filename == self.filename).with_entities(VideoInfo.bitrate_0_raw, VideoInfo.bitrate_1_raw, VideoInfo.type_0, VideoInfo.type_1, VideoInfo.frame_rate).one()
+
+        if options["video_bitrate"]:
+            self.video_bitrate = options["video_bitrate"]
+        elif self.data.type_0 == "video":
+            self.video_bitrate = self.data.bitrate_0_raw
+        elif self.data.type_1 == "video":
+            self.video_bitrate = self.data.bitrate_1_raw
+
+        if options["audio_bitrate"]:
+            self.audio_bitrate = options["audio_bitrate"]
+        elif self.data.type_0 == "audio":
+            self.audio_bitrate = self.data.bitrate_0_raw
+        elif self.data.type_1 == "audio":
+            self.audio_bitrate = self.data.bitrate_1_raw
+
+        if options["frame_rate"]:
+            self.framerate = options["frame_rate"]
+        else:
+            self.framerate = self.data.frame_rate
+
+
+class Command:  # pylint: disable = R0903
+    def __init__(self, filename, passnum, passmax):  # pylint: disable=w0613
+        metadata = Metadata(filename)
