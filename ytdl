@@ -25,6 +25,9 @@ if urls["subdirectory"]:
 if not directory.exists():
     print("{} Creating directory {}".format(Mood.happy(), directory))
     directory.mkdir(parents=True, exist_ok=True)
+elif directory.exists() and not directory.is_dir():
+    print("{} {} is not a directory.".format(Mood.sad(), str(directory)))
+    raise NotADirectoryError
 
 if urls["force"]:
     prog = ['youtube-dl']
