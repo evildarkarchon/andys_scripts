@@ -101,7 +101,7 @@ options["files"] = list(filterfilelist(options["files"]))
 class Metadata:  # pylint: disable=R0903
     def __init__(self, filename):
         self.filename = str(pathlib.Path(filename).name)
-        self.data = session.query(VideoInfo).filter(VideoInfo.filename == self.filename).with_entities(VideoInfo.bitrate_0_raw, VideoInfo.bitrate_1_raw, VideoInfo.type_0, VideoInfo.type_1, VideoInfo.frame_rate).one()
+        self.data = session.query(VideoInfo).filter(VideoInfo.filename == self.filename).one()
 
         if options["video_bitrate"]:
             self.video_bitrate = options["video_bitrate"]
@@ -123,6 +123,16 @@ class Metadata:  # pylint: disable=R0903
             self.framerate = self.data.frame_rate
 
 
+class Cleanup:  # pylint: disable=R0903
+    def __init__(self, filename, backuppath=pathlib.Path.cwd().parent.joinpath("Original Files")):
+        self.filename = pathlib.Path(filename).name
+        self.backuppath = backuppath
+
+    def success(self):
+        with sqa_session(session) as sess:
+            sess.query(VideoInfo).filter(VideoInfo.filename == self.filename).delete()
+
+
 class Command:  # pylint: disable = R0903
     def __init__(self, filename, passnum, passmax):  # pylint: disable=w0613
-        metadata = Metadata(filename)
+        self.metadata = Metadata(filename)
