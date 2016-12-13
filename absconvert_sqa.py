@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-# pylint: disable=w0611
+# pylint: disable=w0611, c0301, c0103, c0111
 import argparse
 import json
 import pathlib
+import shutil
+import os
 from collections import ChainMap
 from sqlalchemy import create_engine  # , Column, Float, Integer, String
 # from sqlalchemy.ext.declarative import declarative_base
@@ -12,12 +14,12 @@ from sqlalchemy.engine.reflection import Inspector
 from andy2.videoinfo import VideoData, VideoInfo, VideoJSON, sqa_session  # noqa: F401
 from andy2.util import Mood, Util, Program  # noqa: F401
 
-args = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+arg = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-video = args.add_argument_group(description="Video options:")
-audio = args.add_argument_group(description="Audio Options:")
-config = args.add_argument_group(description="Configuration/Testing options:")
-fileargs = args.add_argument_group(description="Options for file manipulation:")
+video = arg.add_argument_group(description="Video options:")
+audio = arg.add_argument_group(description="Audio Options:")
+config = arg.add_argument_group(description="Configuration/Testing options:")
+fileargs = arg.add_argument_group(description="Options for file manipulation:")
 
 video.add_argument("--passes", "-p", choices=[1, 2], type=int, help="Number of video encoding passes.")
 video.add_argument("--video-bitrate", "-vb", dest="video_bitrate", help="Bitrate for the video codec.")
@@ -40,9 +42,9 @@ config.add_argument("--debug", "-d", action="store_true", help="Print variables 
 fileargs.add_argument("--backup", "-b", help="Directory where files will be moved when encoded.")
 fileargs.add_argument("--output-dir", "-o", dest="output", help="Directory to output the encoded file(s) to (defaults to previous directory unless you are in your home directory).")
 
-args.add_argument("files", nargs="*", help="Files to encode.")
+arg.add_argument("files", nargs="*", help="Files to encode.")
 
-options = vars(args.parse_args())
+options = vars(arg.parse_args())
 
 
 def filterfilelist(filelist):
@@ -127,6 +129,12 @@ class Cleanup:  # pylint: disable=R0903
     def __init__(self, filename, backuppath=pathlib.Path.cwd().parent.joinpath("Original Files")):
         self.filename = pathlib.Path(filename).name
         self.backuppath = backuppath
+        self.metadata = Metadata(filename)
+
+        self.mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
+        self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
+        self.mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
+        self.ffprobe = shutil.which("ffprobe", mode=os.X_OK)
 
     def success(self):
         with sqa_session(session) as sess:
@@ -136,3 +144,4 @@ class Cleanup:  # pylint: disable=R0903
 class Command:  # pylint: disable = R0903
     def __init__(self, filename, passnum, passmax):  # pylint: disable=w0613
         self.metadata = Metadata(filename)
+        self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
