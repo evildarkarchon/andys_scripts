@@ -6,7 +6,7 @@ from datetime import datetime
 # import os
 # import json
 from andy2.util import Mood, Program
-from andy2.videoinfo import VideoData
+from andy2.videoinfo import probe
 
 args = argparse.ArgumentParser()
 args.add_argument("--subdirectory", "-d", help="Subdirectory to download videos to.")
@@ -42,7 +42,7 @@ files = list(directory.iterdir())
 for i in files:
     path = str(i)
     if '.mkv' in path:
-        meta = VideoData.probe(path, quiet=True)
+        meta = probe(path, quiet=True)
         if "BPS" not in meta["streams"][0]["tags"] and "BPS" not in meta["streams"][1]["tags"]:
             print("{} Adding statistic tags to {}".format(Mood.happy(), path))
             Program.runprogram(['mkvpropedit', '--add-track-statistics-tags', path])
