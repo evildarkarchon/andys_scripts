@@ -28,6 +28,30 @@ try:
 except ImportError:
     pass
 
+def probe(videofile, prog=None, quiet=False):
+    """Function used to extract video information from files as json data and return a dictionary based on that data.
+
+    prog defines an alternate program to use (if any), this is an optional parameter.
+
+    quiet is pretty much just that, don't print anything to the terminal."""
+
+    ffprobe = None
+    if prog:
+        ok = os.access(prog, mode=os.X_OK, effective_ids=True)  # pylint: disable=c0103
+        if ok:
+            ffprobe = prog
+            del prog
+            del ok
+        else:
+            raise FileNotFoundError("Specified ffprobe compatible command not found or not executable by current user.")
+    else:
+        ffprobe = shutil.which("ffprobe", mode=os.X_OK)
+
+    if not ffprobe:
+        raise FileNotFoundError("Could not find ffprobe.")
+    if not quiet:
+        print("{} Extracting information from {}".format(Mood.happy(), videofile))
+    return json.loads(Program.returninfo([ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True))
 
 @contextmanager
 def sqa_session(basesess):
@@ -111,7 +135,7 @@ class VideoData:
         sessionbase = sessionmaker(bind=self.dataengine)
         self.session = sessionbase()  # pylint: disable=c0103
 
-    def parse(self, videofile, probe=None, quiet=False):
+    def parse(self, videofile, ffprobe=None, bequiet=False):
         cache = None
         try:
             cache = self.session.query(VideoJSON).filter(VideoJSON.filename == videofile).one()
@@ -125,49 +149,7 @@ class VideoData:
         if isinstance(cache, VideoJSON):
             return cache.json
         else:
-            ffprobe = None
-            if probe:
-                ok = os.access(probe, mode=os.X_OK, effective_ids=True)  # pylint: disable=c0103
-                if ok:
-                    ffprobe = probe
-                    del probe
-                    del ok
-                else:
-                    raise FileNotFoundError("Specified ffprobe compatible command not found or not executable by current user.")
-            else:
-                ffprobe = shutil.which("ffprobe", mode=os.X_OK)
-
-            if not ffprobe:
-                raise FileNotFoundError("Could not find ffprobe.")
-            if not quiet:
-                print("{} Extracting information from {}".format(Mood.happy(), videofile))
-            return json.loads(Program.returninfo([ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True))
-
-    @staticmethod
-    def probe(videofile, prog=None, quiet=False):
-        """Alternate version of the parse method that does not use the database.
-
-        videofile is the file to probe.
-
-        prog is the program to use to do the probing. If none is specified, ffprobe shall be searched for and used."""
-
-        ffprobe = None
-        if prog:
-            ok = os.access(prog, mode=os.X_OK, effective_ids=True)  # pylint: disable=c0103
-            if ok:
-                ffprobe = prog
-                del prog
-                del ok
-            else:
-                raise FileNotFoundError("Specified ffprobe compatible command not found or not executable by current user.")
-        else:
-            ffprobe = shutil.which("ffprobe", mode=os.X_OK)
-
-        if not ffprobe:
-            raise FileNotFoundError("Could not find ffprobe.")
-        if not quiet:
-            print("{} Extracting information from {}".format(Mood.happy(), videofile))
-        return json.loads(Program.returninfo([ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True))
+            return probe(videofile, ffprobe, bequiet)
 
     @classmethod
     def cwd(cls, verbosemode=False, regen=False, regenjson=False):  # pylint: disable=W0221
@@ -295,7 +277,7 @@ class VideoData:
 
             with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
                 for filename in filelist:
-                    filepath = pathlib.Path(filename)
+                    filepath = pathlib.Path(pathlib.Path(filename).resolve())
                     if not self.verbose and existinghash:
                         if m.id_filename(filename) in whitelist and filepath.is_file() and filepath.name not in existinghash:
                             yield str(filepath)
@@ -305,7 +287,7 @@ class VideoData:
         except NameError:
             whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
             for filename in filelist:
-                filepath = pathlib.Path(filename)
+                filepath = pathlib.Path(pathlib.Path(filename).resolve())
                 if not self.verbose and existinghash:
                     if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
                         yield str(filepath)
