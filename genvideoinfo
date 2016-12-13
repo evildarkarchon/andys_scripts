@@ -24,7 +24,6 @@ args.add_argument("--regen-all", "-ra", action="store_true", help="Regenerate th
 args.add_argument("files", nargs="*", help="Files to get information from.")
 
 options = vars(args.parse_args())
-del args
 
 if options["regen_all"]:
     options["regen"] = True
@@ -56,15 +55,12 @@ if options["maintainence"]:
         else:
             sys.exit(0)
 
+def geninitfilelist():  # pylint: disable=w0621
+    """Generator function that that iterates over the current directory or the list specified on the command line to yield all the files in any directories specified as well as any files specified in the source list."""
 
-def geninitfilelist(filelist=options["files"]):  # pylint: disable=w0621
-    """Generator function that that iterates over the current directory or the list specified on the command line to yield all the files in any directories specified as well as any files specified in the source list.
-
-    filelist takes an optional list and iterates over that to generate the super-list."""
-
-    if filelist:
-        for entry in filelist:
-            pathentry = pathlib.Path(entry)
+    if options["files"]:
+        for entry in options["files"]:
+            pathentry = pathlib.Path(pathlib.Path(entry).resolve())
             if pathentry.is_dir():
                 for path in pathentry.iterdir():
                     yield str(path)
@@ -76,10 +72,7 @@ def geninitfilelist(filelist=options["files"]):  # pylint: disable=w0621
             yield str(path)
 
 
-if not isinstance(options["files"], (list, tuple)) or not options["files"]:
-    initfilelist = list(geninitfilelist())
-else:
-    initfilelist = None
+initfilelist = list(geninitfilelist())
 if options["verbose"]:
     print("{} Initial file list is:\n{}".format(Mood.happy(), initfilelist))
 
