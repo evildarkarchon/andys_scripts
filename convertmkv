@@ -179,7 +179,7 @@ class Convenience
   end
 
   def backup
-    if !Args.backup.nil? && Args.backup.directory?
+    if !Args.backup.nil? && Args.backup.directory? # rubocop:disable Style/GuardClause
       puts Mood.happy("Moving #{@filename} to #{Args.backup}")
       FileUtils.mv(@filename, Args.backup.to_s) unless Args.debug
       unless Vi.nil? || Args.debug
