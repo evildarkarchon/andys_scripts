@@ -23,6 +23,7 @@ def ttrssgcfile():
     else:
         pathlib.Path("/var/cache/ttrssgc").touch()
 
+
 if not pathlib.Path("/var/cache/ttrssgc").is_file():
     ttrssgcfile()
 
@@ -32,6 +33,7 @@ def ttrssgc(then):
     if diff.days > 30:
         ttrss.gc(aggressive=options["aggressive"])
         ttrssgcfile()
+
 
 if pathlib.Path("/data/web/feeds/.git").is_dir():
     ttrss.clean_lock()
