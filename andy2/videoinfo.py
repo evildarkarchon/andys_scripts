@@ -28,6 +28,7 @@ try:
 except ImportError:
     pass
 
+
 def probe(videofile, prog=None, quiet=False):
     """Function used to extract video information from files as json data and return a dictionary based on that data.
 
@@ -52,6 +53,7 @@ def probe(videofile, prog=None, quiet=False):
     if not quiet:
         print("{} Extracting information from {}".format(Mood.happy(), videofile))
     return json.loads(Program.returninfo([ffprobe, "-i", videofile, "-hide_banner", "-of", "json", "-show_streams", "-show_format"], string=True))
+
 
 @contextmanager
 def sqa_session(basesess):
@@ -163,19 +165,14 @@ class Info:
         self.jsondata = json.dumps(jsondata)
 
     def __repr__(self):
-        return "<Info(filename={}, hash={}, container={}, duration={}, duration_raw={}, numstreams={}, codec_0={}, type_0={}, bitrate_0={},\
-         codec_1={}, type_1={}, bitrate_1={}, bitrate_total={}, height={}, width={}, frame_rate={}, jsondata={})>".format(self.filename, self.hash,
-                                                                                                                          self.container, self.duration,
-                                                                                                                          self.duration_raw,
-                                                                                                                          self.numstreams,
-                                                                                                                          self.codec_0, self.type_0,
-                                                                                                                          self.bitrate_0,
-                                                                                                                          self.codec_1, self.type_1,
-                                                                                                                          self.bitrate_1,
-                                                                                                                          self.bitrate_total,
-                                                                                                                          self.height, self.width,
-                                                                                                                          self.frame_rate,
-                                                                                                                          self.jsondata)
+        out = "<Info(filename={}, hash={}, container={}, duration={}, ".format(self.filename, self.hash, self.container, self.duration)
+        out = out + "duration_raw={}, numstreams={}, codec_0={}, ".format(self.duration_raw, self.numstreams, self.codec_0)
+        out = out + "type_0={}, bitrate_0={}, codec_1={}, ".format(self.type_0, self.bitrate_0, self.codec_1)
+        out = out + "type_1={}, bitrate_1={}, bitrate_total={}, ".format(self.type_1, self.bitrate_1, self.bitrate_total)
+        out = out + "height={}, width={}, frame_rate={}, jsondata={})>".format(self.height, self.width, self.frame_rate, self.jsondata)
+
+        return out
+
 
 class VideoInfo(SQLBase):
     __tablename__ = 'videoinfo'
@@ -200,8 +197,13 @@ class VideoInfo(SQLBase):
     filehash = Column(String, unique=True, nullable=False)
 
     def __repr__(self):
-        return "<VideoInfo(filename={}, duration={}, duration_raw={}, numstreams={}, container={}, width={}, height={}, frame_rate={}, bitrate_total={}, bitrate_0={}, bitrate_0_raw={}, type_0={}, codec_0={}, bitrate_1={}, bitrate_1_raw={}, type_1={}, codec_1={}, filehash={})>".format(self.filename, self.duration, self.duration_raw, self.numstreams, self.container, self.width, self.height, self.frame_rate, self.bitrate_total, self.bitrate_0, self.bitrate_0_raw, self.type_0, self.codec_0, self.bitrate_1, self.bitrate_1_raw, self.type_1, self.codec_1, self.filehash)
-
+        out = "<VideoInfo(filename={}, duration={}, duration_raw={}, ".format(self.filename, self.duration, self.duration_raw)
+        out = out + "numstreams={}, container={}, width={}, height={}, ".format(self.numstreams, self.container, self.width, self.height)
+        out = out + "frame_rate={}, bitrate_total={}, bitrate_0={}, ".format(self.frame_rate, self.bitrate_total, self.bitrate_0)
+        out = out + "bitrate_0_raw={}, type_0={}, codec_0={}, ".format(self.bitrate_0_raw, self.type_0, self.codec_0)
+        out = out + "bitrate_1={}, bitrate_1_raw={}, type_1={}, ".format(self.bitrate_1, self.bitrate_1_raw, self.type_1)
+        out = out + "codec_1={}, filehash={})>".format(self.codec_1, self.filehash)
+        return out
 
 class VideoJSON(SQLBase):
     __tablename__ = 'videojson'
@@ -246,8 +248,9 @@ class VideoData:
 
     def parse(self, videofile, ffprobe=None, bequiet=False):
         cache = None
+        videoname = str(pathlib.Path(videofile).name)
         try:
-            cache = self.session.query(VideoJSON).filter(VideoJSON.filename == videofile).one()
+            cache = self.session.query(VideoJSON).filter(VideoJSON.filename == videoname).one()
             print("{} Information found in the cache.".format(Mood.happy()))
             # print(cache.json)
         except sqlalchemy.orm.exc.NoResultFound:
