@@ -110,6 +110,11 @@ class Metadata:  # pylint: disable=R0903
         self.filename = str(pathlib.Path(filename).name)
         self.data = session.query(VideoInfo).filter(VideoInfo.filename == self.filename).one()
 
+        if options["container"]:
+            self.container = options["container"]
+        else:
+            self.container = self.data.container
+
         if options["video_bitrate"]:
             self.video_bitrate = options["video_bitrate"]
         elif self.data.type_0 == "video":
@@ -145,7 +150,7 @@ class Cleanup:  # pylint: disable=R0903
         if self.backuppath.exists():
             print("{} Moving {} to {}".format(Mood.happy(), self.filepath.name, self.backuppath))
             shutil.move(str(self.filepath), str(self.backuppath))
-        if ("mkv" in self.metadata.data.container or "mka" in self.metadata.data.container) and self.mkvpropedit:
+        if ("mkv" in self.metadata.data.container or "mka" in self.metadata.container) and self.mkvpropedit:
             print("{} Adding statistics tags to output file.".format(Mood.happy()))
             Program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", str(self.filepath)])
 
@@ -153,4 +158,7 @@ class Cleanup:  # pylint: disable=R0903
 class Command:  # pylint: disable = R0903
     def __init__(self, filename, passnum, passmax):  # pylint: disable=w0613
         self.metadata = Metadata(filename)
+        self.mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
         self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
+        self.mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
+        self.ffprobe = shutil.which("ffprobe", mode=os.X_OK)
