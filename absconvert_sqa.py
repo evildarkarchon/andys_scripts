@@ -5,6 +5,7 @@ import json
 import pathlib
 import shutil
 import os
+import sys
 from collections import ChainMap
 from sqlalchemy import create_engine  # , Column, Float, Integer, String
 # from sqlalchemy.ext.declarative import declarative_base
@@ -160,11 +161,11 @@ class Cleanup:  # pylint: disable=R0903
             print("{} Adding statistics tags to output file.".format(Mood.happy()))
             Program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", str(self.filepath)])
 
-    
+
     def fail(self):
-        if filepath.exists():
+        if self.filepath.exists():
             print("\n{} Removing unfinished file.".format(Mood.neutral()))
-            filepath.unlink()
+            self.filepath.unlink()
             sys.exit(1)
 
 
@@ -176,5 +177,7 @@ class Command:  # pylint: disable = R0903
         self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
         self.mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
         self.ffprobe = shutil.which("ffprobe", mode=os.X_OK)
-        if options["backup"]
-        cleanup = Cleanup(filename, backuppath=pathlib.Path(options["backup"]))
+        if options["backup"]:
+            cleanup = Cleanup(filename, backuppath=pathlib.Path(options["backup"]))  # pylint: disable=unused-variable
+        else:
+            cleanup = Cleanup(filename)
