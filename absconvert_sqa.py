@@ -136,10 +136,13 @@ class Metadata:  # pylint: disable=R0903
 
 
 class Cleanup:  # pylint: disable=R0903
-    def __init__(self, filename, backuppath=str(pathlib.Path.cwd().parent.joinpath("Original Files"))):
+    def __init__(self, filename, backuppath=None):
         self.filepath = pathlib.Path(filename)
         self.filename = self.filepath.name
-        self.backuppath = pathlib.Path(backuppath)
+        if backuppath:
+            self.backuppath = pathlib.Path(backuppath)
+        else:
+            self.backuppath = None
         self.metadata = Metadata(filename)
 
         self.mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
@@ -147,12 +150,23 @@ class Cleanup:  # pylint: disable=R0903
     def success(self):
         with sqa_session(session) as sess:
             sess.query(VideoInfo).filter(VideoInfo.filename == self.filename).delete()
-        if self.backuppath.exists():
+        if self.backuppath and self.backuppath.exists():
             print("{} Moving {} to {}".format(Mood.happy(), self.filepath.name, self.backuppath))
+            shutil.move(str(self.filepath), str(self.backuppath))
+        elif self.backuppath and not self.backuppath.exists():
+            self.backuppath.mkdir(parents=True, exist_ok=True)
             shutil.move(str(self.filepath), str(self.backuppath))
         if ("mkv" in self.metadata.data.container or "mka" in self.metadata.container) and self.mkvpropedit:
             print("{} Adding statistics tags to output file.".format(Mood.happy()))
             Program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", str(self.filepath)])
+
+    
+    def fail(self):
+        if filepath.exists():
+            print("\n{} Removing unfinished file.".format(Mood.neutral()))
+            filepath.unlink()
+            sys.exit(1)
+
 
 
 class Command:  # pylint: disable = R0903
@@ -162,3 +176,5 @@ class Command:  # pylint: disable = R0903
         self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
         self.mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
         self.ffprobe = shutil.which("ffprobe", mode=os.X_OK)
+        if options["backup"]
+        cleanup = Cleanup(filename, backuppath=pathlib.Path(options["backup"]))
