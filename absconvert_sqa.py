@@ -189,7 +189,7 @@ class Command:  # pylint: disable = R0903
         else:
             self.cleanup = Cleanup(filename)
 
-    def convert(self, passnum=None, passmax=1):
+    def list(self, passnum=None, passmax=1):
         if passnum is None and passmax is 2:
             print("{} You must specify a pass number if using 2-pass encoding.".format(Mood.sad()))
             raise ValueError
@@ -203,12 +203,12 @@ class Command:  # pylint: disable = R0903
             raise ValueError
 
         cmd = [self.ffmpeg, "-hide_banner", "-i", str(self.filepath.resolve()), '-y']  # pylint: disable=unused-variable
-        if not options["audio_codec"] or options["audio_codec"] == "none":
+        if not options["audio_codec"] or options["audio_codec"] in ("none", "None"):
             cmd = cmd + '-an'
         else:
             cmd = cmd + ['-c:a', options["audio_codec"], '-b:a', self.metadata.audio_bitrate] + ['-af', options["defaults"]["audiofilter"]]
 
-        if not options["video_codec"] or options["video_codec"] == "none":
+        if not options["video_codec"] or options["video_codec"] in ("none", "None"):
             cmd = cmd + '-vn'
         else:
             cmd = cmd + ['-c:v', options["video_codec"], '-b:v', self.metadata.video_bitrate] + options["codecs"][options["video_codec"]]
@@ -224,3 +224,5 @@ class Command:  # pylint: disable = R0903
                 cmd = cmd + self.filepath.with_suffix(".{}".format(options["container"]))
             else:
                 cmd = cmd + str(self.filepath.with_suffix(".{}".format(options["defaults"]["container"])))
+
+        return cmd
