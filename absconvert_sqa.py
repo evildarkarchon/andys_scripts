@@ -2,18 +2,20 @@
 # pylint: disable=w0611, c0301, c0103, c0111, R0902
 import argparse
 import json
+import os
 import pathlib
 import shutil
-import os
 import sys
 from collections import ChainMap
+
 from sqlalchemy import create_engine  # , Column, Float, Integer, String
+from sqlalchemy.engine.reflection import Inspector
 # from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.engine.reflection import Inspector
 
-from andy2.videoinfo import VideoData, VideoInfo, VideoJSON, sqa_session  # noqa: F401
-from andy2.util import Mood, Util, Program  # noqa: F401
+from andy2.util import Mood, Program, Util  # noqa: F401
+from andy2.videoinfo import (VideoData, VideoInfo, VideoJSON,  # noqa: F401
+                             sqa_session)
 
 arg = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -107,6 +109,7 @@ if not options["no_sort"]:
 
 
 class Metadata:  # pylint: disable=R0903
+
     def __init__(self, filename):
         self.filename = str(pathlib.Path(filename).name)
         self.data = session.query(VideoInfo).filter(VideoInfo.filename == self.filename).one()
@@ -137,6 +140,7 @@ class Metadata:  # pylint: disable=R0903
 
 
 class Cleanup:  # pylint: disable=R0903
+
     def __init__(self, filename, backuppath=None):
         self.filepath = pathlib.Path(filename)
         self.filename = self.filepath.name
@@ -151,16 +155,17 @@ class Cleanup:  # pylint: disable=R0903
     def success(self):
         with sqa_session(session) as sess:
             sess.query(VideoInfo).filter(VideoInfo.filename == self.filename).delete()
+
         if self.backuppath and self.backuppath.exists():
             print("{} Moving {} to {}".format(Mood.happy(), self.filepath.name, self.backuppath))
             shutil.move(str(self.filepath), str(self.backuppath))
         elif self.backuppath and not self.backuppath.exists():
             self.backuppath.mkdir(parents=True, exist_ok=True)
             shutil.move(str(self.filepath), str(self.backuppath))
+
         if ("mkv" in self.metadata.data.container or "mka" in self.metadata.container) and self.mkvpropedit:
             print("{} Adding statistics tags to output file.".format(Mood.happy()))
             Program.runprogram([self.mkvpropedit, "--add-track-statistics-tags", str(self.filepath)])
-
 
     def fail(self):
         if self.filepath.exists():
@@ -169,15 +174,53 @@ class Cleanup:  # pylint: disable=R0903
             sys.exit(1)
 
 
-
 class Command:  # pylint: disable = R0903
-    def __init__(self, filename, passnum, passmax):  # pylint: disable=w0613
+
+    def __init__(self, filename):  # pylint: disable=w0613
         self.metadata = Metadata(filename)
+        self.filename = filename
+        self.filepath = pathlib.Path(filename)
         self.mkvpropedit = shutil.which("mkvpropedit", mode=os.X_OK)
         self.ffmpeg = shutil.which("ffmpeg", mode=os.X_OK)
         self.mkvmerge = shutil.which("mkvmerge", mode=os.X_OK)
         self.ffprobe = shutil.which("ffprobe", mode=os.X_OK)
         if options["backup"]:
-            cleanup = Cleanup(filename, backuppath=pathlib.Path(options["backup"]))  # pylint: disable=unused-variable
+            self.cleanup = Cleanup(filename, backuppath=pathlib.Path(options["backup"]))  # pylint: disable=unused-variable
         else:
-            cleanup = Cleanup(filename)
+            self.cleanup = Cleanup(filename)
+
+    def convert(self, passnum=None, passmax=1):
+        if passnum is None and passmax is 2:
+            print("{} You must specify a pass number if using 2-pass encoding.".format(Mood.sad()))
+            raise ValueError
+
+        if passmax not in (1, 2):
+            print("{} The maximum pass variable can only be 1 or 2.".format(Mood.sad()))
+            raise ValueError
+
+        if isinstance(passnum, int) and (passnum >= 2 and passmax is 1):
+            print("{} is >=2 and the maximum number of passes is set to 1.".format(Mood.sad()))
+            raise ValueError
+
+        cmd = [self.ffmpeg, "-hide_banner", "-i", str(self.filepath.resolve()), '-y']  # pylint: disable=unused-variable
+        if not options["audio_codec"] or options["audio_codec"] == "none":
+            cmd = cmd + '-an'
+        else:
+            cmd = cmd + ['-c:a', options["audio_codec"], '-b:a', self.metadata.audio_bitrate] + ['-af', options["defaults"]["audiofilter"]]
+
+        if not options["video_codec"] or options["video_codec"] == "none":
+            cmd = cmd + '-vn'
+        else:
+            cmd = cmd + ['-c:v', options["video_codec"], '-b:v', self.metadata.video_bitrate] + options["codecs"][options["video_codec"]]
+
+        if passmax == 2:
+            cmd = cmd + ['-pass', passnum, '--passlogfile', self.filepath.stem]
+
+        if passnum == 1 and passmax == 2:
+            cmd = cmd + ['-f', 'matroska', '/dev/null']
+
+        if (passnum == 2 and passmax == 2) or passmax == 1:
+            if options["container"]:
+                cmd = cmd + self.filepath.with_suffix(".{}".format(options["container"]))
+            else:
+                cmd = cmd + str(self.filepath.with_suffix(".{}".format(options["defaults"]["container"])))
