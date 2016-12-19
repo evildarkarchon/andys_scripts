@@ -1,6 +1,5 @@
 # pylint: disable=r0903, c0301, c0111, r0912, r0915, c0411
 import collections  # noqa: F401  # pylint: disable=W0611
-import concurrent.futures  # noqa: F401  # pylint: disable=W0611
 import json
 import os
 import pathlib
@@ -8,13 +7,16 @@ import shutil
 import time
 from contextlib import contextmanager
 
+# from sqlalchemy.schema import Table
+import sqlalchemy.orm.exc
 from humanize.filesize import naturalsize
-from sqlalchemy import Column, Float, Integer, String, create_engine  # ForeignKey would go here.
+from sqlalchemy import (Column, Float, Integer,  # ForeignKey would go here.
+                        String, create_engine)
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker  # relationship would go here.
-# from sqlalchemy.schema import Table
-import sqlalchemy.orm.exc
+
+import concurrent.futures  # noqa: F401  # pylint: disable=W0611
 from andy2.string_eval import NumericStringParser
 
 try:
@@ -71,6 +73,7 @@ SQLBase = declarative_base()  # pylint: disable=c0103
 
 
 class Info:
+
     def __init__(self, filename, jsondata, filehash):
         if not isinstance(jsondata, dict):
             jsondata = json.loads(jsondata)
@@ -205,6 +208,7 @@ class VideoInfo(SQLBase):
         out = out + "codec_1={}, filehash={})>".format(self.codec_1, self.filehash)
         return out
 
+
 class VideoJSON(SQLBase):
     __tablename__ = 'videojson'
     id = Column(Integer, primary_key=True)
@@ -216,6 +220,7 @@ class VideoJSON(SQLBase):
 
 
 class VideoData:
+
     def __init__(self, db, verbose=False, regen=False, regenjson=False):
         if not pathlib.Path(db).exists():
             pathlib.Path(db).touch()
@@ -385,7 +390,11 @@ class VideoData:
         So if python-magic is installed, get rid of it and install filemagic instead."""
 
         try:
-            whitelist = ['video/x-flv', 'video/mp4', 'video/mp2t', 'video/3gpp', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/webm', 'video/x-matroska', 'video/msvideo', 'video/avi', 'application/vnd.rm-realmedia', 'audio/x-pn-realaudio', 'audio/x-matroska', 'audio/ogg', 'video/ogg', 'audio/vorbis', 'video/theora', 'video/3gpp2', 'audio/x-wav', 'audio/wave', 'video/dvd', 'video/mpeg', 'application/vnd.rn-realmedia-vbr', 'audio/vnd.rn-realaudio', 'audio/x-realaudio']
+            whitelist = ['video/x-flv', 'video/mp4', 'video/mp2t', 'video/3gpp', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv']
+            whitelist = whitelist + ['video/webm', 'video/x-matroska', 'video/msvideo', 'video/avi', 'application/vnd.rm-realmedia']
+            whitelist = whitelist + ['audio/x-pn-realaudio', 'audio/x-matroska', 'audio/ogg', 'video/ogg', 'audio/vorbis', 'video/theora']
+            whitelist = whitelist + ['video/3gpp2' 'audio/x-wav', 'audio/wave', 'video/dvd', 'video/mpeg', 'application/vnd.rn-realmedia-vbr']
+            whitelist = whitelist + ['audio/vnd.rn-realaudio', 'audio/x-realaudio']
 
             with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
                 for filename in filelist:
@@ -397,7 +406,8 @@ class VideoData:
                         if m.id_filename(filename) in whitelist and filepath.is_file():
                             yield str(filepath)
         except NameError:
-            whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
+            whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg']
+            whitelist = whitelist + ['.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
             for filename in filelist:
                 filepath = pathlib.Path(pathlib.Path(filename).resolve())
                 if not self.verbose and existinghash:
