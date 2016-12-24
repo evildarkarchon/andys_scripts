@@ -23,6 +23,8 @@ args.add_argument("--no-date", "-n", help="Don't make a subdirectory with the da
 args.add_argument("--force", "-f", help="Don't pass the download archive parameter to youtube-dl, thus forcing the download (will not put any new video ids on the list into the archive).")
 args.add_argument("urls", nargs="*", help="URLs of videos to download.")
 
+urls = vars(args.parse_args())
+
 
 def genfilelist(filelist, existinghash=None):
     """Generator function that takes a list of files and yields a filtered list that eliminates any non-video files (based on known mime types or file extensions) and any files that are already in the database.
@@ -58,8 +60,6 @@ def genfilelist(filelist, existinghash=None):
                 if filepath.suffix in whitelist and filepath.is_file():
                     yield str(filepath)
 
-
-urls = vars(args.parse_args())
 
 directory = pathlib.Path(urls["parent"])
 
