@@ -214,7 +214,7 @@ class Command:  # pylint: disable = R0903
             cmd = cmd + ['-c:v', options["video_codec"], '-b:v', self.metadata.video_bitrate] + options["codecs"][options["video_codec"]]
 
         if passmax == 2:
-            cmd = cmd + ['-pass', passnum, '--passlogfile', self.filepath.stem]
+            cmd = cmd + ['-pass', passnum, '-passlogfile', self.filepath.stem]
 
         if passnum == 1 and passmax == 2:
             cmd = cmd + ['-f', 'matroska', '/dev/null']
