@@ -98,7 +98,7 @@ for filename in filelist:
         if options["verbose"]:
             # filedict = dict(VideoData.gendict(filename, filejson, filehashes[filename]))
             fileinfo = Info(filename, filejson, filehashes[filename])
-            print("{} Video Information Dictionary:\n{}".format(Mood.happy(), filedict))
+            print("{} Video Information Dictionary:\n{}".format(Mood.happy(), fileinfo))
         else:
             filedict = dict(VideoData.gendict(filename, filejson, filehashes[filename]))
         with sqa_session(session) as sess:
