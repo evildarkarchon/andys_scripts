@@ -6,6 +6,7 @@ import os
 import pathlib
 import shutil
 import sys
+import subprocess
 from collections import ChainMap
 
 from sqlalchemy import create_engine  # , Column, Float, Integer, String
@@ -226,3 +227,24 @@ class Command:  # pylint: disable = R0903
                 cmd = cmd + str(self.filepath.with_suffix(".{}".format(options["defaults"]["container"])))
 
         return cmd
+
+
+for i in options["files"]:
+    cleanup = Cleanup(i, backuppath=options["backup"])
+    command = Command(i)
+    meta = Metadata(i)
+    try:
+        if options["passes"] == 2:
+            Program.runprogram(command.list(passnum=1, passmax=2))
+            Program.runprogram(command.list(passnum=2, passmax=2))
+        else:
+            Program.runprogram(command.list())
+    except (KeyboardInterrupt, subprocess.CalledProcessError, ChildProcessError):
+        cleanup.fail()
+    else:
+        cleanup.success()
+    finally:
+        logpath = pathlib.Path(pathlib.Path(i).with_suffix("-0.log"))
+        if logpath.exists():
+            print("{} Removing 1st pass log file.".format(Mood.neutral()))
+            logpath.unlink()
