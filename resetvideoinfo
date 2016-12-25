@@ -7,7 +7,7 @@ from sqlalchemy import create_engine  # , Column, Float, Integer, String
 from sqlalchemy.orm import sessionmaker
 
 from andy2.util import Util, Mood
-from andy2.videoinfo import VideoInfo, VideoJSON, VideoData, FindVideoInfo, sqa_session
+from andy2.videoinfo import VideoInfo, VideoJSON, VideoData, FindVideoInfo, Info, sqa_session
 
 args = argparse.ArgumentParser(description="resetvideoinfo: Resets all videoinfo databases in a directory.")
 args.add_argument("--verbose", "-v", action="store_true", help="Run in verbose mode.")
@@ -45,36 +45,33 @@ for directory in directories:
         vj = VideoJSON()
         filejson = vd.parse(filename)
         # print(filehashes)
-
+        fileinfo = Info(filename, filejson, filehashes[filename])
         if options["verbose"]:
-            filedict = dict(VideoData.gendict(filename, filejson, filehashes[filename]))
-            print("{} Video Information Dictionary:\n{}".format(Mood.happy(), filedict))
-        else:
-            filedict = dict(VideoData.gendict(filename, filejson, filehashes[filename]))
+            print("{} Video Information:\n{}".format(Mood.happy(), fileinfo))
         with sqa_session(session) as sess:
-            vi.filename = filedict["filename"]
-            vi.duration = filedict["duration"]
-            vi.duration_raw = filedict["duration_raw"]
-            vi.numstreams = filedict["numstreams"]
-            vi.container = filedict["container"]
-            vi.width = filedict["width"]
-            vi.height = filedict["height"]
-            vi.frame_rate = filedict["frame_rate"]
-            vi.type_0 = filedict["type_0"]
-            vi.type_1 = filedict["type_1"]
-            vi.codec_0 = filedict["codec_0"]
-            vi.codec_1 = filedict["codec_1"]
-            vi.bitrate_0 = filedict["bitrate_0"]
-            vi.bitrate_0_raw = filedict["bitrate_0_raw"]
-            vi.bitrate_1 = filedict["bitrate_1"]
-            vi.bitrate_1_raw = filedict["bitrate_1_raw"]
-            vi.bitrate_total = filedict["bitrate_total"]
-            vi.filehash = filedict["hash"]
-            if not session.query(VideoJSON).filter(VideoJSON.filename == filedict["filename"]).count() >= 1 or options["regen_json"]:
-                vj.json = filedict["jsondata"]
-                vj.filename = filedict["filename"]
+            vi.filename = fileinfo.filename
+            vi.duration = fileinfo.duration
+            vi.duration_raw = fileinfo.duration_raw
+            vi.numstreams = fileinfo.numstreams
+            vi.container = fileinfo.container
+            vi.width = fileinfo.width
+            vi.height = fileinfo.height
+            vi.frame_rate = fileinfo.frame_rate
+            vi.type_0 = fileinfo.type_0
+            vi.type_1 = fileinfo.type_1
+            vi.codec_0 = fileinfo.codec_0
+            vi.codec_1 = fileinfo.codec_1
+            vi.bitrate_0 = fileinfo.bitrate_0
+            vi.bitrate_0_raw = fileinfo.bitrate_0_raw
+            vi.bitrate_1 = fileinfo.bitrate_1
+            vi.bitrate_1_raw = fileinfo.bitrate_1_raw
+            vi.bitrate_total = fileinfo.bitrate_total
+            vi.filehash = fileinfo.hash
+            if not session.query(VideoJSON).filter(VideoJSON.filename == fileinfo.filename).count() >= 1 or options["regen_json"]:
+                vj.json = fileinfo.jsondata
+                vj.filename = fileinfo.filename
                 sess.add(vj)
             sess.add(vi)
         del vi
         del filejson
-        del filedict
+        del fileinfo
