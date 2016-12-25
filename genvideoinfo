@@ -95,12 +95,9 @@ for filename in filelist:
         vi = VideoInfo()
         vj = VideoJSON()
         filejson = vd.parse(filename)
+        fileinfo = Info(filename, filejson, filehashes[filename])
         if options["verbose"]:
-            # filedict = dict(VideoData.gendict(filename, filejson, filehashes[filename]))
-            fileinfo = Info(filename, filejson, filehashes[filename])
-            print("{} Video Information Dictionary:\n{}".format(Mood.happy(), fileinfo))
-        else:
-            filedict = dict(VideoData.gendict(filename, filejson, filehashes[filename]))
+            print("{} Video Information:\n{}".format(Mood.happy(), fileinfo))
         with sqa_session(session) as sess:
             vi.filename = fileinfo.filename
             vi.duration = fileinfo.duration
@@ -130,7 +127,7 @@ for filename in filelist:
         del vi
         del vj
         del filejson
-        del filedict
+        del fileinfo
     elif isinstance(filehashes[filename], str) and filehashes[filename] == filehash:
         print("{} {} is already in the database, skipping.".format(Mood.neutral(), filename))
     del filehash
