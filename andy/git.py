@@ -21,15 +21,12 @@ class Git:
         self.path = pathlib.Path(directory)
         if self.path.exists():
             self.path = pathlib.Path(self.path.resolve())
-        else:
-            self.path.mkdir(exist_ok=True, parents=True)
-            self.path = pathlib.Path(self.path.resolve())
         self.directory = str(self.path)
 
         def sudocheck():
             if not isinstance(use_sudo, (bool, type(None))):
                 print("{} use_sudo must be True, False, or None".format(Mood.sad()))
-                raise ValueError
+                raise TypeError
 
             if use_sudo is None:
                 print("{} use_sudo variable is unset, reverting to manual detection".format(Mood.neutral()))
