@@ -1,6 +1,6 @@
 # pylint: disable=line-too-long
 import pathlib
-from collections import deque
+import os
 
 from andy.util import Mood, Util, Program
 
@@ -14,16 +14,20 @@ class Git:
 
         sudo_user tells sudo what user to run as.
 
-        url tells git what url to use when cloning a repository."""
+        """
 
-    def __init__(self, directory, use_sudo=None, sudo_user=None, url=None):
+    def __init__(self, directory, use_sudo=None, sudo_user=None):
 
-        self.path = pathlib.Path(directory).resolve()
+        self.path = pathlib.Path(directory)
+        if self.path.exists():
+            self.path = pathlib.Path(self.path.resolve())
+        else:
+            self.path.mkdir(exist_ok=True, parents=True)
+            self.path = pathlib.Path(self.path.resolve())
         self.directory = str(self.path)
-        self.url = url
 
         def sudocheck():
-            if use_sudo not in (True, False, None):
+            if not isinstance(use_sudo, (bool, type(None))):
                 print("{} use_sudo must be True, False, or None".format(Mood.sad()))
                 raise ValueError
 
@@ -33,6 +37,8 @@ class Git:
                     return Util.is_privileged(privuser=sudo_user), sudo_user
                 else:
                     return False, None
+            elif not os.access(self.directory, os.W_OK) and not use_sudo and not sudo_user:
+                return True, "root"
             elif use_sudo and sudo_user:
                 return use_sudo, sudo_user
             elif use_sudo and not sudo_user:
@@ -44,27 +50,27 @@ class Git:
 
     def clean_lock(self):
         """Cleans any stale lock files (currently only index.lock but more will be added if discovered)"""
+        lockpath = pathlib.Path(self.path.joinpath(".git/index.lock"))
 
-        if self.path.joinpath(".git", "index.lock").exists():  # pylint: disable=e1101
+        if lockpath.exists():
             if self.use_sudo:
-                Program.runprogram(["rm", str(self.path.joinpath(".git", "index.lock"))], use_sudo=self.use_sudo, user=self.sudo_user)
+                Program.runprogram(["rm", str(lockpath)], use_sudo=self.use_sudo, user=self.sudo_user)
             else:
-                self.path.joinpath(".git", "index.lock").unlink()  # pylint: disable=e1101
+                lockpath.unlink()
 
-    def clone(self):
-        """Clones the repository to the directory specified by the class using the url specified by the class."""
+    def clone(self, url):
+        """Clones the repository to the directory specified by the class using the url specified by the class.
 
-        if not self.url:
-            print("{} url not defined.".format(Mood.sad()))
-            raise ValueError
-        Program.runprogram(["git", "clone", self.url, self.directory], use_sudo=self.use_sudo, user=self.sudo_user)
+        url tells git what url to use when cloning a repository."""
+
+        Program.runprogram(["git", "clone", url, self.directory], use_sudo=self.use_sudo, user=self.sudo_user)
 
     def gc(self, aggressive=False):
         """Runs git's garbage collection subcommand.
 
         aggressive controles whether to use aggressive mode, USE SPARINGLY, this is much slower than regular mode."""
 
-        gccmd = deque(["git", "gc"])
+        gccmd = ["git", "gc"]
         if aggressive:
             gccmd.append("--aggressive")
         Program.runprogram(gccmd, workdir=self.directory, use_sudo=self.use_sudo, user=self.sudo_user)
