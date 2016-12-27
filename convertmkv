@@ -13,8 +13,8 @@ require_relative 'andyrb/videoinfo_dm'
 class Options
   def self.parse(args)
     options = OpenStruct.new
-    options.db = Pathname.new('./videoinfo.sqlite')
-    options.gvi = true
+    options.db = nil
+    options.gvi = false
     options.sort = true
     options.ffmpeg = false
     options.output = Pathname.getwd
@@ -23,6 +23,7 @@ class Options
     options.combine = false
     options.debug = false
     options.verbose = false
+    options.audio = false
     options.config = '/home/evildarkarchon/.config/convertmkv.json'
 
     optparse = OptionParser.new do |opts|
@@ -30,13 +31,14 @@ class Options
       opts.on('-f', '--ffmpeg', 'Use ffmpeg instead of mkvmerge. Note: ffmpeg hates mpeg2-ps files.') { |f| options.ffmpeg = f }
       opts.on('-c', '--combine', 'Run in concatenation mode.') { |c| options.combine = c }
       opts.on('--no-sort', "Don't sort the list of files to be muxed.") { options.sort = false }
-      opts.on('--no-gvi', "Don't generate video info for the muxed files.") { options.gvi = false }
+      opts.on('--gvi', "Don't generate video info for the muxed files.") { options.gvi = true }
       opts.on('-o directory', '--output directory', 'Directory where the muxed files will be located. (defaults to current directory)') { |dir| options.output = Pathname.new(dir) }
       opts.on('-b directory', '--backup directory', 'Directory where the source files will be moved.') { |dir| options.backup = Pathname.new(dir) }
       opts.on('--outputdb file', 'File name for the output videoinfo database (if any)') { |db| options.outputdb = Pathname.new(db) }
       opts.on('--debug', '-d', "Print what would be done, but don't actually do it") { |debug| options.debug = debug }
       opts.on('-v', '--verbose', 'Get a lot more chatty.') { |v| options.verbose = v }
       opts.on('--config file', 'Location of the configuration file') { |c| options.config = c }
+      opts.on('--audio', '-a', 'Input files are audio files.') { options.audio = true }
     end
     optparse.parse!(args)
     options
@@ -78,19 +80,24 @@ end
 raise 'Can not find mkvpropedit.' if MkvPropEdit.nil? && Args.ffmpeg
 raise 'Can not find mkvmerge or ffmpeg.' if MkvMerge.nil? && FFMPEG.nil?
 
-DataMapper::Model.raise_on_save_failure = true
-DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
-DataMapper.setup(:output, "sqlite:#{Args.outputdb.realpath}") if Args.outputdb
-DataMapper::Logger.new($stdout, :debug) # if Args.debug || Args.verbose
-# db = DataMapper.repository(:default).adapter
-Vi = GenerateVideoInfo::Videoinfo.new
-Gvi = GenerateVideoInfo::Data.new(Args.db.realpath, Args.verbose) if Args.gvi
-DataMapper.finalize
-begin
-  DataMapper.auto_upgrade!
-rescue DataObjects::SyntaxError
-  DataMapper.auto_migrate!
+if Args.db
+  DataMapper::Model.raise_on_save_failure = true
+  DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
+  DataMapper.setup(:output, "sqlite:#{Args.outputdb.realpath}") if Args.outputdb
+  DataMapper::Logger.new($stdout, :debug) # if Args.debug || Args.verbose
+  # db = DataMapper.repository(:default).adapter
+  VI = GenerateVideoInfo::Videoinfo.new
+  GVI = GenerateVideoInfo::Data.new(Args.db.realpath, Args.verbose) if Args.gvi
+  DataMapper.finalize
+  begin
+    DataMapper.auto_upgrade!
+  rescue DataObjects::SyntaxError
+    DataMapper.auto_migrate!
+  end
 end
+
+VI = nil unless Args.db
+GVI = nil unless Args.gvi
 
 class Convenience
   def initialize(filename)
@@ -116,8 +123,8 @@ class Convenience
         end
       end
     end
-    jsondata = Gvi.json(@filename, Args.debug) unless Args.outputdb
-    jsondata = DataMapper.repository(:output) { Gvi.json(@filename, Args.debug, :output) } if Args.outputdb
+    jsondata = GVI.json(@filename, Args.debug) unless Args.outputdb
+    jsondata = DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) } if Args.outputdb
     GenerateVideoInfo.genhash(@filename, jsondata, outhash) do |h|
       begin
         puts Mood.happy("Writing metadata for #{File.basename(@filename)}")
@@ -137,36 +144,6 @@ class Convenience
     end
   end
 
-=begin
-  def self.ffmpegconcat
-    filelistname = File.join(Dir.pwd, 'mkvfilelist')
-    FileUtils.touch(filelistname)
-    filelist = File.open(filelistname, 'a+')
-    filelist.write('ffconcat version 1.0')
-    Args.files.each do |file|
-      filepath = Pathname.new(file)
-      relpath = filepath.relative_path_from(Pathname.pwd).to_s if filepath.realpath.parent != Pathname.pwd
-      relpath = './' + filepath.basename.to_s
-      query = GenerateVideoInfo::Videoinfo.all(filename: File.basename(file))
-      dur = query[0][:duration_raw] unless query.nil?
-      dur = nil if dur.respond_to?(:empty?) && dur.empty?
-      # dur = db.select('select duration_raw from videoinfo where filename = ?', file)[0] if db
-      filelist.write("file '#{relpath}'\n")
-      filelist.write("duration #{dur}\n") if dur
-    end
-    cmd = [FFMPEG, '-f', 'concat', '-safe', '0', '-i', filelistname, '-c', 'copy', '-hide_banner', '-y', Args.output.to_s]
-    begin
-      Util::Program.runprogram(cmd) unless Args.debug
-      Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', Args.output.to_s]) unless Args.debug
-      genvi(Args.output.to_s) if Args.gvi
-    ensure
-      puts filelist.read if Args.debug || Args.verbose
-      filelist.close
-      # FileUtils.rm(filelistname)
-    end
-  end
-=end
-
   def self.mkvmergeconcat
     basecommand = [MkvMerge, '-o', Args.output.to_s]
     filelist = Args.files.join(' + ')
@@ -182,9 +159,11 @@ class Convenience
     if !Args.backup.nil? && Args.backup.directory? # rubocop:disable Style/GuardClause
       puts Mood.happy("Moving #{@filename} to #{Args.backup}")
       FileUtils.mv(@filename, Args.backup.to_s) unless Args.debug
-      unless Vi.nil? || Args.debug
-        vientry = GenerateVideoInfo::Videoinfo.all(filename: @filename)
-        vientry.destroy
+      if Args.db
+        unless Vi.nil? || Args.debug
+          vientry = GenerateVideoInfo::Videoinfo.all(filename: @filename)
+          vientry.destroy
+        end
       end
     end
   end
@@ -205,7 +184,8 @@ else
   Args.files.each do |file|
     convenience = Convenience.new(file)
     filepath = Pathname.new(file)
-    fileoutpath = Args.output.join(filepath.sub_ext('.mkv').basename.to_s)
+    fileoutpath = Args.output.join(filepath.sub_ext('.mkv').basename.to_s) unless Args.audio
+    fileoutpath = Args.output.join(filepath.sub_ext('.mka').basename.to_s) if Args.audio
     puts Mood.happy("Muxing #{file} to a matroska file.")
     if Args.ffmpeg
       longcmd = [FFMPEG, '-i', filepath.realpath.to_s, '-c', 'copy', '-f', 'matroska', '-hide_banner', '-y', fileoutpath.to_s]
