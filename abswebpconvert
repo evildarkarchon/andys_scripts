@@ -15,8 +15,8 @@ class Options
     options = OpenStruct.new
     # options.quality = '80'
     options.verbose = false
-    options.lossy = false
-    options.lossless = false
+    options.lossy = nil
+    options.lossless = nil
     options.preset = 'default'
     options.outputdir = Pathname.getwd
     # options.backup = Pathname.getwd.join('Original Files')
@@ -59,21 +59,27 @@ Args.files.delete_if { |e| e.include? '*.' }
 
 Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 # Args.lossy = true if !Args.lossy && !Args.lossless
+
 raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
 SevenZ = Util::FindApp.which('7za')
 Convert = Util::FindApp.which('convert')
 raise 'convert not found.' if Convert.nil?
+
 if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
   Args.backup.mkpath unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
 end
+
 Args.outputdir.mkpath unless Args.outputdir.directory? && !Args.outputdir.file?
 raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory? && !Args.outputdir.file?
+
 if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
   raise "#{Args.backup} is not a directory." unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
 end
+
 if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
   Args.backup = Args.backup.realpath unless Args.nobackup
 end
+
 class Command
   attr_reader :list, :outpath, :filepath
   def initialize(filename)
@@ -81,16 +87,19 @@ class Command
     ext = @filepath.extname.downcase
     magic = FileMagic.new(:mime_type)
     @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s
+
     lossless_mime = ['image/png', 'image/gif', 'image/tiff', 'image/x-pcx', 'application/tga', 'application/x-tga']
     lossless_mime << ['application/x-targa', 'image/tga', 'image/x-tga', 'image/targa', 'image/x-targa']
     lossless_mime << 'image/vnd.adobe.photoshop'
     lossless_mime.flatten!
     lossless_mime.compact!
+
     raw = ['.3fr', '.ari', '.arw', '.srf', '.sr2', '.bay', '.crw', '.cr2', '.cap']
     raw << ['.iiq', '.eip', '.dcs', '.dcr', '.drf', '.k25', '.kdc', '.dng', '.erf', '.fff', '.mef', '.mdc', '.mos', '.mrw']
     raw << ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
     raw.flatten!
     raw.compact!
+
     lossless = ['-define', 'webp:lossless=true']
     lossymode = Args.lossy
     losslessmode = Args.lossless
@@ -121,12 +130,15 @@ end
 
 Args.files.each do |file|
   cmdline = Command.new(file)
+
   archivepath = Pathname.new(Args.archive) if Args.archive
   puts Mood.happy("Creating directory #{archivepath.parent}") if Args.archive && !archivepath.parent.mkpath.directory?
   archivepath.parent.mkpath if Args.archive && !archivepath.parent.mkpath.directory?
+
   backuparchivepath = Pathname.new(Args.backuparchive) if Args.backuparchive
   puts Mood.happy("Creating directory #{backuparchivepath.parent}") if Args.backuparchive && !backuparchivepath.parent.directory?
   backuparchivepath.parent.mkpath if Args.backuparchive && !backuparchivepath.parent.directory?
+
   if cmdline.outpath.exist? && !Args.force
     puts Mood.neutral("#{cmdline.outpath} already exists, skipping.")
     next
@@ -134,6 +146,7 @@ Args.files.each do |file|
     puts Mood.neutral("Force mode active, deleting #{cmdline.outpath}")
     Fileutils.rm(cmdline.outpath.to_s)
   end
+
   puts Mood.happy("Converting #{cmdline.filepath.basename} to #{cmdline.outpath}")
   begin
     Util::Program.runprogram(cmdline.list)
@@ -146,6 +159,7 @@ Args.files.each do |file|
     FileUtils.rm(cmdline.outpath.to_s) if cmdline.outpath.exist?
     exit 1
   end
+
   if Args.archive
     puts Mood.happy("Adding #{cmdline.outpath} to #{archivepath}")
     begin
@@ -158,6 +172,7 @@ Args.files.each do |file|
       FileUtils.rm(cmdline.outpath.to_s) if Args.removeoriginal
     end
   end
+
   if Args.backuparchive
     puts Mood.happy("Adding #{cmdline.filepath} to #{backuparchivepath}")
     begin
@@ -170,9 +185,11 @@ Args.files.each do |file|
       FileUtils.rm(cmdline.filepath.to_s) if Args.removeoriginal
     end
   end
+
   next if Args.nobackup
   next if Args.backuparchive && !Args.removeoriginal
   next unless Args.backup.respond_to?(:exist?)
+
   puts Mood.happy("Moving #{cmdline.filepath.basename} to #{Args.backup}")
   FileUtils.mv(file, Args.backup.to_s)
 end
