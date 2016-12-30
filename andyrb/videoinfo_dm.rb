@@ -73,14 +73,14 @@ module GenerateVideoInfo
       insert = Videojson.new
       # puts Videojson.count(filename: filepath.basename.to_s)
       if @db.storage_exists?('videojson') && Videojson.count(filename: filepath.basename.to_s) >= 1
-        puts Mood.happy("Reading metadata from cache for #{filepath}")
+        puts Mood.happy("Reading metadata from cache for #{filepath}") if verbose
         out = Videojson.all(filename: filepath.basename, fields: [:jsondata])
       else
-        puts Mood.happy("Extracting metadata from #{filepath.basename}")
+        puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
         out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
         cache = JSON.parse(out)
         begin
-          puts Mood.happy("Caching JSON for #{filepath.basename}")
+          puts Mood.happy("Caching JSON for #{filepath.basename}") if verbose
           insert.attributes = { filename: filepath.basename, jsondata: JSON.generate(cache) }
           # print @vi.attributes
           insert.save
@@ -94,18 +94,28 @@ module GenerateVideoInfo
       out
     end
   end
-  def self.genhash(filename, inputjson, filehash)
+
+  def self.probe(filepath, verbose = false)
+    filepath = Pathname.new(filepath) unless filepath.respond_to?(:exists)
+    puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
+    out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
+    out
+  end
+
+  def self.genhash(filename, inputjson, filehash = nil)
     jsondata = JSON.parse(inputjson) if inputjson.is_a? String
     jsondata = JSON.parse(inputjson[0][:jsondata]) if inputjson.is_a? DataMapper::Collection
+    # jsondata = Util.recursive_symbolize_keys(jsondata)
     filepath = Pathname.new(filename)
     calc = Dentaku::Calculator.new
     outhash = {}
     outhash[:filename] = filepath.basename.to_s
-    outhash[:filehash] = filehash[filepath.realpath.to_s]
+    outhash[:filehash] = filehash[filepath.realpath.to_s] if filehash
     outhash[:container] = jsondata['format']['format_name']
     outhash[:duration] = Time.at(jsondata['format']['duration'].to_f).utc.strftime('%H:%M:%S')
     outhash[:duration_raw] = jsondata['format']['duration']
     outhash[:numstream] = jsondata['format']['nb_streams']
+
     outhash[:bitrate_total] = case
       when jsondata['format']['bit_rate'].to_i >= 1_000_000
         Filesize.from(jsondata['format']['bit_rate'].to_s + 'b').to('Mb').round(2).to_s + 'Mb/s' if jsondata['format'].key?('bit_rate')
@@ -149,7 +159,9 @@ module GenerateVideoInfo
     when jsondata['streams'].length >= 2 && outhash[:bitrate_1_raw].to_i < 1000
       outhash[:bitrate_1_raw].to_s + 'b/s'
     end # rubocop:disable Lint/EndAlignment
+
     outhash[:type_1] = jsondata['streams'][1]['codec_type'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('codec_type')
+
     outhash[:codec_1] = jsondata['streams'][1]['codec_name'] if jsondata['streams'].length >= 2 && jsondata['streams'][1].respond_to?(:key) && jsondata['streams'][1].key?('codec_name')
 
     outhash[:height] = case
@@ -173,6 +185,7 @@ module GenerateVideoInfo
     rescue ZeroDivisionError
       outhash[:frame_rate] = nil
     end
+
     begin
       testvar = calc.evaluate(jsondata['streams'][1]['avg_frame_rate']).to_f.round(2) if jsondata['streams'].length >= 2 && jsondata['streams'][1].key?('avg_frame_rate')
       outhash[:frame_rate] = testvar if outhash[:frame_rate].nil? || outhash[:frame_rate] < 1.0
