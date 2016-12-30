@@ -22,8 +22,10 @@ module Mood
     out
   end
 
-  def self.colorful(color)
-    colorful = "<#{color}>*</#{color}>".termcolor
-    yield colorful
+  def self.colorful(color, message = nil)
+    colorful = nil
+    colorful = "<#{color}>*</#{color}> #{message}".termcolor unless block_given?
+    colorful = "<#{color}>*</#{color}> #{yield}".termcolor if block_given?
+    colorful
   end
 end
