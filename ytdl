@@ -55,30 +55,48 @@ when !Args.force && !Args.test_mkv
   Util::Program.runprogram(%W(youtube-dl --download-archive #{Archive}) + Urls)
   # print %W(youtube-dl --download-archive #{Args.directory}/downloaded.txt) + Urls\n
 end
-
+=begin
 Files = Args.directory.find do |file|
-  # puts file
+  puts file
   magic = FileMagic.new(:mime_type)
   whitelist = ['video/webm', 'video/x-matroska', 'audio/x-matroska']
-  # puts magic.file(file.to_s)
-  # puts whitelist.include?(magic.file(file.to_s))
-  json = Util.recursive_symbolize_keys(GenerateVideoInfo.probe(file)) if file.file?
-  # puts json.dig(:streams[0], :tags, :BPS) if json.respond_to?(:dig)
+  puts magic.file(file.to_s)
+  puts whitelist.include?(magic.file(file.to_s))
+  json = Util.recursive_symbolize_keys(GenerateVideoInfo.probe(file)) unless file.directory?
+  puts json.dig(:streams[0], :tags, :BPS) if json.is_a? Hash
+  puts json
   case
   when Args.no_stats
-    # puts 'Nope'
+    puts 'Nope 1'
     Find.prune
   when !whitelist.include?(magic.file(file.to_s)) && file.file?
-    # puts 'Nope'
+    puts 'Nope 2'
     Find.prune
-  when json.respond_to?(:dig) && json.dig(:streams[0], :tags, :BPS) && file.file?
-    # puts 'Nope'
+  when json.respond_to?(:dig) && json.dig(:strfevvre3/eams[0], :tags, :BPS) && file.file?
+    puts 'Nope 3'
     Find.prune
   end
 end
-if Files.respond_to?(:each)
-  Files.each do |file|
-    puts Mood.happy("Adding statistic tags to #{file}.")
-    Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{file}))
+=end
+Files = Pathname.glob("#{Args.directory}/**")
+case
+when !Args.no_stats
+  Files.keep_if do |file|
+    json = Util.recursive_symbolize_keys(GenerateVideoInfo.probe(file))
+    # puts json.dig(:streams[0], :tags, :BPS)
+    # puts json
+    false if json.dig(:streams[0], :tags, :BPS)
   end
+  Files.keep_if do |file|
+    magic = FileMagic.new(:mime_type)
+    whitelist = ['video/webm', 'video/x-matroska', 'audio/x-matroska']
+    # puts file
+    # puts magic.file(file.to_s)
+    whitelist.include?(magic.file(file.to_s))
+  end
+end
+puts Files
+Files.each do |file|
+  puts Mood.happy("Adding statistic tags to #{file}.")
+  Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{file}))
 end
