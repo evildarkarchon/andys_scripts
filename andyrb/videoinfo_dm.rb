@@ -12,7 +12,7 @@ require_relative 'videoinfo_dm'
 
 module GenerateVideoInfo
   def self.probe(filepath, verbose = false)
-    filepath = Pathname.new(filepath) unless filepath.respond_to?(:exists)
+    filepath = Pathname.new(filepath) unless filepath.respond_to?(:exist?)
     puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
     out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
     out
