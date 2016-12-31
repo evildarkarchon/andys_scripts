@@ -11,6 +11,12 @@ require_relative 'mood'
 require_relative 'videoinfo_dm'
 
 module GenerateVideoInfo
+  def self.probe(filepath, verbose = false)
+    filepath = Pathname.new(filepath) unless filepath.respond_to?(:exists)
+    puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
+    out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
+    out
+  end
   class Videoinfo
     include DataMapper::Resource
 
@@ -93,13 +99,6 @@ module GenerateVideoInfo
       end
       out
     end
-  end
-
-  def self.probe(filepath, verbose = false)
-    filepath = Pathname.new(filepath) unless filepath.respond_to?(:exists)
-    puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
-    out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
-    out
   end
 
   def self.genhash(filename, inputjson, filehash = nil)
