@@ -1,106 +1,84 @@
-#!/usr/bin/env python3
-import pathlib
-import argparse
-# import shutil
-from datetime import datetime
-# import os
-# import json
-from andy2.util import Mood, Program, Util
-from andy2.videoinfo import probe
+#!/usr/bin/env ruby
+require 'optparse'
+require 'subprocess'
+require 'pathname'
+require 'filemagic'
+# require 'json'
 
-try:
-    # This must be the filemagic module, the python-magic plugin (which uses the same module name) will most likely not work.
-    import magic  # noqa: F401  # pylint: disable=W0611
-except ImportError:
-    pass
+require_relative 'andyrb/videoinfo_dm'
+require_relative 'andyrb/mood'
+require_relative 'andyrb/util'
 
-now = datetime.now().strftime("%Y%m%d")  # pylint: disable=e1101
+class Options
+  def self.parse(args)
+    options = OpenStruct.new
+    options.date = Time.now.strftime("%Y%m%d") # rubocop:disable Style/StringLiterals, Lint/UnneededDisable
+    options.directory = Pathname.new('/data/Videos/Youtube')
+    options.no_date = false
+    options.force = false
+    options.test_mkv = false
+    options.no_stats = false
 
-args = argparse.ArgumentParser(description="ytdl: a simple frontend to youtube-dl.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-args.add_argument("--subdirectory", "-d", help="Subdirectory to download videos to.")
-args.add_argument("--parent", "-p", help="Base directory to download videos to.", default="/data/Videos/Youtube")
-args.add_argument("--no-date", "-n", help="Don't make a subdirectory with the date.", dest="no_date")
-args.add_argument("--force", "-f", help="Don't pass the download archive parameter to youtube-dl, thus forcing the download (will not put any new video ids on the list into the archive).")
-args.add_argument("urls", nargs="*", help="URLs of videos to download.")
+    optparse = OptionParser.new do |opts|
+      opts.on('-d DIRECTORY', '--directory=DIRECTORY', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
+      opts.on('-n', '--no-date', "Don't create a subdirectory with the date.") { options.no_date = true }
+      opts.on('-f', '--force', "Don't add the url(s) to the list of succesfully downloaded videos or read from said list.") { options.force = true }
+      opts.on('--test-mkv', 'Skip running youtube-dl and just test the statistics code.') { options.test_mkv = true }
+      opts.on('--no-stats', "Don't calculate statistics for MKV files.") { options.no_stats = true }
+    end
+    optparse.parse!(args)
+    options
+  end
+end
+ARGV.compact! if ARGV.respond_to?(:compact!)
+Args = Options.parse(ARGV)
+Urls = ARGV
 
-urls = vars(args.parse_args())
+Args.directory = Args.directory + Args.date unless Args.no_date
+YoutubeDL = Util::FindApp.which('youtube-dl')
+MkvPropEdit = Util::FindApp.which('mkvpropedit')
 
+Archive = Args.directory + 'downloaded.txt' if Args.no_date
+Archive = Args.directory.parent + 'downloaded.txt' unless Args.no_date
 
-def genfilelist(filelist, existinghash=None):
-    """Generator function that takes a list of files and yields a filtered list that eliminates any non-video files (based on known mime types or file extensions) and any files that are already in the database.
-    It will use the filemagic module if available for matching based on mime type or use a file extension whitelist if filemagic is not detected.
-    python-magic WILL NOT WORK and there is no easy way to test for it as it uses the same module name.
-    So if python-magic is installed, get rid of it and install filemagic instead."""
+puts Mood.sad("#{Args.directory} exists but is not a directory.") if Args.directory.exist? && !Args.directory.directory?
+exit 1 if Args.directory.exist? && !Args.directory.directory?
+puts Mood.happy("Creating Directory #{Args.directory}.") unless Args.directory.exist? && Args.directory.directory?
+Args.directory.mkpath unless Args.directory.exist? && Args.directory.directory?
+Dir.chdir(Args.directory.to_s)
 
-    try:
-        whitelist = ['video/x-flv', 'video/mp4', 'video/mp2t', 'video/3gpp', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv']
-        whitelist = whitelist + ['video/webm', 'video/x-matroska', 'video/msvideo', 'video/avi', 'application/vnd.rm-realmedia']
-        whitelist = whitelist + ['audio/x-pn-realaudio', 'audio/x-matroska', 'audio/ogg', 'video/ogg', 'audio/vorbis', 'video/theora']
-        whitelist = whitelist + ['video/3gpp2' 'audio/x-wav', 'audio/wave', 'video/dvd', 'video/mpeg', 'application/vnd.rn-realmedia-vbr']
-        whitelist = whitelist + ['audio/vnd.rn-realaudio', 'audio/x-realaudio']
+case
+when Args.force && !Args.test_mkv
+  Util::Program.runprogram(%w(youtube-dl) + Urls)
+  # print %w(youtube-dl) + Urls\n
+when !Args.force && !Args.test_mkv
+  Util::Program.runprogram(%W(youtube-dl --download-archive #{Archive}) + Urls)
+  # print %W(youtube-dl --download-archive #{Args.directory}/downloaded.txt) + Urls\n
+end
 
-        with magic.Magic(flags=magic.MAGIC_MIME_TYPE) as m:
-            for filename in filelist:
-                filepath = pathlib.Path(pathlib.Path(filename).resolve())
-                if existinghash:
-                    if m.id_filename(filename) in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                        yield str(filepath)
-                elif not existinghash:
-                    if m.id_filename(filename) in whitelist and filepath.is_file():
-                        yield str(filepath)
-    except NameError:
-        whitelist = ['.webm', '.mkv', '.flv', '.vob', '.ogg', '.drc', '.avi', '.wmv', '.yuv', '.rm', '.rmvb', '.asf', '.mp4', '.m4v', '.mpg']
-        whitelist = whitelist + ['.mp2', '.mpeg', '.mpe', '.mpv', '.3gp', '.3g2', '.mxf', '.roq', '.nsv', '.f4v', '.wav', '.ra', '.mka']
-        for filename in filelist:
-            filepath = pathlib.Path(pathlib.Path(filename).resolve())
-            if existinghash:
-                if filepath.suffix in whitelist and filepath.is_file() and filepath.name not in existinghash:
-                    yield str(filepath)
-            elif not existinghash:
-                if filepath.suffix in whitelist and filepath.is_file():
-                    yield str(filepath)
-
-
-directory = pathlib.Path(urls["parent"])
-
-if not urls["no_date"]:
-    directory = pathlib.Path(directory.joinpath(now))
-
-if urls["subdirectory"]:
-    directory = pathlib.Path(str(directory.joinpath(urls["subdirectory"])))
-
-if not directory.exists():
-    print("{} Creating directory {}".format(Mood.happy(), directory))
-    directory.mkdir(parents=True, exist_ok=True)
-elif directory.exists() and not directory.is_dir():
-    print("{} {} is not a directory.".format(Mood.sad(), str(directory)))
-    raise NotADirectoryError
-
-if urls["force"]:
-    prog = ['youtube-dl']
-else:
-    prog = ['youtube-dl', '--download-archive', '{}/downloaded.txt'.format(urls["parent"])]
-
-
-Program.runprogram(prog + urls["urls"], workdir=str(directory))
-
-_dir = list(directory.iterdir())
-_initfiles = []
-
-for i in _dir:
-    _initfiles.append(str(i))
-
-files = Util.sortentries(list(genfilelist(_initfiles)))
-
-del _dir
-del _initfiles
-
-for i in files:
-    meta = probe(i, quiet=True)
-    if 'matroska' in meta["format"]["format_name"]:
-        if ("tags" not in meta["streams"][0] or "BPS" not in meta["streams"][0]["tags"]) and\
-                (1 not in meta["streams"] or "tags" not in meta["streams"][1] or "BPS" not in meta["streams"][1]["tags"]):
-            print("{} Adding statistic tags to {}".format(Mood.happy(), i))
-            Program.runprogram(['mkvpropedit', '--add-track-statistics-tags', i])
-    else:
-        pass
+Files = Args.directory.find do |file|
+  # puts file
+  magic = FileMagic.new(:mime_type)
+  whitelist = ['video/webm', 'video/x-matroska', 'audio/x-matroska']
+  # puts magic.file(file.to_s)
+  # puts whitelist.include?(magic.file(file.to_s))
+  json = Util.recursive_symbolize_keys(GenerateVideoInfo.probe(file)) if file.file?
+  # puts json.dig(:streams[0], :tags, :BPS) if json.respond_to?(:dig)
+  case
+  when Args.no_stats
+    # puts 'Nope'
+    Find.prune
+  when !whitelist.include?(magic.file(file.to_s)) && file.file?
+    # puts 'Nope'
+    Find.prune
+  when json.respond_to?(:dig) && json.dig(:streams[0], :tags, :BPS) && file.file?
+    # puts 'Nope'
+    Find.prune
+  end
+end
+if Files.respond_to?(:each)
+  Files.each do |file|
+    puts Mood.happy("Adding statistic tags to #{file}.")
+    Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{file}))
+  end
+end
