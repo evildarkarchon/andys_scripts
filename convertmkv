@@ -66,7 +66,7 @@ puts Mood.neutral 'ffmpeg concatenation mode has been disabled for the time bein
 
 configfile = nil
 configfile = File.open(Args.config) if File.exist? Args.config
-Config = JSON.parse(configfile.read) if configfile.respond_to?(:read)
+Config = Util.recursive_symbolize_keys(JSON.parse(configfile.read)) if configfile.respond_to?(:read)
 configfile.close if configfile.respond_to?(:close)
 
 if FFMPEG.nil? && Args.ffmpeg && !MkvMerge.nil?
@@ -145,10 +145,11 @@ class Convenience
   end
 
   def self.mkvmergeconcat
-    basecommand = [MkvMerge, '-o', Args.output.to_s]
+    # basecommand = [MkvMerge, '-o', Args.output.to_s]
+    basecommand = %W(#{MkvMerge} -o #{Args.output})
     filelist = Args.files.join(' + ')
     filelist = filelist.split
-    command = basecommand + Config['mkvmerge'] + filelist
+    command = basecommand + Config[:mkvmerge] + filelist
     command.flatten!
     command.compact!
     Util::Program.runprogram(command) unless Args.debug
@@ -156,6 +157,17 @@ class Convenience
   end
 
   def backup
+    case
+    when !Args.backup.nil? && Args.backup.directory?
+      puts Mood.happy("Moving #{@filename} to #{Args.backup}")
+      FileUtils.mv(@filename, Args.backup.to_s) unless Args.debug
+    end
+    case
+    when Args.db && !Vi.nil? && !Args.debug
+      vientry = GenerateVideoInfo::Videoinfo.all(filename: @filename)
+      vientry.destroy
+    end
+=begin
     if !Args.backup.nil? && Args.backup.directory? # rubocop:disable Style/GuardClause
       puts Mood.happy("Moving #{@filename} to #{Args.backup}")
       FileUtils.mv(@filename, Args.backup.to_s) unless Args.debug
@@ -166,6 +178,7 @@ class Convenience
         end
       end
     end
+=end
   end
 end
 
@@ -188,11 +201,22 @@ else
     fileoutpath = Args.output.join(filepath.sub_ext('.mka').basename.to_s) if Args.audio
     puts Mood.happy("Muxing #{file} to a matroska file.")
     if Args.ffmpeg
-      longcmd = [FFMPEG, '-i', filepath.realpath.to_s, '-c', 'copy', '-f', 'matroska', '-hide_banner', '-y', fileoutpath.to_s]
-      Util::Program.runprogram(longcmd) unless Args.debug
-      Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', fileoutpath.to_s]) unless Args.debug
+      ffcmd = %W(#{FFMPEG} -i #{filepath.realpath} -c copy -f matroska -hide_banner -y #{fileoutpath})
+      ffcmd.flatten!
+      ffcmd.compact!
+      # longcmd = [FFMPEG, '-i', filepath.realpath.to_s, '-c', 'copy', '-f', 'matroska', '-hide_banner', '-y', fileoutpath.to_s]
+      mpecmd = %W(#{MkvPropEdit} --add-track-statistics-tags #{fileoutpath})
+      mpecmd.flatten!
+      mpecmd.compact!
+      case
+      when !Args.debug
+        Util::Program.runprogram(ffcmd)
+        Util::Program.runprogram(mpecmd)
+      end
+      # Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', fileoutpath.to_s]) unless Args.debug
     else
-      command = [MkvMerge, Config['mkvmerge'], '-o', fileoutpath.to_s, '=', file]
+      # command = [MkvMerge, Config[:mkvmerge], '-o', fileoutpath.to_s, '=', file]
+      command = %W(#{MkvMerge} #{Config[:mkvmerge]} -o #{fileoutpath} = #{file})
       command.flatten!
       command.compact!
       Util::Program.runprogram(command) unless Args.debug
