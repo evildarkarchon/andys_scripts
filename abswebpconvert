@@ -15,8 +15,8 @@ class Options
     options = OpenStruct.new
     # options.quality = '80'
     options.verbose = false
-    options.lossy = nil
-    options.lossless = nil
+    options.lossy = false
+    options.lossless = false
     options.preset = 'default'
     options.outputdir = Pathname.getwd
     # options.backup = Pathname.getwd.join('Original Files')
@@ -29,7 +29,7 @@ class Options
     options.sort = true
 
     optparse = OptionParser.new do |opts|
-      opts.on('--quality n', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
+      opts.on('--quality [n]', '-q [n]', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
       opts.on('--verbose', '-v', 'Make convert more chatty.') { options.verbose = true }
       opts.on('--lossy', 'Produce lossy images.') { options.lossy = true }
       opts.on('--lossless', 'Produce lossless images.') { options.lossless = true }
@@ -50,33 +50,25 @@ class Options
   end
 end
 
-ARGV.compact! if ARGV.respond_to?(:compact!)
 Args = Options.parse(ARGV)
-
+ARGV.compact! if ARGV.respond_to?(:compact!)
 Args.files = ARGV unless Args.sort
 Args.files = Util::SortEntries.sort(ARGV) if Args.sort
-Args.files.delete_if { |e| e.include? '*.' }
 
 Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 # Args.lossy = true if !Args.lossy && !Args.lossless
-
 raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
 SevenZ = Util::FindApp.which('7za')
 Convert = Util::FindApp.which('convert')
 raise 'convert not found.' if Convert.nil?
 
-if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
-  Args.backup.mkpath unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
-end
-
 Args.outputdir.mkpath unless Args.outputdir.directory? && !Args.outputdir.file?
-raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory? && !Args.outputdir.file?
+raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory?
 
-if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
-  raise "#{Args.backup} is not a directory." unless (Args.backup.directory? && !Args.backup.file?) || Args.nobackup
-end
-
-if defined?(Args.backup) && Args.backup.respond_to?(:directory?)
+case
+when defined?(Args.backup) && Args.backup.respond_to?(:directory?)
+  Args.backup.mkpath unless Args.backup.directory? || Args.nobackup
+  raise "#{Args.backup} is not a directory." unless Args.backup.directory? || Args.nobackup
   Args.backup = Args.backup.realpath unless Args.nobackup
 end
 
@@ -87,16 +79,23 @@ class Command
     ext = @filepath.extname.downcase
     magic = FileMagic.new(:mime_type)
     @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s
-
-    lossless_mime = ['image/png', 'image/gif', 'image/tiff', 'image/x-pcx', 'application/tga', 'application/x-tga']
-    lossless_mime << ['application/x-targa', 'image/tga', 'image/x-tga', 'image/targa', 'image/x-targa']
-    lossless_mime << 'image/vnd.adobe.photoshop'
+    lossless_mime = Util.block do
+      lm1 = ['image/png', 'image/gif', 'image/tiff', 'image/x-pcx', 'application/tga', 'application/x-tga']
+      lm2 = ['application/x-targa', 'image/tga', 'image/x-tga', 'image/targa', 'image/x-targa', 'image/vnd.adobe.photoshop']
+      lm = lm1.concat(lm2)
+      lm
+    end
     lossless_mime.flatten!
     lossless_mime.compact!
 
-    raw = ['.3fr', '.ari', '.arw', '.srf', '.sr2', '.bay', '.crw', '.cr2', '.cap']
-    raw << ['.iiq', '.eip', '.dcs', '.dcr', '.drf', '.k25', '.kdc', '.dng', '.erf', '.fff', '.mef', '.mdc', '.mos', '.mrw']
-    raw << ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
+    raw = Util.block do
+      r1 = ['.3fr', '.ari', '.arw', '.srf', '.sr2', '.bay', '.crw', '.cr2', '.cap']
+      r2 = ['.iiq', '.eip', '.dcs', '.dcr', '.drf', '.k25', '.kdc', '.dng', '.erf', '.fff', '.mef', '.mdc', '.mos', '.mrw']
+      r3 = ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
+      r = r1 + r2
+      r += r3
+      r
+    end
     raw.flatten!
     raw.compact!
 
@@ -118,27 +117,83 @@ class Command
     # puts lossymode
     # puts losslessmode
     @list = [Convert, @filepath.to_s]
-    @list << ['-quality', Args.quality] if defined?(Args.quality) && Args.quality
-    @list << lossless if losslessmode
-    @list << ['-define', 'webp:thread-level=1']
-    @list << ['-verbose'] if Args.verbose
+    @list += %W(-quality #{Args.quality}) # ['-quality', Args.quality] if defined?(Args.quality) && Args.quality
+    @list += lossless if losslessmode
+    @list += %w(-define webp:thread-level=1) # ['-define', 'webp:thread-level=1']
+    @list << '-verbose' if Args.verbose
     @list << @outpath.to_s
     @list.flatten!
     @list.compact!
   end
 end
 
+def backuparchive
+  backuparchivepath = Pathname.new(Args.backuparchive)
+  case
+  when backarchivepath.parent.exist? && !backuparchive.parent.directory?
+    raise "#{backuparchivepath.parent} is not a directory."
+  when !backuparchivepath.parent.directory?
+    puts Mood.happy("Creating directory #{backuparchivepath.parent}")
+    backuparchivepath.parent.mkpath
+  end
+  puts Mood.happy("Backing up original files to #{backuparchivepath}")
+
+  paths = []
+  Args.files.each do |file|
+    paths << Pathname.new(file).realpath.to_s
+  end
+
+  begin
+    Util::Program.runprogram(%W(#{SevenZ} a #{Args.backuparchive} #{paths.join(' ')}))
+    # Util::Program.runprogram([SevenZ, 'a', Args.backuparchive, paths.join(' ')])
+  rescue Subprocess::NonZeroExit => e
+    puts e.message
+    raise e
+  else
+    if Args.removeoriginal
+      paths.each do |file|
+        puts Mood.happy("Removing #{file}")
+        Fileutils.rm(file)
+      end
+    end
+  end
+end
+
+def archive
+  archivepath = Pathname.new(Args.archive)
+  puts Mood.happy("Creating directory #{archivepath.parent}") unless archivepath.parent.mkpath.directory?
+  archivepath.parent.mkpath unless archivepath.parent.mkpath.directory?
+  archivepath = archivepath.realpath
+  paths = []
+  Args.files.each do |file|
+    paths += Pathname.new(file).realpath.sub_ext('.webp').to_s
+  end
+  puts Mood.happy("Adding files to #{archivepath}")
+  begin
+    Util::Program.runprogram([SevenZ, 'a', Args.archive, paths.join(' ')])
+  rescue Subprocess::NonZeroExit => e
+    puts e.message
+    raise e
+  else
+    if Args.removeoriginal
+      paths.each do |file|
+        puts Mood.happy("Removing #{file}")
+        Fileutils.rm(file)
+      end
+    end
+  end
+end
+
 Args.files.each do |file|
   cmdline = Command.new(file)
-
+=begin
   archivepath = Pathname.new(Args.archive) if Args.archive
   puts Mood.happy("Creating directory #{archivepath.parent}") if Args.archive && !archivepath.parent.mkpath.directory?
   archivepath.parent.mkpath if Args.archive && !archivepath.parent.mkpath.directory?
-
   backuparchivepath = Pathname.new(Args.backuparchive) if Args.backuparchive
   puts Mood.happy("Creating directory #{backuparchivepath.parent}") if Args.backuparchive && !backuparchivepath.parent.directory?
   backuparchivepath.parent.mkpath if Args.backuparchive && !backuparchivepath.parent.directory?
-
+=end
   if cmdline.outpath.exist? && !Args.force
     puts Mood.neutral("#{cmdline.outpath} already exists, skipping.")
     next
@@ -160,6 +215,7 @@ Args.files.each do |file|
     exit 1
   end
 
+=begin
   if Args.archive
     puts Mood.happy("Adding #{cmdline.outpath} to #{archivepath}")
     begin
@@ -186,10 +242,11 @@ Args.files.each do |file|
     end
   end
 
+=end
   next if Args.nobackup
-  next if Args.backuparchive && !Args.removeoriginal
   next unless Args.backup.respond_to?(:exist?)
-
   puts Mood.happy("Moving #{cmdline.filepath.basename} to #{Args.backup}")
   FileUtils.mv(file, Args.backup.to_s)
 end
+backuparchive if Args.backuparchive
+archive if Args.archive
