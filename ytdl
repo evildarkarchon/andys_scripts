@@ -14,13 +14,15 @@ class Options
     options = OpenStruct.new
     options.date = Time.now.strftime("%Y%m%d") # rubocop:disable Style/StringLiterals, Lint/UnneededDisable
     options.directory = Pathname.new('/data/Videos/Youtube')
+    options.subdirectory = nil
     options.no_date = false
     options.force = false
     options.test_mkv = false
     options.no_stats = false
 
     optparse = OptionParser.new do |opts|
-      opts.on('-d DIRECTORY', '--directory=DIRECTORY', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
+      opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
+      opts.on('-s', '--subdirectory [SUBDIRECTORY]', 'Optional subdirectory to tack on the end (only used if directory is set to the default)') { |dir| options.subdirectory = dir.to_s }
       opts.on('-n', '--no-date', "Don't create a subdirectory with the date.") { options.no_date = true }
       opts.on('-f', '--force', "Don't add the url(s) to the list of succesfully downloaded videos or read from said list.") { options.force = true }
       opts.on('--test-mkv', 'Skip running youtube-dl and just test the statistics code.') { options.test_mkv = true }
@@ -31,6 +33,7 @@ class Options
   end
 end
 ARGV.compact! if ARGV.respond_to?(:compact!)
+ARGV.flatten! if ARGV.respond_to?(:flatten!)
 Args = Options.parse(ARGV)
 Urls = ARGV
 
@@ -40,11 +43,23 @@ MkvPropEdit = Util::FindApp.which('mkvpropedit')
 
 Archive = Args.directory + 'downloaded.txt' if Args.no_date
 Archive = Args.directory.parent + 'downloaded.txt' unless Args.no_date
+case
+when Args.subdirectory && Args.subdirectory.is_a?(String)
+  Util.block do
+    dirname = Args.directory.to_s
+    Args.directory = Args.directory + Args.subdirectory if dirname.include?('/data/Videos/Youtube')
+    puts Mood.neutral('Directory is not /data/Videos/Youtube, subdirectory statement ignored.') unless dirname.include?('/data/Videos/Youtube')
+  end
+end
 
-puts Mood.sad("#{Args.directory} exists but is not a directory.") if Args.directory.exist? && !Args.directory.directory?
-exit 1 if Args.directory.exist? && !Args.directory.directory?
-puts Mood.happy("Creating Directory #{Args.directory}.") unless Args.directory.exist? && Args.directory.directory?
-Args.directory.mkpath unless Args.directory.exist? && Args.directory.directory?
+case
+when Args.directory.exist? && !Args.directory.directory?
+  puts Mood.sad("#{Args.directory} exists but is not a directory.")
+  exit 1
+when !Args.directory.exist?
+  puts Mood.happy("Creating Directory #{Args.directory}.")
+  Args.directory.mkpath
+end
 Dir.chdir(Args.directory.to_s)
 
 case
