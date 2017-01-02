@@ -45,7 +45,7 @@ class Git
     when @use_sudo
       Util::Program.runprogram(%W(sudo -u #{@sudo_user} git clone #{url} #{@wd}))
     else
-      Util::Program.runprogram(%W(git cline #{url} #{@wd}))
+      Util::Program.runprogram(%W(git clone #{url} #{@wd}))
     end
   end
 
@@ -61,6 +61,16 @@ class Git
     when @use_sudo && aggressive
       # Util::Program.runprogram(['sudo', '-u', @sudo_user, 'git', 'gc', '--aggressive'])
       Util::Program.runprogram(%W(sudo -u #{@sudo_user} git gc --aggressive))
+    end
+  end
+
+  def pull
+    Dir.chdir(@wd)
+    case
+    when @use_sudo
+      Util::Program.runprogram(%W(sudo -u #{@sudo_user} git pull))
+    else
+      Util::Program.runprogram(%w(git pull))
     end
   end
 end
