@@ -33,11 +33,11 @@ class Options
       opts.on('--verbose', '-v', 'Make convert more chatty.') { options.verbose = true }
       opts.on('--lossy', 'Produce lossy images.') { options.lossy = true }
       opts.on('--lossless', 'Produce lossless images.') { options.lossless = true }
-      opts.on('--output-dir DIRECTORY', '-o DIRECTORY', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
-      opts.on('--backup-dir DIRECTORY', '-b DIRECTORY', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
+      opts.on('--output-dir [DIRECTORY]', '-o [DIRECTORY]', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
+      opts.on('--backup-dir [DIRECTORY]', '-b [DIRECTORY]', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
       opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
-      opts.on('--archive FILENAME', 'Put the resulting images into a 7z archive.') { |archive| options.archive = archive }
-      opts.on('--backup-archive FILENAME', 'Put the original images into a 7z archive.') do |archive|
+      opts.on('--archive [FILENAME]', 'Put the resulting images into a 7z archive.') { |archive| options.archive = archive }
+      opts.on('--backup-archive [FILENAME]', 'Put the original images into a 7z archive.') do |archive|
         options.backuparchive = archive unless archive == 'none'
         options.backuparchive = nil if archive == 'none'
       end
