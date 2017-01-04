@@ -115,7 +115,7 @@ when !Args.no_stats
     true unless bps
   end
 end
-puts Files
+# puts Files
 Files.each do |file|
   puts Mood.happy("Adding statistic tags to #{file}.")
   Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{file}))
