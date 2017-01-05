@@ -57,7 +57,7 @@ when Args.directory.exist? && !Args.directory.directory?
   puts Mood.sad("#{Args.directory} exists but is not a directory.")
   exit 1
 when !Args.directory.exist?
-  puts Mood.happy("Creating Directory #{Args.directory}.")
+  puts Mood.happy("Creating Directory #{Args.directory}")
   Args.directory.mkpath
 end
 Dir.chdir(Args.directory.to_s)
@@ -117,6 +117,6 @@ when !Args.no_stats
 end
 # puts Files
 Files.each do |file|
-  puts Mood.happy("Adding statistic tags to #{file}.")
+  puts Mood.happy("Adding statistic tags to #{file}")
   Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{file}))
 end
