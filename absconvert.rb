@@ -121,13 +121,13 @@ Config = Util.recursive_symbolize_keys(Config)
 configfile.close if configfile.respond_to?(:close)
 print "#{config}\n" if Args.debug && Config
 
-def backup(source, backupdir)
+def backup(sourcefile, backupdir)
   backuppath = Pathname.new(backupdir)
-  sourcepath = Pathname.new(source)
+  sourcepath = Pathname.new(sourcefile)
 
   backup.mkpath unless backuppath.exist?
   raise 'Backup directory is a file.' if backuppath.exist? && backuppath.file?
-  puts Mood.happy("Moving #{source} to #{backupdir}")
+  puts Mood.happy("Moving #{sourcefile} to #{backupdir}")
   sourcepath.rename(backuppath.join(sourcepath.basename)) if sourcepath.exist?
 end
 
@@ -188,40 +188,45 @@ class Command
     vcodec = case
     when Args.novideo || bitrates[:video].nil?
       '-vn'
-    when Config['defaults']['video']
-      ['-c:v', Config['defaults']['video']]
+    when Config[:defaults][:video]
+      %W(-c:v #{Config[:defaults][:video]})
+      # ['-c:v', Config['defaults']['video']]
     when Args.videocodec
-      ['-c:v', Args.videocodec]
+      %W(-c:v #{Args.videocodec})
+      # ['-c:v', Args.videocodec]
     end
 
     vbitrate = case
     when !Args.novideo && bitrates[:video]
-      ['-b:v', bitrates[:video].to_s]
+      %W(-b:v #{bitrates[:video]})
+      # ['-b:v', bitrates[:video].to_s]
     end
 
     vcodecopts = case
     when !Args.novideo && Args.videocodecopts
       Args.videocodecopts
-    when !Args.novideo && Config['codecs'][Args.videocodec]
-      Config['codecs'][Args.videocodec]
+    when !Args.novideo && Config[:defaults][:Args.videocodec]
+      Config[:codecs][:Args.videocodec]
     end
 
     acodec = case
     when passnum == 1 || Args.noaudio || bitrates[:audio].nil?
       '-an'
-    when !Config['defaults']['audio']
-      Config['defaults']['audio']
     when Args.audiocodec
-      ['-c:a', Args.audiocodec]
+      # ['-c:a', Args.audiocodec]
+      %W(-c:a #{Args.audiocodec})
+    when Config[:defaults][:audio]
+      Config[:defaults][:audio]
     else
-      ['-c:a', 'libopus']
+      %w(-c:a libopus)
+      # ['-c:a', 'libopus']
     end
 
     acodecopts = case
     when !Args.noaudio && Args.audiocodecopts
       Args.audiocodecopts
-    when !Args.noaudio && Config['codecs'][Args.audiocodec]
-      Config['codecs'][Args.audiocodec]
+    when !Args.noaudio && Config[:codecs][:Args.audiocodec]
+      Config[:codecs][:Args.audiocodec]
     end
 
     abitrate = case
@@ -230,8 +235,8 @@ class Command
     end
 
     afilter = case
-    when !Args.noaudio && Config['defaults']['audiofilter']
-      out = %W(-af #{Config['defaults']['audiofilter']})
+    when !Args.noaudio && Config[:defaults][:audiofilter]
+      out = %W(-af #{Config[:defaults][:audiofilter]})
       out
       # ['-af', Config['defaults']['audiofilter']]
     when !Args.noaudio && Args.audiofilter
@@ -242,29 +247,38 @@ class Command
     outcon = case
     when Args.container
       ".#{Args.container}"
-    when Config['defaults']['container']
-      ".#{Config['defaults']['container']}"
+    when Config[:defaults][:container]
+      ".#{Config[:defaults][:container]}"
     else
       '.mkv'
     end
     # print "#{passmax}\n"
-    @list = [FFmpeg, '-i', filename]
+    # @list = [FFmpeg, '-i', filename]
+    @list = %W(#{FFmpeg} -i #{filename})
     @list << vcodec
-    @list << ['-pass', passnum.to_s] if passmax == 2
+    # @list << ['-pass', passnum.to_s] if passmax == 2
+    @list << %W(-pass #{passnum})
     @list << vbitrate if vbitrate
-    @list << ['-pass', passnum.to_s, '-passlogfile', filepath.sub_ext('').to_s] if passmax == 2
+    # @list << ['-pass', passnum.to_s, '-passlogfile', filepath.sub_ext('').to_s] if passmax == 2
+    @list << %W(-pass #{passnum} -passlogfile #{filepath.sub_ext('')}) if passmax == 2
     @list << vcodecopts if vcodecopts
-    @list << ['-filter:v', "fps = #{framerate}"] if framerate
+    # @list << ['-filter:v', "fps = #{framerate}"] if framerate
+    @list << %W(-filter:v fps = #{framerate}) if framerate
     @list << acodec
     @list << abitrate if abitrate
     @list << acodecopts if acodecopts
     @list << afilter if afilter
-    @list << ['-hide_banner', '-y']
+    # @list << ['-hide_banner', '-y']
+    @list << %w(-hide_banner -y)
     @list << case
     when passnum == 1 && passmax == 2
-      ['-f', 'matroska', '/dev/null']
+      # ['-f', 'matroska', '/dev/null']
+      %w(-f matroska /dev/null)
     when passnum == 2 && passmax == 2, passmax = 1
-      Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
+      # Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
+      path = Args.outputdir + filepath.basename.sub_ext(outcon)
+      path = path.to_s
+      path
     end
     @list.flatten!
     @list.compact!
@@ -280,7 +294,8 @@ Args.files.each do |file|
     '.mkv'
   end
   filepath = Pathname.new(file)
-  outpath = Pathname.new(Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
+  # outpath = Pathname.new(Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
+  outpath = Args.outputdir + filepath.basename.sub_ext(outcon)
   logpath = filepath.sub_ext('-0.log') if Args.passes == 2
   case
   when Args.passes == 2
