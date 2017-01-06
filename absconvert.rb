@@ -145,11 +145,23 @@ class Database
     @bitrates[:video] = nil
     @bitrates[:audio] = nil
 
-    @bitrates[:video] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'video' && !Args.videobitrate
-    @bitrates[:video] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'video' && !Args.videobitrate
+    case
+    when query[0][:type_0] == 'video' && !Args.videobitrate
+      @bitrates[:video] = query[0][:bitrate_0_raw]
+    when query[0][:type_1] == 'video' && !Args.videobitrate
+      @bitrates[:video] = query[0][:bitrate_1_raw]
+    when Args.videobitrate
+      @bitrates[:video] = Args.videobitrate
+    end
 
-    @bitrates[:audio] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'audio' && !Args.audiobitrate
-    @bitrates[:audio] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'audio' && !Args.audiobitrate
+    case
+    when query[0][:type_0] == 'audio' && !Args.audiobitrate
+      @bitrates[:audio] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'audio' && !Args.audiobitrate
+    when query[0][:type_1] == 'audio' && !Args.audiobitrate
+      @bitrates[:audio] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'audio' && !Args.audiobitrate
+    when Args.audiobitrate
+      @bitrates[:audio] = Args.audiobitrate
+    end
   end
 
   def framerate!
@@ -174,7 +186,7 @@ class Command
       db.frame_rate
     end
     vcodec = case
-    when Args.novideo
+    when Args.novideo || bitrates[:video].nil?
       '-vn'
     when Config['defaults']['video']
       ['-c:v', Config['defaults']['video']]
@@ -183,8 +195,6 @@ class Command
     end
 
     vbitrate = case
-    when !Args.novideo && Args.videobitrate
-      ['-b:v', Args.videobitrate.to_s]
     when !Args.novideo && bitrates[:video]
       ['-b:v', bitrates[:video].to_s]
     end
@@ -197,7 +207,7 @@ class Command
     end
 
     acodec = case
-    when passnum == 1, Args.noaudio
+    when passnum == 1 || Args.noaudio || bitrates[:audio].nil?
       '-an'
     when !Config['defaults']['audio']
       Config['defaults']['audio']
@@ -215,9 +225,7 @@ class Command
     end
 
     abitrate = case
-    when !Args.noaudio && Args.audiobitrate
-      ['-b:a', Args.audiobitrate.to_s]
-    when !Args.noaudio && !Args.audiobitrate && bitrates[:audio]
+    when !Args.noaudio && bitrates[:audio]
       ['-b:a', bitrates[:audio].to_s]
     end
 
@@ -300,7 +308,8 @@ Args.files.each do |file|
     raise e
   else
     Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', outpath.to_s]) if Args.stats
-    unless Args.converttest || Args.debug
+    case
+    when !Args.converttest && !Args.debug
       del = GenerateVideoInfo::Videoinfo.all(filename: filepath.basename.to_s)
       deljson = GenerateVideoInfo::Videojson.all(filename: filepath.basename.to_s)
       del.destroy
