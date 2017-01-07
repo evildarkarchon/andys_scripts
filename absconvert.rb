@@ -257,13 +257,13 @@ class Command
     @list = %W(#{FFmpeg} -i #{filename})
     @list << vcodec
     # @list << ['-pass', passnum.to_s] if passmax == 2
-    @list << %W(-pass #{passnum})
+    # @list << %W(-pass #{passnum})
     @list << vbitrate if vbitrate
     # @list << ['-pass', passnum.to_s, '-passlogfile', filepath.sub_ext('').to_s] if passmax == 2
     @list << %W(-pass #{passnum} -passlogfile #{filepath.sub_ext('')}) if passmax == 2
     @list << vcodecopts if vcodecopts
     # @list << ['-filter:v', "fps = #{framerate}"] if framerate
-    @list << %W(-filter:v fps = #{framerate}) if framerate
+    @list << %W(-filter:v fps=#{framerate}) if framerate
     @list << acodec
     @list << abitrate if abitrate
     @list << acodecopts if acodecopts
@@ -305,9 +305,9 @@ Args.files.each do |file|
     cmd1pass = Command.new(file, passmax: 1).list
   end
   if Args.debug
-    print "#{cmdpass1}\n"
-    print "#{cmdpass2}\n"
-    print "#{cmd1pass}\n"
+    puts cmdpass1 if cmdpass1
+    puts cmdpass2 if cmdpass2
+    puts cmd1pass if cmd1pass
   end
   begin
     case
