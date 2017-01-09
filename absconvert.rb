@@ -113,13 +113,15 @@ MkvPropEdit = Util::FindApp.which('mkvpropedit')
 FFmpeg = Util::FindApp.which('ffmpeg')
 
 raise 'ffmpeg not found.' if FFmpeg.nil?
-
-configfile = nil
-configfile = File.open Args.config if File.exist? Args.config
-Config = JSON.parse configfile.read if configfile.respond_to?(:read)
-Config = Util.recursive_symbolize_keys(Config)
-configfile.close if configfile.respond_to?(:close)
-print "#{config}\n" if Args.debug && Config
+Config = case # rubocop:disable Style/ConstantName
+when File.exist?(Args.config)
+  configfile = File.open(Args.config)
+  config = JSON.parse(configfile.read)
+  config = Util.recursive_symbolize_keys(config)
+  configfile.close
+  print "#{config}\n" if Args.debug && config
+  config
+end
 
 def backup(sourcefile, backupdir)
   backuppath = Pathname.new(backupdir)
@@ -146,21 +148,21 @@ class Database
     @bitrates[:audio] = nil
 
     case
+    when Args.videobitrate
+      @bitrates[:video] = Args.videobitrate
     when query[0][:type_0] == 'video' && !Args.videobitrate
       @bitrates[:video] = query[0][:bitrate_0_raw]
     when query[0][:type_1] == 'video' && !Args.videobitrate
       @bitrates[:video] = query[0][:bitrate_1_raw]
-    when Args.videobitrate
-      @bitrates[:video] = Args.videobitrate
     end
 
     case
+    when Args.audiobitrate
+      @bitrates[:audio] = Args.audiobitrate
     when query[0][:type_0] == 'audio' && !Args.audiobitrate
       @bitrates[:audio] = query[0][:bitrate_0_raw] if query[0][:type_0] == 'audio' && !Args.audiobitrate
     when query[0][:type_1] == 'audio' && !Args.audiobitrate
       @bitrates[:audio] = query[0][:bitrate_1_raw] if query[0][:type_1] == 'audio' && !Args.audiobitrate
-    when Args.audiobitrate
-      @bitrates[:audio] = Args.audiobitrate
     end
   end
 
@@ -205,8 +207,8 @@ class Command
     vcodecopts = case
     when !Args.novideo && Args.videocodecopts
       Args.videocodecopts
-    when !Args.novideo && Config[:defaults][:Args.videocodec]
-      Config[:codecs][:Args.videocodec]
+    when !Args.novideo && Config[:defaults][Args.videocodec.to_sym]
+      Config[:codecs][Args.videocodec.to_sym]
     end
 
     acodec = case
@@ -225,8 +227,8 @@ class Command
     acodecopts = case
     when !Args.noaudio && Args.audiocodecopts
       Args.audiocodecopts
-    when !Args.noaudio && Config[:codecs][:Args.audiocodec]
-      Config[:codecs][:Args.audiocodec]
+    when !Args.noaudio && Config[:codecs][Args.audiocodec.to_sym]
+      Config[:codecs][Args.audiocodec.to_sym]
     end
 
     abitrate = case
@@ -288,8 +290,8 @@ Args.files.each do |file|
   outcon = case
   when Args.container
     ".#{Args.container}"
-  when Config['defaults']['container']
-    ".#{Config['defaults']['container']}"
+  when Config[:defaults][:container]
+    ".#{Config[:defaults][:container]}"
   else
     '.mkv'
   end
