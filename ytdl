@@ -80,6 +80,7 @@ when !Args.force && !Args.test_mkv
 end
 
 Files = Pathname.glob("#{Args.directory}/**")
+exit if Files.empty? || Files.nil?
 case
 when !Args.no_stats
   Files.keep_if do |file|
