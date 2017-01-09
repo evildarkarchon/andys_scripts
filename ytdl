@@ -39,7 +39,10 @@ Args = Options.parse(ARGV)
 
 Urls = ARGV
 Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
-raise 'No URLs specified (or code is bugged)' if Urls.empty? || Urls.nil?
+case
+when (Urls.empty? || Urls.nil?) && !Args.test_mkv
+  raise 'No URLs specified (or code is bugged)'
+end
 
 case
 when !Args.no_date && Args.directory.to_s.include?('/data/Videos/Youtube')
@@ -48,6 +51,8 @@ end
 
 YoutubeDL = Util::FindApp.which('youtube-dl')
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
+raise "Couldn't find youtube-dl" unless YoutubeDL
+raise "Couldn't find mkvpropedit" unless (MkvPropEdit && !Args.no_stats) || Args.no_stats
 
 Archive = Args.directory + 'downloaded.txt' if Args.no_date
 Archive = Args.directory.parent + 'downloaded.txt' unless Args.no_date
