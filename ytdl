@@ -53,6 +53,8 @@ YoutubeDL = Util::FindApp.which('youtube-dl')
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
 raise "Couldn't find youtube-dl" unless YoutubeDL
 raise "Couldn't find mkvpropedit" unless (MkvPropEdit && !Args.no_stats) || Args.no_stats
+raise 'youtube-dl is not executable' unless File.executable?(YoutubeDL)
+raise 'mkvpropedit is not executable' unless (File.executable? && !Args.no_stats) || Args.no_stats
 
 Archive = Args.directory + 'downloaded.txt' if Args.no_date
 Archive = Args.directory.parent + 'downloaded.txt' unless Args.no_date
