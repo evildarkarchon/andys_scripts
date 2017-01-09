@@ -97,7 +97,14 @@ when !Args.no_stats
     # puts 'Nope' if json.dig(:streams, 0, :tags, :BPS)
     # false if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
     # true unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
-    bps = json.dig(:streams, 0, :tags, :BPS)
+    # bps = json.dig(:streams, 0, :tags, :BPS)
+    bps = case
+    when json.respond_to?(:dig) # rubocop:disable Style/CaseIndentation
+      json.dig(:streams, 0, :tags, :BPS)
+    when !json.respond_to?(:dig) # rubocop:disable Style/CaseIndentation
+      true if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
+      false unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
+    end # rubocop:disable Lint/EndAlignment
     false if bps
     true unless bps
   end
