@@ -153,7 +153,7 @@ def backuparchive
     if Args.removeoriginal
       paths.each do |file|
         puts Mood.happy("Removing #{file}")
-        Fileutils.rm(file)
+        FileUtils.rm(file)
       end
     end
   end
@@ -161,8 +161,8 @@ end
 
 def archive
   archivepath = Pathname.new(Args.archive)
-  puts Mood.happy("Creating directory #{archivepath.parent}") unless archivepath.parent.mkpath.directory?
-  archivepath.parent.mkpath unless archivepath.parent.mkpath.directory?
+  puts Mood.happy("Creating directory #{archivepath.parent}") unless archivepath.parent.directory?
+  archivepath.parent.mkpath unless archivepath.parent.directory?
   archivepath = archivepath.realpath
   paths = []
   Args.files.each do |file|
@@ -178,7 +178,7 @@ def archive
     if Args.removeoriginal
       paths.each do |file|
         puts Mood.happy("Removing #{file}")
-        Fileutils.rm(file)
+        FileUtils.rm(file)
       end
     end
   end
@@ -186,63 +186,28 @@ end
 
 Args.files.each do |file|
   cmdline = Command.new(file)
-=begin
-  archivepath = Pathname.new(Args.archive) if Args.archive
-  puts Mood.happy("Creating directory #{archivepath.parent}") if Args.archive && !archivepath.parent.mkpath.directory?
-  archivepath.parent.mkpath if Args.archive && !archivepath.parent.mkpath.directory?
-  backuparchivepath = Pathname.new(Args.backuparchive) if Args.backuparchive
-  puts Mood.happy("Creating directory #{backuparchivepath.parent}") if Args.backuparchive && !backuparchivepath.parent.directory?
-  backuparchivepath.parent.mkpath if Args.backuparchive && !backuparchivepath.parent.directory?
-=end
+  outname = cmdline.outpath.to_s
   if cmdline.outpath.exist? && !Args.force
     puts Mood.neutral("#{cmdline.outpath} already exists, skipping.")
     next
   elsif cmdline.outpath.exist? && Args.force
     puts Mood.neutral("Force mode active, deleting #{cmdline.outpath}")
-    Fileutils.rm(cmdline.outpath.to_s)
+    FileUtils.rm(outname)
   end
 
-  puts Mood.happy("Converting #{cmdline.filepath.basename} to #{cmdline.outpath}")
+  puts Mood.happy("Converting #{cmdline.filepath} to #{cmdline.outpath.basename}")
   begin
     Util::Program.runprogram(cmdline.list)
   rescue Subprocess::NonZeroExit => e
     puts Mood.sad("#{file} was not able to be converted, skipping.")
-    FileUtils.rm(cmdline.outpath.to_s) if cmdline.outpath.exist?
+    FileUtils.rm(outname) if cmdline.outpath.exist?
     puts e.message
     next
   rescue Interrupt => e
-    FileUtils.rm(cmdline.outpath.to_s) if cmdline.outpath.exist?
+    FileUtils.rm(outname) if cmdline.outpath.exist?
     exit 1
   end
 
-=begin
-  if Args.archive
-    puts Mood.happy("Adding #{cmdline.outpath} to #{archivepath}")
-    begin
-      Util::Program.runprogram([SevenZ, 'a', Args.archive, cmdline.outpath.to_s])
-    rescue Subprocess::NonZeroExit => e
-      puts e.message
-      raise e
-    else
-      puts Mood.happy("Removing #{cmdline.outpath}") if Args.removeoriginal
-      FileUtils.rm(cmdline.outpath.to_s) if Args.removeoriginal
-    end
-  end
-
-  if Args.backuparchive
-    puts Mood.happy("Adding #{cmdline.filepath} to #{backuparchivepath}")
-    begin
-      Util::Program.runprogram([SevenZ, 'a', Args.backuparchive, cmdline.filepath.to_s])
-    rescue Subprocess::NonZeroExit => e
-      puts e.message
-      raise e
-    else
-      puts Mood.happy("Removing #{cmdline.filepath}") if Args.removeoriginal
-      FileUtils.rm(cmdline.filepath.to_s) if Args.removeoriginal
-    end
-  end
-
-=end
   next if Args.nobackup
   next unless Args.backup.respond_to?(:exist?)
   puts Mood.happy("Moving #{cmdline.filepath.basename} to #{Args.backup}")
