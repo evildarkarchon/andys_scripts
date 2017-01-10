@@ -20,9 +20,11 @@ class Options
     options.force = false
     options.test_mkv = false
     options.no_stats = false
+    options.archive = nil
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
+      opts.on('-a', '--archive [DIRECTORY]', 'Directory for the downloaded video list') { |dir| options.archive = Pathname.new(dir) }
       opts.on('-s', '--subdirectory [SUBDIRECTORY]', 'Optional subdirectory to tack on the end (only used if directory is set to the default)') { |dir| options.subdirectory = dir.to_s }
       opts.on('-n', '--no-date', "Don't create a subdirectory with the date (only needed if directory is set to the default)") { options.no_date = true }
       opts.on('-f', '--force', "Don't add the url(s) to the list of succesfully downloaded videos or read from said list.") { options.force = true }
@@ -56,8 +58,15 @@ raise "Couldn't find mkvpropedit" unless (MkvPropEdit && !Args.no_stats) || Args
 raise 'youtube-dl is not executable' unless YoutubeDL && File.executable?(YoutubeDL)
 raise 'mkvpropedit is not executable' unless (MkvPropEdit && File.executable?(MkvPropEdit) && !Args.no_stats) || Args.no_stats
 
-Archive = Args.directory + 'downloaded.txt' if Args.no_date
-Archive = Args.directory.parent + 'downloaded.txt' unless Args.no_date
+Archive = case # rubocop:disable Style/ConstantName
+when Args.archive # rubocop:disable Style/CaseIndentation
+  Args.archive + 'downloaded.txt'
+when Args.directory.to_s == '/data/Videos/Youtube' && Args.no_date, !Args.directory.to_s == '/data/Videos/Youtube' # rubocop:disable Style/CaseIndentation
+  Args.directory + 'downloaded.txt'
+when !Args.no_date && Args.directory.to_s == '/data/Videos/Youtube' # rubocop:disable Style/CaseIndentation
+  Args.directory.parent + 'downloaded.txt'
+end # rubocop:disable Lint/EndAlignment
+
 case
 when Args.subdirectory && Args.subdirectory.is_a?(String)
   Util.block do
