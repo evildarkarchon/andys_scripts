@@ -45,7 +45,7 @@ when (Urls.empty? || Urls.nil?) && !Args.test_mkv
 end
 
 case
-when !Args.no_date && Args.directory.to_s.include?('/data/Videos/Youtube')
+when !Args.no_date && Args.directory.to_s == '/data/Videos/Youtube'
   Args.directory = Args.directory + Args.date
 end
 
@@ -53,8 +53,8 @@ YoutubeDL = Util::FindApp.which('youtube-dl')
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
 raise "Couldn't find youtube-dl" unless YoutubeDL
 raise "Couldn't find mkvpropedit" unless (MkvPropEdit && !Args.no_stats) || Args.no_stats
-raise 'youtube-dl is not executable' unless File.executable?(YoutubeDL)
-raise 'mkvpropedit is not executable' unless (File.executable? && !Args.no_stats) || Args.no_stats
+raise 'youtube-dl is not executable' unless YoutubeDL && File.executable?(YoutubeDL)
+raise 'mkvpropedit is not executable' unless (MkvPropEdit && File.executable?(MkvPropEdit) && !Args.no_stats) || Args.no_stats
 
 Archive = Args.directory + 'downloaded.txt' if Args.no_date
 Archive = Args.directory.parent + 'downloaded.txt' unless Args.no_date
@@ -62,8 +62,8 @@ case
 when Args.subdirectory && Args.subdirectory.is_a?(String)
   Util.block do
     dirname = Args.directory.to_s
-    Args.directory = Args.directory + Args.subdirectory if dirname.include?('/data/Videos/Youtube')
-    puts Mood.neutral('Directory is not /data/Videos/Youtube, subdirectory statement ignored.') unless dirname.include?('/data/Videos/Youtube')
+    Args.directory = Args.directory + Args.subdirectory if dirname == '/data/Videos/Youtube'
+    puts Mood.neutral('Directory is not /data/Videos/Youtube, subdirectory statement ignored.') unless dirname == '/data/Videos/Youtube'
   end
 end
 
