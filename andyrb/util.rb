@@ -90,8 +90,8 @@ module Util
       than = timestamp.to_date if timestamp.is_a?(Time)
       than = Time.at(timestamp).to_date unless than.nil? || than.is_a?(Date)
       diff = now - than
-      return diff.to_i if diff.respond_to?(:to_i) && !block_given?
       yield diff if block_given?
+      diff.to_i if diff.respond_to?(:to_i) && !block_given?
     end
   end
 
@@ -130,8 +130,10 @@ module Util
   class Program
     def self.runprogram(program, use_sudo = false, sudo_user = nil, parse_output = false)
       cmdline = []
-      sudo_user = 'root' if use_sudo && !sudo_user
-      cmdline << ['sudo', '-u', sudo_user] if use_sudo
+      # sudo_user = 'root' if use_sudo && !sudo_user
+      # cmdline << ['sudo', '-u', sudo_user] if use_sudo
+      cmdline << %W(sudo -u #{sudo_user}) if use_sudo && sudo_user
+      cmdline << %w(sudo) if use_sudo && !sudo_user
       cmdline << program
       cmdline.flatten!
       cmdline.compact!
