@@ -26,33 +26,37 @@ class Options
     options
   end
 end
-options = Options.parse(ARGV)
-options.directory = ARGV unless ARGV.nil? || ARGV.empty?
-options.directory = ['/data/Private'] if ARGV.nil? || ARGV.empty?
+ARGV.flatten! if ARGV.respond_to?(:flatten!)
+ARGV.compact! if ARGV.respond_to?(:compact!)
+ARGV.uniq! if ARGV.respond_to?(:uniq!)
+Args = Options.parse(ARGV)
+Args.directory = ARGV unless ARGV.nil? || ARGV.empty?
+Args.directory = ['/data/Private'] if ARGV.nil? || ARGV.empty?
+Args.directory.keep_if { |dirname| File.directory?(dirname) }
 
 DataMapper::Model.raise_on_save_failure = true
-DataMapper::Logger.new($stdout, :debug) if options.verbose
+DataMapper::Logger.new($stdout, :debug) if Args.verbose
 
 directories = []
-if options.directory.respond_to?(:each)
-  options.directory.each do |i|
+if Args.directory.respond_to?(:each)
+  Args.directory.each do |i|
     directories << GenerateVideoInfo.find(i, true)
     directories.compact!
     directories.uniq!
     directories.flatten!
   end
 else
-  directories << GenerateVideoInfo.find(options.directory, true)
+  directories << GenerateVideoInfo.find(Args.directory, true)
   directories.compact!
   directories.uniq!
   directories.flatten!
 end
 
-directories = directories.join('') if directories.respond_to?(:each) && directories.respond_to?(:length) && directories.length == 1
+directories = directories[0] if directories.is_a?(Array) && directories.length == 1
 filelist = []
 initlist = []
 
-if directories.respond_to?(:each) && directories.respond_to?(:length) && directories.length > 1
+if directories.is_a?(Array) && directories.length > 1
   directories.each do |d|
     dbpath = Pathname.new(d).realpath
     dbpath = dbpath.dirname if dbpath.file?
@@ -60,8 +64,9 @@ if directories.respond_to?(:each) && directories.respond_to?(:length) && directo
     DataMapper.setup(:default, "sqlite:#{dbpath.join('videoinfo.sqlite')}")
     DataMapper.finalize
     # puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
-    GenerateVideoInfo::Videoinfo.auto_migrate! unless options.reset_json == true
-    GenerateVideoInfo::Videojson.auto_migrate! if options.reset_json == true || options.reset_all == true
+    GenerateVideoInfo::Videoinfo.auto_migrate! unless Args.reset_json
+    GenerateVideoInfo::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
+
     Find.find(dir) do |path|
       if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
         Find.prune # Don't look any further into this directory.
@@ -71,6 +76,7 @@ if directories.respond_to?(:each) && directories.respond_to?(:length) && directo
         next
       end
     end
+
     initlist.flatten!
     initlist.compact!
     initlist.uniq!
@@ -89,8 +95,9 @@ else
   DataMapper.setup(:default, "sqlite:#{dbpath.join('videoinfo.sqlite')}")
   DataMapper.finalize
   # puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
-  GenerateVideoInfo::Videoinfo.auto_migrate! unless options.reset_json == true
-  GenerateVideoInfo::Videojson.auto_migrate! if options.reset_json == true || options.reset_all == true
+  GenerateVideoInfo::Videoinfo.auto_migrate! unless Args.reset_json
+  GenerateVideoInfo::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
+
   Find.find(dir) do |path|
     if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
       Find.prune # Don't look any further into this directory.
@@ -99,6 +106,7 @@ else
       next
     end
   end
+
   initlist.flatten!
   initlist.compact!
   initlist.uniq!
@@ -117,22 +125,26 @@ filelist.each do |file|
   filepath = Pathname.new(file)
   # puts filepath.dirname
   FileUtils.touch(file) unless filepath.file?
+
   DataMapper.setup(:default, "sqlite:#{filepath.dirname.join('videoinfo.sqlite')}") if filepath.file?
   DataMapper.setup(:default, "sqlite:#{filepath.join('videoinfo.sqlite')}") if filepath.directory?
-  gvi = GenerateVideoInfo::Data.new(filepath.dirname.join('videoinfo.sqlite').to_s, options.verbose) if filepath.file?
-  gvi = GenerateVideoInfo::Data.new(filepath.join('videoinfo.sqlite').to_s, options.verbose) if filepath.directory?
+  gvi = GenerateVideoInfo::Data.new(filepath.dirname.join('videoinfo.sqlite').to_s, Args.verbose) if filepath.file?
+  gvi = GenerateVideoInfo::Data.new(filepath.join('videoinfo.sqlite').to_s, Args.verbose) if filepath.directory?
   insert = GenerateVideoInfo::Videoinfo.new
   # db = DataMapper.repository(:default).adapter
+
   name = filepath.to_s
-  jsondata = gvi.json(name, options.verbose)
+  jsondata = gvi.json(name, Args.verbose)
+
   GenerateVideoInfo.genhash(file, jsondata, digests) do |h|
     begin
       puts Mood.happy("Writing metadata for #{File.basename(file)}")
       insert.attributes = h
       insert.save
     rescue DataMapper::SaveFailureError
-      insert.errors.each { |e| puts e } if options.verbose
+      insert.errors.each { |e| puts e } if Args.verbose
     end
   end
+
   digests.delete(name)
 end
