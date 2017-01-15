@@ -31,46 +31,50 @@ class Options
     options
   end
 end
-options = Options.parse(ARGV)
-options.files = []
-options.files = ARGV unless ARGV.nil? || ARGV.empty?
+Args = Options.parse(ARGV)
+Args.files = ARGV unless ARGV.nil? || ARGV.empty?
+Args.files.flatten! if ARGV.respond_to?(:flatten!)
+Args.files.compact! if ARGV.respond_to?(:compact!)
+Args.files.uniq! if ARGV.respond_to?(:uniq!)
+Args.files.keep_if { |filename| Pathname.new(filename).file? } unless Args.files.empty? || Args.files.nil?
+
 case
-when options.files.empty?
+when Args.files.empty?
   Find.find(Dir.getwd) do |path|
     if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
       Find.prune # Don't look any further into this directory.
     else
-      puts path if options.debug
-      options.files << path
+      puts path if Args.debug
+      Args.files << path
       next
     end
   end
 end
+
 case
-when options.debug
-  puts options
-  puts options.files
+when Args.debug
+  puts Args
+  puts Args.files
 end
-FileUtils.touch(options.db.basename.to_s) unless options.db.file?
+
+FileUtils.touch(Args.db.basename.to_s) unless Args.db.file?
 DataMapper::Model.raise_on_save_failure = true
-DataMapper.setup(:default, "sqlite:#{options.db.realpath}")
-DataMapper::Logger.new($stdout, :debug) if options.debug || options.verbose
+DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
+DataMapper::Logger.new($stdout, :debug) if Args.debug || Args.verbose
 db = DataMapper.repository(:default).adapter
 # vi = GenerateVideoInfo::Videoinfo.new
 # print "#{vi.inspect}\n"
-gvi = GenerateVideoInfo::Data.new(options.db.realpath, options.verbose)
+gvi = GenerateVideoInfo::Data.new(Args.db.realpath, Args.verbose)
 DataMapper.finalize
 begin
-  DataMapper.auto_upgrade! unless options.reset_all
+  DataMapper.auto_upgrade! unless Args.reset_all
 rescue DataObjects::SyntaxError
   DataMapper.auto_migrate!
 end
-DataMapper.auto_migrate! if options.reset_all
-# db.execute('drop table if exists videoinfo') if options.reset_all || options.regen
-# if !db.storage_exists?('videoinfo')
+DataMapper.auto_migrate! if Args.reset_all
 
 case
-when options.regen && !options.reset_all
+when Args.regen && !Args.reset_all
   puts Mood.neutral('Resetting videoinfo table')
   begin
     GenerateVideoInfo::Videoinfo.auto_upgrade! # avoid not null errors
@@ -84,7 +88,7 @@ when options.regen && !options.reset_all
 end
 
 case
-when options.reset_json && !options.reset_all
+when Args.reset_json && !Args.reset_all
   puts Mood.neutral('Resetting JSON Cache')
   GenerateVideoInfo::Videojson.all.destroy
   # db.execute('drop table if exists videojson')
@@ -97,7 +101,7 @@ when options.reset_json && !options.reset_all
   exit
 end
 
-if options.maintainence
+if Args.maintainence
   db.execute('vacuum')
   exit
 end
@@ -105,8 +109,8 @@ end
 initlist = []
 
 case
-when options.files && options.files.respond_to?(:each)
-  options.files.each do |entry|
+when Args.files && Args.files.respond_to?(:each)
+  Args.files.each do |entry|
     path = Pathname.new(entry).realpath
     initlist << path.to_s if path.file?
     if path.directory? # rubocop:disable Style/Next
@@ -128,11 +132,11 @@ initlist.uniq!
 existing = {}
 existing = gvi.existing
 # print "#{existing}\n"
-filelist = GenerateVideoInfo.genfilelist(initlist, options.debug)
+filelist = GenerateVideoInfo.genfilelist(initlist, Args.debug)
 filelist.delete_if { |h| existing.each { |e| h.in? e[:filename] } } unless existing.nil? || existing.empty?
 
 case
-when options.debug
+when Args.debug
   puts 'Initial list:'
   print initlist
   print "\n"
@@ -152,28 +156,30 @@ when filelist.empty?
 end
 
 digests = Util.hashfile(filelist)
+
 case
-when options.debug
+when Args.debug
   print "#{digests}\n"
   print "#{filelist}\n"
 end
+
 filelist.each do |file|
   insert = GenerateVideoInfo::Videoinfo.new
-  jsondata = gvi.json(file, options.verbose) unless options.debug
+  jsondata = gvi.json(file, Args.verbose) unless Args.debug
   case
-  when options.debug
+  when Args.debug
     print "#{digests[file]}\n"
     print "#{file}\n"
-  when !options.debug
+  when !Args.debug
     GenerateVideoInfo.genhash(file, jsondata, digests) do |h|
       begin
         puts Mood.happy("Writing metadata for #{File.basename(file)}")
         insert.attributes = h
         insert.save
       rescue DataMapper::SaveFailureError
-        insert.errors.each { |e| puts e } if options.debug
+        insert.errors.each { |e| puts e } if Args.debug
       end
     end
   end
-  print "#{GenerateVideoInfo.genhash(file, jsondata, digests)}\n" if options.debug || options.verbose
+  print "#{GenerateVideoInfo.genhash(file, jsondata, digests)}\n" if Args.debug || Args.verbose
 end
