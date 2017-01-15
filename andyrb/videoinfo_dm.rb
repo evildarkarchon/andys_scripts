@@ -6,18 +6,19 @@ require 'filemagic'
 require 'find'
 require 'subprocess'
 require 'dentaku'
-# rubocop:disable Metrics/ModuleLength, Style/CaseIndentation, Lint/UnneededDisable
+# rubocop:disable Metrics/ModuleLength, Style/CaseIndentation, Lint/UnneededDisable, Style/ConstantName
 require_relative 'mood'
 require_relative 'videoinfo_dm'
 
 module GenerateVideoInfo
   def self.probe(filepath, verbose = false)
-    filepath = Pathname.new(filepath) unless filepath.respond_to?(:exist?)
+    filepath = Pathname.new(filepath) unless filepath.is_a?(Pathname)
     puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
     out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
     out = JSON.parse(out)
     out
   end
+
   class Videoinfo
     include DataMapper::Resource
 
@@ -199,8 +200,10 @@ module GenerateVideoInfo
 
   def self.genfilelist(filelist, testmode = false, sort = true)
     whitelist = Util.block do
-      wl1 = ['video/x-flv', 'video/mp4', 'video/mp2t', 'video/3gpp', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/webm', 'video/x-matroska']
-      wl2 = ['video/3gpp2', 'audio/x-wav', 'audio/wave', 'video/dvd', 'video/mpeg', 'application/vnd.rn-realmedia-vbr', 'audio/vnd.rn-realaudio', 'audio/x-realaudio']
+      # wl1 = ['video/x-flv', 'video/mp4', 'video/mp2t', 'video/3gpp', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/webm', 'video/x-matroska']
+      wl1 = %w(video/x-flv video/mp4 video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/webm video/x-matroska video/3gpp2 audio/x-wav)
+      # wl2 = ['video/3gpp2', 'audio/x-wav', 'audio/wave', 'video/dvd', 'video/mpeg', 'application/vnd.rn-realmedia-vbr', 'audio/vnd.rn-realaudio', 'audio/x-realaudio']
+      wl2 = %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
       wl1.concat(wl2)
       wl1
     end
