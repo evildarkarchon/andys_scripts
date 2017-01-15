@@ -99,7 +99,8 @@ class Command
     raw.flatten!
     raw.compact!
 
-    lossless = ['-define', 'webp:lossless=true']
+    # lossless = ['-define', 'webp:lossless=true']
+    lossless = %w(-define webp:lossless=true)
     lossymode = Args.lossy
     losslessmode = Args.lossless
 
