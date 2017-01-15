@@ -18,9 +18,10 @@ class Options
     options.subdirectory = nil
     options.no_date = false
     options.force = false
-    options.test_mkv = false
+    options.pretend = false
     options.no_stats = false
     options.archive = nil
+    options.mkv_only = false
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -28,7 +29,8 @@ class Options
       opts.on('-s', '--subdirectory [SUBDIRECTORY]', 'Optional subdirectory to tack on the end (only used if directory is set to the default)') { |dir| options.subdirectory = dir.to_s }
       opts.on('-n', '--no-date', "Don't create a subdirectory with the date (only needed if directory is set to the default)") { options.no_date = true }
       opts.on('-f', '--force', "Don't add the url(s) to the list of succesfully downloaded videos or read from said list.") { options.force = true }
-      opts.on('--test-mkv', 'Skip running youtube-dl and just test the statistics code.') { options.test_mkv = true }
+      opts.on('--pretend', "Don't actually run youtube-dl or mkvpropedit (mostly for testing code that doesn't rely on either program running)") { options.pretend = true }
+      opts.on('--mkv-only', "Don't run youtube-dl but run mkvpropedit.") { options.mkv_only = true }
       opts.on('--no-stats', "Don't calculate statistics for MKV files.") { options.no_stats = true }
     end
     optparse.parse!(args)
@@ -37,12 +39,13 @@ class Options
 end
 ARGV.compact! if ARGV.respond_to?(:compact!)
 ARGV.flatten! if ARGV.respond_to?(:flatten!)
+ARGV.uniq! if ARGV.respond_to?(:uniq!)
 Args = Options.parse(ARGV)
 
 Urls = ARGV
 Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
 case
-when (Urls.empty? || Urls.nil?) && !Args.test_mkv
+when (Urls.empty? || Urls.nil?) && !Args.pretend
   raise 'No URLs specified (or code is bugged)'
 end
 
@@ -58,21 +61,21 @@ raise "Couldn't find mkvpropedit" unless (MkvPropEdit && !Args.no_stats) || Args
 raise 'youtube-dl is not executable' unless YoutubeDL && File.executable?(YoutubeDL)
 raise 'mkvpropedit is not executable' unless (MkvPropEdit && File.executable?(MkvPropEdit) && !Args.no_stats) || Args.no_stats
 
-Archive = case # rubocop:disable Style/ConstantName
-when Args.archive # rubocop:disable Style/CaseIndentation
+Archive = case
+when Args.archive
   Args.archive + 'downloaded.txt'
-when Args.directory.to_s == '/data/Videos/Youtube' && Args.no_date, !Args.directory.to_s == '/data/Videos/Youtube' # rubocop:disable Style/CaseIndentation
-  Args.directory + 'downloaded.txt'
-when !Args.no_date && Args.directory.to_s == '/data/Videos/Youtube' # rubocop:disable Style/CaseIndentation
+when !Args.no_date && Args.directory.to_s.include?('/data/Videos/Youtube')
   Args.directory.parent + 'downloaded.txt'
+else
+  Args.directory + 'downloaded.txt'
 end # rubocop:disable Lint/EndAlignment
-
+# puts Archive
 case
 when Args.subdirectory && Args.subdirectory.is_a?(String)
   Util.block do
     dirname = Args.directory.to_s
-    Args.directory = Args.directory + Args.subdirectory if dirname == '/data/Videos/Youtube'
-    puts Mood.neutral('Directory is not /data/Videos/Youtube, subdirectory statement ignored.') unless dirname == '/data/Videos/Youtube'
+    Args.directory = Args.directory + Args.subdirectory if dirname.include?('/data/Videos/Youtube')
+    puts Mood.neutral('Directory is not /data/Videos/Youtube, subdirectory statement ignored.') unless dirname.include?('/data/Videos/Youtube')
   end
 end
 
@@ -87,18 +90,28 @@ end
 Dir.chdir(Args.directory.to_s)
 
 case
-when Args.force && !Args.test_mkv
+when Args.force && !Args.pretend && !Args.mkv_only
   Util::Program.runprogram(%w(youtube-dl) + Urls)
   # print %w(youtube-dl) + Urls\n
-when !Args.force && !Args.test_mkv
+when !Args.force && !Args.pretend && !Args.mkv_only
   Util::Program.runprogram(%W(youtube-dl --download-archive #{Archive}) + Urls)
   # print %W(youtube-dl --download-archive #{Args.directory}/downloaded.txt) + Urls\n
+when Args.force && Args.pretend && (!Urls.nil? || !Urls.empty?) && !Args.mkv_only
+  out = %w(youtube-dl) + Urls
+  print "#{out}\n"
+when !Args.force && Args.pretend && (!Urls.nil? || !Urls.empty?) && !Args.mkv_only
+  out = %W(youtube-dl --download-archive #{Args.directory}/downloaded.txt) + Urls
+  print "#{out}\n"
 end
 
-Files = Pathname.glob("#{Args.directory}/**")
-exit if Files.empty? || Files.nil?
+Files = Args.directory.find.to_a
+puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
+exit if Files.nil? || Files.empty?
 case
 when !Args.no_stats
+  Files.keep_if { |filename| filename.file? } # rubocop:disable Style/SymbolProc
+  puts Mood.neutral('Step 1:') if Args.pretend
+  print "#{Files}\n" if Args.pretend
   Files.keep_if do |file|
     magic = FileMagic.new(:mime_type)
     whitelist = ['video/webm', 'video/x-matroska', 'audio/x-matroska']
@@ -106,7 +119,9 @@ when !Args.no_stats
     # puts magic.file(file.to_s)
     whitelist.include?(magic.file(file.to_s))
   end
-  Files.keep_if do |file|
+  puts Mood.neutral('Step 2:') if Args.pretend
+  print "#{Files}\n" if Args.pretend
+  Files.delete_if do |file|
     json = Util.recursive_symbolize_keys(GenerateVideoInfo.probe(file))
     # print json.dig(:streams[0], :tags, :BPS)
     # puts json
@@ -115,19 +130,21 @@ when !Args.no_stats
     # true unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
     # bps = json.dig(:streams, 0, :tags, :BPS)
     bps = case
-    when json.respond_to?(:dig) # rubocop:disable Style/CaseIndentation
+    when json.respond_to?(:dig)
       json.dig(:streams, 0, :tags, :BPS)
-    when !json.respond_to?(:dig) # rubocop:disable Style/CaseIndentation
+    when !json.respond_to?(:dig)
       true if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
       false unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
     end # rubocop:disable Lint/EndAlignment
-    false if bps
-    true unless bps
   end
 end
+puts Mood.neutral('Step 3:') if Args.pretend
+print "#{Files}\n" if Args.pretend
 # puts Files
-exit if Files.empty? || Files.nil?
+puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
+exit if Files.nil? || Files.empty?
 Files.each do |file|
   puts Mood.happy("Adding statistic tags to #{file}")
-  Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{file}))
+  Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{file})) unless Args.pretend
+  puts %W(#{MkvPropEdit} --add-track-statistics-tags #{file}) if Args.pretend
 end
