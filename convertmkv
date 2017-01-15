@@ -5,7 +5,7 @@ require 'pathname'
 require 'fileutils'
 require 'data_mapper'
 require 'json'
-
+# rubocop:disable Metrics/ModuleLength, Style/CaseIndentation, Lint/UnneededDisable, Style/ConstantName, Lint/EndAlignment
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
 require_relative 'andyrb/videoinfo_dm'
@@ -31,7 +31,7 @@ class Options
       opts.on('-f', '--ffmpeg', 'Use ffmpeg instead of mkvmerge. Note: ffmpeg hates mpeg2-ps files.') { |f| options.ffmpeg = f }
       opts.on('-c', '--combine', 'Run in concatenation mode.') { |c| options.combine = c }
       opts.on('--no-sort', "Don't sort the list of files to be muxed.") { options.sort = false }
-      opts.on('--gvi', "Don't generate video info for the muxed files.") { options.gvi = true }
+      opts.on('--gvi', 'Generate video info for the muxed files.') { options.gvi = true }
       opts.on('-o directory', '--output directory', 'Directory where the muxed files will be located. (defaults to current directory)') { |dir| options.output = Pathname.new(dir) }
       opts.on('-b directory', '--backup directory', 'Directory where the source files will be moved.') { |dir| options.backup = Pathname.new(dir) }
       opts.on('--outputdb file', 'File name for the output videoinfo database (if any)') { |db| options.outputdb = Pathname.new(db) }
@@ -47,38 +47,61 @@ end
 
 Args = Options.parse(ARGV)
 Args.db = Args.db.realpath if Args.db.exist?
+Args.outputdb = case
+when Args.outputdb.nil? && Args.output.directory?, Args.outputdb.nil? && !Args.output.exist?, Args.outputdb && Args.outputdb == Args.output + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
+  Args.db
+when Args.outputdb.nil? && !Args.output.directory? && !Args.combine
+  Args.output + 'videoinfo.sqlite'
+end
+=begin
 Args.outputdb = Args.db if Args.outputdb.nil? && Args.output.directory?
 Args.outputdb = Args.db if Args.outputdb.nil? && !Args.output.exist?
-Args.outputdb = Args.db if Args.outputdb && Args.outputdb == Args.output + '/' + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
+Args.outputdb = Args.db if Args.outputdb && Args.outputdb == Args.output + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
 Args.outputdb = Args.output.join('videoinfo.sqlite') if Args.outputdb.nil? && !Args.output.directory?(Args.output) && !Args.combine
+=end
 # puts Args.outputdb
+
 FileUtils.touch(Args.db.to_s) unless Args.db.file?
 FileUtils.touch(Args.outputdb.to_s) if Args.outputdb && !Args.outputdb.parent.directory? && !Args.outputdb.file?
+
 Args.files = Util::SortEntries.sort(ARGV) if Args.sort
 Args.files = ARGV unless Args.sort
+Args.files.flatten!
+Args.files.compact!
+Args.files.uniq!
+Args.files.keep_if { |filename| Pathname.new(filename).file? }
 # print "#{Args.files}\n"
+
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
 FFMPEG = Util::FindApp.which('ffmpeg')
 MkvMerge = Util::FindApp.which('mkvmerge')
 
-Args.ffmpeg = false if Args.combine
 puts Mood.neutral 'ffmpeg concatenation mode has been disabled for the time being, reverting to mkvmerge.' if Args.combine && Args.ffmpeg
+Args.ffmpeg = false if Args.combine
 
-configfile = nil
-configfile = File.open(Args.config) if File.exist? Args.config
-Config = Util.recursive_symbolize_keys(JSON.parse(configfile.read)) if configfile.respond_to?(:read)
-configfile.close if configfile.respond_to?(:close)
+Config = case # rubocop:disable Style/ConstantName
+when File.exist?(Args.config)
+  configfile = File.open(Args.config)
+  config = JSON.parse(configfile.read)
+  config = Util.recursive_symbolize_keys(config)
+  configfile.close
+  print "#{config}\n" if Args.debug && config
+  config
+end
 
-if FFMPEG.nil? && Args.ffmpeg && !MkvMerge.nil?
-  puts Mood.neutral('ffmpeg not found, using mkvmerge instead.')
+case
+when !FFMPEG && Args.ffmpeg && MkvMerge, FFMPEG && !File.executable?(FFMPEG) && MkvMerge && File.executable?(MkvMerge)
+  puts Mood.neutral('ffmpeg not found or is not executable, using mkvmerge instead.')
   Args.ffmpeg = false
-end
-if MkvMerge.nil? && !Args.ffmpeg && !FFMPEG.nil?
-  puts Mood.neutral('mkvmerge not found, using ffmpeg instead.')
+when !MkvMerge && !Args.ffmpeg && !FFMPEG.nil?, FFMPEG && File.executable?(FFMPEG) && MkvMerge && !File.executable?(MkvMerge)
+  puts Mood.neutral('mkvmerge not found or is not executable, using ffmpeg instead.')
   Args.ffmpeg = true
+else
+  raise "Could not find either ffmpeg or mkvmerge (or they weren't executable)"
 end
-raise 'Can not find mkvpropedit.' if MkvPropEdit.nil? && Args.ffmpeg
-raise 'Can not find mkvmerge or ffmpeg.' if MkvMerge.nil? && FFMPEG.nil?
+raise 'Can not find mkvmerge or it is not executable' unless (MkvMerge && File.executable?(MkvMerge)) || Args.ffmpeg
+raise 'Can not find ffmpeg or it is not executable' if (Args.ffmpeg && !FFMPEG) || (Args.ffmpeg && FFMPEG && !File.executable?(FFMPEG))
+raise 'Can not find mkvpropedit or it is not executable' unless MkvPropEdit && File.executable?(MkvPropEdit)
 
 if Args.db
   DataMapper::Model.raise_on_save_failure = true
@@ -123,8 +146,14 @@ class Convenience
         end
       end
     end
-    jsondata = GVI.json(@filename, Args.debug) unless Args.outputdb
-    jsondata = DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) } if Args.outputdb
+    jsondata = case
+    when !Args.outputdb
+      GVI.json(@filename, Args.debug)
+    when Args.outputdb
+      DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) }
+    end
+    # jsondata = GVI.json(@filename, Args.debug) unless Args.outputdb
+    # jsondata = DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) } if Args.outputdb
     GenerateVideoInfo.genhash(@filename, jsondata, outhash) do |h|
       begin
         puts Mood.happy("Writing metadata for #{File.basename(@filename)}")
@@ -197,8 +226,14 @@ else
   Args.files.each do |file|
     convenience = Convenience.new(file)
     filepath = Pathname.new(file)
-    fileoutpath = Args.output.join(filepath.sub_ext('.mkv').basename.to_s) unless Args.audio
-    fileoutpath = Args.output.join(filepath.sub_ext('.mka').basename.to_s) if Args.audio
+    fileoutpath = case
+    when Args.audio
+      Args.output + filepath.sub_ext('.mka').basename
+    else
+      Args.output + filepath.sub_ext('.mkv').basename
+    end
+    # fileoutpath = Args.output.join(filepath.sub_ext('.mkv').basename.to_s) unless Args.audio
+    # fileoutpath = Args.output.join(filepath.sub_ext('.mka').basename.to_s) if Args.audio
     puts Mood.happy("Muxing #{file} to a matroska file.")
     if Args.ffmpeg
       ffcmd = %W(#{FFMPEG} -i #{filepath.realpath} -c copy -f matroska -hide_banner -y #{fileoutpath})
