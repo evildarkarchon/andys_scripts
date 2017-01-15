@@ -32,22 +32,21 @@ class Options
   end
 end
 Args = Options.parse(ARGV)
+Args.files = []
 Args.files = ARGV unless ARGV.nil? || ARGV.empty?
 Args.files.flatten! if ARGV.respond_to?(:flatten!)
 Args.files.compact! if ARGV.respond_to?(:compact!)
 Args.files.uniq! if ARGV.respond_to?(:uniq!)
-Args.files.keep_if { |filename| Pathname.new(filename).file? } unless Args.files.empty? || Args.files.nil?
+Args.files.keep_if { |filename| Pathname.new(filename).file? } unless Args.files.nil? || Args.files.empty?
 
 case
 when Args.files.empty?
   Find.find(Dir.getwd) do |path|
-    if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
-      Find.prune # Don't look any further into this directory.
-    else
-      puts path if Args.debug
-      Args.files << path
-      next
-    end
+    Find.prune if File.basename(path)[0].include?('.') # Don't look any further into this directory.
+    file = File.file?(path)
+    next unless file
+    puts path if Args.debug
+    Args.files << path if file
   end
 end
 

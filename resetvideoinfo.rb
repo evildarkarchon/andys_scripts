@@ -32,7 +32,7 @@ ARGV.uniq! if ARGV.respond_to?(:uniq!)
 Args = Options.parse(ARGV)
 Args.directory = ARGV unless ARGV.nil? || ARGV.empty?
 Args.directory = ['/data/Private'] if ARGV.nil? || ARGV.empty?
-Args.directory.keep_if { |dirname| File.directory?(dirname) }
+Args.directory.keep_if { |dirname| Dir.directory?(dirname) }
 
 DataMapper::Model.raise_on_save_failure = true
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
@@ -66,7 +66,7 @@ if directories.is_a?(Array) && directories.length > 1
     # puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
     GenerateVideoInfo::Videoinfo.auto_migrate! unless Args.reset_json
     GenerateVideoInfo::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
-
+=begin
     Find.find(dir) do |path|
       if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
         Find.prune # Don't look any further into this directory.
@@ -76,7 +76,14 @@ if directories.is_a?(Array) && directories.length > 1
         next
       end
     end
-
+=end
+    Find.find(dir) do |path|
+      Find.prune if File.basename(path)[0].include?('.') # Don't look any further into this directory.
+      file = File.file?(path)
+      next unless file
+      puts path if Args.debug
+      initlist << path if file
+    end
     initlist.flatten!
     initlist.compact!
     initlist.uniq!
@@ -99,12 +106,11 @@ else
   GenerateVideoInfo::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
 
   Find.find(dir) do |path|
-    if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
-      Find.prune # Don't look any further into this directory.
-    else
-      initlist << path.to_s if File.file? path
-      next
-    end
+    Find.prune if File.basename(path)[0].include?('.') # Don't look any further into this directory.
+    file = File.file?(path)
+    next unless file
+    puts path if Args.debug
+    initlist << path if file
   end
 
   initlist.flatten!
