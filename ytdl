@@ -81,10 +81,12 @@ end
 
 case
 when Args.directory.exist? && !Args.directory.directory?
-  puts Mood.sad("#{Args.directory} exists but is not a directory.")
+  # puts Mood.sad("#{Args.directory} exists but is not a directory.")
+  Mood.sad { |red| puts "#{red} #{Args.directory} exists but is not a directory." }
   exit 1
 when !Args.directory.exist?
-  puts Mood.happy("Creating Directory #{Args.directory}")
+  # puts Mood.happy("Creating Directory #{Args.directory}")
+  Mood.happy { |green| puts "#{green} Creating Directory #{Args.directory}" }
   Args.directory.mkpath
 end
 Dir.chdir(Args.directory.to_s)
@@ -129,13 +131,13 @@ when !Args.no_stats
     # false if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
     # true unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
     # bps = json.dig(:streams, 0, :tags, :BPS)
-    bps = case
+    case
     when json.respond_to?(:dig)
       json.dig(:streams, 0, :tags, :BPS)
     when !json.respond_to?(:dig)
       true if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
       false unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
-    end # rubocop:disable Lint/EndAlignment
+    end
   end
 end
 puts Mood.neutral('Step 3:') if Args.pretend
@@ -145,6 +147,7 @@ puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil
 exit if Files.nil? || Files.empty?
 Files.each do |file|
   puts Mood.happy("Adding statistic tags to #{file}")
-  Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{file})) unless Args.pretend
-  puts %W(#{MkvPropEdit} --add-track-statistics-tags #{file}) if Args.pretend
+  cmd = %W(#{MkvPropEdit} --add-track-statistics-tags #{file})
+  Util::Program.runprogram(cmd) unless Args.pretend
+  puts cmd if Args.pretend
 end
