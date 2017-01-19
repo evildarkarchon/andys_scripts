@@ -31,8 +31,8 @@ module Util
   end
 
   def self.block(*args, **kwargs) # Convenience method to quickly make code blocks.
-    yield args unless !defined?(args) || args.nil? || args.empty?
-    yield kwargs unless !defined?(kwargs) || kwargs.nil? || kwargs.empty?
+    yield args if defined?(args) && !args.nil? && !args.empty?
+    yield kwargs if defined?(kwargs) && !kwargs.nil? && !kwargs.empty?
     yield if kwargs.empty? && args.empty?
   end
 
@@ -49,6 +49,20 @@ module Util
     else
       my_hash
     end
+  end
+
+  def self.privileged?(user = 'root')
+    currentuser = Etc.getpwuid
+    privuser = nil
+    value = false
+    if user.respond_to?(:to_s)
+      privuser = Etc.getpwnam(user)
+    elsif user.respond_to?(:to_i)
+      privuser = Etc.getpwuid(user.to_i)
+    end
+    value = true if currentuser.uid == privuser.uid
+    yield value if block_given?
+    value
   end
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
@@ -95,31 +109,16 @@ module Util
     end
   end
 
-  def self.privileged?(user = 'root')
-    currentuser = Etc.getpwuid
-    privuser = nil
-    value = false
-    if user.respond_to?(:to_s)
-      privuser = Etc.getpwnam(user)
-    elsif user.respond_to?(:to_i)
-      privuser = Etc.getpwuid(user.to_i)
-    end
-    value = true if currentuser.uid == privuser.uid
-    yield value if block_given?
-    value
-  end
-
   # Class to sort the entries in a given variable.
   # Params:
   # +input+:: The data that will be sorted.
   class SortEntries
     def self.sort(input)
-      unsorted = input.to_a if input.respond_to?(:to_a)
-      sorted = nil
+      input = input.to_a if input.respond_to?(:to_a)
       begin
-        sorted = Naturalsorter::Sorter.sort(unsorted, true)
+        sorted = Naturalsorter::Sorter.sort(input, true)
       rescue NameError
-        sorted = unsorted
+        sorted = input
         sorted.sort_by! { |m| m.group.name.downcase }
       end
       yield sorted if block_given?
@@ -128,10 +127,13 @@ module Util
   end
 
   class Program
-    def self.runprogram(program, use_sudo = false, sudo_user = nil, parse_output = false)
+    def self.runprogram(program = nil, use_sudo = false, sudo_user = nil, parse_output = false)
+      raise 'Program argument blank and no block given.' unless block_given? || program
       cmdline = []
       # sudo_user = 'root' if use_sudo && !sudo_user
       # cmdline << ['sudo', '-u', sudo_user] if use_sudo
+      program = yield if block_given? && !program
+      raise 'Program variable is not an array' unless program && program.is_a?(Array)
       cmdline << %W(sudo -u #{sudo_user}) if use_sudo && sudo_user
       cmdline << %w(sudo) if use_sudo && !sudo_user
       cmdline << program
