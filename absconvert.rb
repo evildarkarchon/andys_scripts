@@ -142,7 +142,7 @@ def backup(sourcefile, backupdir)
 
   backup.mkpath unless backuppath.exist?
   raise 'Backup directory is a file.' if backuppath.exist? && backuppath.file?
-  puts Mood.happy("Moving #{sourcefile} to #{backupdir}")
+  puts Mood.happy { "Moving #{sourcefile} to #{backupdir}" }
   sourcepath.rename(backuppath.join(sourcepath.basename)) if sourcepath.exist?
 end
 
@@ -289,7 +289,7 @@ class Command
     when passnum == 1 && passmax == 2
       # ['-f', 'matroska', '/dev/null']
       %w(-f matroska /dev/null)
-    when passnum == 2 && passmax == 2, passmax = 1
+    when passnum == 2 && passmax == 2, passmax == 1
       # Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
       path = Args.outputdir + filepath.basename.sub_ext(outcon)
       path.to_s
