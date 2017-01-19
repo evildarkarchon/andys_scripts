@@ -82,11 +82,11 @@ end
 case
 when Args.directory.exist? && !Args.directory.directory?
   # puts Mood.sad("#{Args.directory} exists but is not a directory.")
-  Mood.sad { |red| puts "#{red} #{Args.directory} exists but is not a directory." }
+  puts Mood.sad { "#{Args.directory} exists but is not a directory." }
   exit 1
 when !Args.directory.exist?
   # puts Mood.happy("Creating Directory #{Args.directory}")
-  Mood.happy { |green| puts "#{green} Creating Directory #{Args.directory}" }
+  puts Mood.happy { "Creating Directory #{Args.directory}" }
   Args.directory.mkpath
 end
 Dir.chdir(Args.directory.to_s)
@@ -125,12 +125,6 @@ when !Args.no_stats
   print "#{Files}\n" if Args.pretend
   Files.delete_if do |file|
     json = Util.recursive_symbolize_keys(GenerateVideoInfo.probe(file))
-    # print json.dig(:streams[0], :tags, :BPS)
-    # puts json
-    # puts 'Nope' if json.dig(:streams, 0, :tags, :BPS)
-    # false if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
-    # true unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
-    # bps = json.dig(:streams, 0, :tags, :BPS)
     case
     when json.respond_to?(:dig)
       json.dig(:streams, 0, :tags, :BPS)
