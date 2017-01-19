@@ -102,8 +102,17 @@ else
   DataMapper.setup(:default, "sqlite:#{dbpath.join('videoinfo.sqlite')}")
   DataMapper.finalize
   # puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
-  GenerateVideoInfo::Videoinfo.auto_migrate! unless Args.reset_json
-  GenerateVideoInfo::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
+  # GenerateVideoInfo::Videoinfo.auto_migrate! unless Args.reset_json
+  # GenerateVideoInfo::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
+  case
+  when Args.reset_json
+    GenerateVideoInfo::Videojson.auto_migrate!
+  when !Args.reset_json && !Args.reset_all
+    GenerateVideoInfo::Videoinfo.auto_migrate!
+  when Args.reset_all
+    GenerateVideoInfo::Videoinfo.auto_migrate!
+    GenerateVideoInfo::Videojson.auto_migrate!
+  end
 
   Find.find(dir) do |path|
     Find.prune if File.basename(path)[0].include?('.') # Don't look any further into this directory.
@@ -144,7 +153,7 @@ filelist.each do |file|
 
   GenerateVideoInfo.genhash(file, jsondata, digests) do |h|
     begin
-      puts Mood.happy("Writing metadata for #{File.basename(file)}")
+      puts Mood.happy { "Writing metadata for #{File.basename(file)}" }
       insert.attributes = h
       insert.save
     rescue DataMapper::SaveFailureError
