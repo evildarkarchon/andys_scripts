@@ -15,8 +15,8 @@ class Options
     options = OpenStruct.new
     # options.quality = '80'
     options.verbose = false
-    options.lossy = false
-    options.lossless = false
+    options.lossy = nil
+    options.lossless = nil
     options.preset = 'default'
     options.outputdir = Pathname.getwd
     # options.backup = Pathname.getwd.join('Original Files')
@@ -31,8 +31,14 @@ class Options
     optparse = OptionParser.new do |opts|
       opts.on('--quality [n]', '-q [n]', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
       opts.on('--verbose', '-v', 'Make convert more chatty.') { options.verbose = true }
-      opts.on('--lossy', 'Produce lossy images.') { options.lossy = true }
-      opts.on('--lossless', 'Produce lossless images.') { options.lossless = true }
+      opts.on('--lossy', 'Produce lossy images.') do
+        options.lossy = true
+        options.lossless = false
+      end
+      opts.on('--lossless', 'Produce lossless images.') do
+        options.lossless = true
+        options.lossy = false
+      end
       opts.on('--output-dir [DIRECTORY]', '-o [DIRECTORY]', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
       opts.on('--backup-dir [DIRECTORY]', '-b [DIRECTORY]', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
       opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
@@ -60,13 +66,14 @@ Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
 SevenZ = Util::FindApp.which('7za')
 Convert = Util::FindApp.which('convert')
-raise 'convert not found.' if Convert.nil?
+raise 'convert not found or is not executable.' unless Convert && File.executable?(Convert)
+raise '7za not found or is not executable.' if Args.backuparchive && !SevenZ || Args.backuparchive && SevenZ && !File.executable?(SevenZ)
 
-Args.outputdir.mkpath unless Args.outputdir.directory? && !Args.outputdir.file?
+Args.outputdir.mkpath unless Args.outputdir.exist? && Args.outputdir.directory? && !Args.outputdir.file?
 raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory?
 
 case
-when defined?(Args.backup) && Args.backup.respond_to?(:directory?)
+when Args.backup && Args.backup.respond_to?(:directory?)
   Args.backup.mkpath unless Args.backup.directory? || Args.nobackup
   raise "#{Args.backup} is not a directory." unless Args.backup.directory? || Args.nobackup
   Args.backup = Args.backup.realpath unless Args.nobackup
@@ -79,22 +86,20 @@ class Command
     ext = @filepath.extname.downcase
     magic = FileMagic.new(:mime_type)
     @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s
-    lossless_mime = Util.block do
-      lm1 = ['image/png', 'image/gif', 'image/tiff', 'image/x-pcx', 'application/tga', 'application/x-tga']
-      lm2 = ['application/x-targa', 'image/tga', 'image/x-tga', 'image/targa', 'image/x-targa', 'image/vnd.adobe.photoshop']
-      lm = lm1.concat(lm2)
-      lm
-    end
+    lossless_mime = %w(image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop)
     lossless_mime.flatten!
     lossless_mime.compact!
 
     raw = Util.block do
-      r1 = ['.3fr', '.ari', '.arw', '.srf', '.sr2', '.bay', '.crw', '.cr2', '.cap']
-      r2 = ['.iiq', '.eip', '.dcs', '.dcr', '.drf', '.k25', '.kdc', '.dng', '.erf', '.fff', '.mef', '.mdc', '.mos', '.mrw']
-      r3 = ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
-      r = r1 + r2
-      r += r3
-      r
+      # r1 = ['.3fr', '.ari', '.arw', '.srf', '.sr2', '.bay', '.crw', '.cr2', '.cap']
+      # r2 = ['.iiq', '.eip', '.dcs', '.dcr', '.drf', '.k25', '.kdc', '.dng', '.erf', '.fff', '.mef', '.mdc', '.mos', '.mrw']
+      # r3 = ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
+      # r = r1 + r2
+      # r += r3
+      # r
+      r1 = %w(.3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw)
+      r2 = %w(.nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f)
+      r1 + r2
     end
     raw.flatten!
     raw.compact!
