@@ -105,7 +105,8 @@ when !Args.no_stats
   print "#{Files}\n" if Args.pretend
   Files.keep_if do |file|
     magic = FileMagic.new(:mime_type)
-    whitelist = ['video/webm', 'video/x-matroska', 'audio/x-matroska']
+    whitelist = %w(video/webm video/x-matroska audio/x-matroska)
+    # whitelist = ['video/webm', 'video/x-matroska', 'audio/x-matroska']
     whitelist.include?(magic.file(file.to_s))
   end
 
