@@ -16,6 +16,7 @@ module GenerateVideoInfo
     puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
     out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
     out = JSON.parse(out)
+    yield out if block_given?
     out
   end
 
