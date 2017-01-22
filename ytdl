@@ -97,7 +97,7 @@ puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil
 exit if Files.nil? || Files.empty?
 case
 when !Args.no_stats
-  Files.keep_if { |filename| filename.file? }
+  Files.keep_if(&:file?)
 
   puts Mood.neutral('Step 1:') if Args.pretend
   print "#{Files}\n" if Args.pretend
