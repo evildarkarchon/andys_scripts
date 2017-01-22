@@ -86,9 +86,11 @@ ytdln = %W(youtube-dl --download-archive #{Archive}) + Urls unless Args.force
 
 Util::Program.runprogram(ytdlf) if Args.force && !Args.pretend && !Args.mkv_only
 Util::Program.runprogram(ytdln) unless Args.force && !Args.pretend && !Args.mkv_only
-
-print "#{ytdlf}\n" if Args.force && Args.pretend && (!Urls.nil? || !Urls.empty?) && !Args.mkv_only
-print "#{ytdln}\n" unless Args.force && Args.pretend && (!Urls.nil? || !Urls.empty?) && !Args.mkv_only
+case
+when Args.force && Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
+  print "#{ytdlf}\n"
+when !Args.force && Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
+  print "#{ytdln}\n"
 
 Files = Args.directory.find.to_a
 puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
