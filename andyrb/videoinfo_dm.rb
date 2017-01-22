@@ -13,7 +13,7 @@ require_relative 'videoinfo_dm'
 module GenerateVideoInfo
   def self.probe(filepath, verbose = false)
     filepath = Pathname.new(filepath) unless filepath.is_a?(Pathname)
-    puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
+    puts Mood.happy("Extracting metadata from #{filepath.basename}") if @verbose
     out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
     out = JSON.parse(out)
     yield out if block_given?
@@ -59,8 +59,9 @@ module GenerateVideoInfo
   class Data
     def initialize(dbpath, verbose = false)
       @dbpath = Pathname.new(dbpath)
+      @verbose = verbose
       DataMapper.setup(:default, "sqlite:#{@dbpath.realpath}")
-      DataMapper::Logger.new($stdout, :debug) if verbose
+      DataMapper::Logger.new($stdout, :debug) if @verbose
       @db = DataMapper.repository(:default).adapter
       @vi = Videoinfo.new
       @vj = Videojson.new
@@ -75,29 +76,28 @@ module GenerateVideoInfo
       out
     end
 
-    def json(filepath, verbose = false, repo = nil)
+    def json(filepath, repo = nil)
       out = nil
       Videojson.storage_names[repo] = 'videojson' if repo
       filepath = Pathname.new(filepath) unless filepath.respond_to?(:exists)
       insert = Videojson.new
       # puts Videojson.count(filename: filepath.basename.to_s)
       if @db.storage_exists?('videojson') && Videojson.count(filename: filepath.basename.to_s) >= 1
-        puts Mood.happy("Reading metadata from cache for #{filepath}") if verbose
+        puts Mood.happy("Reading metadata from cache for #{filepath}") if @verbose
         out = Videojson.all(filename: filepath.basename, fields: [:jsondata])
       else
-        puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
+        puts Mood.happy("Extracting metadata from #{filepath.basename}") if @verbose
         out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
         cache = JSON.parse(out)
         begin
-          puts Mood.happy("Caching JSON for #{filepath.basename}") if verbose
+          puts Mood.happy("Caching JSON for #{filepath.basename}") if @verbose
           insert.attributes = { filename: filepath.basename, jsondata: JSON.generate(cache) }
           # print @vi.attributes
           insert.save
           # print "\n"
         rescue DataMapper::SaveFailureError
-          insert.errors.each { |e| puts e } if verbose
-          raise if verbose
-          puts Mood.sad("Save failure error raised for #{filepath.basename}")
+          insert.errors.each { |e| puts e } if @verbose
+          raise "Save failure error raised for #{filepath.basename}" if @verbose
         end
       end
       out
