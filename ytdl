@@ -91,6 +91,7 @@ when Args.force && Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
   print "#{ytdlf}\n"
 when !Args.force && Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
   print "#{ytdln}\n"
+end
 
 Files = Args.directory.find.to_a
 puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
