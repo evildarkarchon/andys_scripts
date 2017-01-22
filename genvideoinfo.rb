@@ -166,7 +166,7 @@ end
 
 filelist.each do |file|
   insert = GenerateVideoInfo::Videoinfo.new
-  jsondata = gvi.json(file, Args.verbose) unless Args.debug
+  jsondata = gvi.json(file)
   case
   when Args.debug
     print "#{digests[file]}\n"
@@ -178,9 +178,9 @@ filelist.each do |file|
         insert.attributes = h
         insert.save
       rescue DataMapper::SaveFailureError
-        insert.errors.each { |e| puts e } if Args.debug
+        insert.errors.each { |e| puts e } if Args.verbose
       end
     end
   end
-  print "#{GenerateVideoInfo.genhash(file, jsondata, digests)}\n" if Args.debug || Args.verbose
+  print "#{GenerateVideoInfo.genhash(file, jsondata, digests)}\n" if Args.debug
 end
