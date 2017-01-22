@@ -56,7 +56,8 @@ directories = directories[0] if directories.is_a?(Array) && directories.length =
 filelist = []
 initlist = []
 
-if directories.is_a?(Array) && directories.length > 1
+case
+when directories.is_a?(Array) && directories.length > 1
   directories.each do |d|
     dbpath = Pathname.new(d).realpath
     dbpath = dbpath.dirname if dbpath.file?
