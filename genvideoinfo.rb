@@ -52,8 +52,10 @@ end
 
 case
 when Args.debug
-  puts Args
-  puts Args.files
+  # puts Args
+  # puts Args.files
+  print "#{Args}\n"
+  print "#{Args.files}\n"
 end
 
 FileUtils.touch(Args.db.basename.to_s) unless Args.db.file?
