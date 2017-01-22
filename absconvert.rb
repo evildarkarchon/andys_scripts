@@ -271,7 +271,6 @@ class Command
     # @list = [FFmpeg, '-i', filename]
     @list = %W(#{FFmpeg} -i #{filename})
     @list << vcodec
-    # @list << ['-pass', passnum.to_s] if passmax == 2
     # @list << %W(-pass #{passnum})
     @list << vbitrate if vbitrate
     # @list << ['-pass', passnum.to_s, '-passlogfile', filepath.sub_ext('').to_s] if passmax == 2
