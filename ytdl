@@ -62,7 +62,7 @@ when !Args.no_date && Args.directory.to_s.include?('/data/Videos/Youtube')
   Args.directory.parent + 'downloaded.txt'
 else
   Args.directory + 'downloaded.txt'
-end # rubocop:disable Lint/EndAlignment
+end
 case
 when Args.subdirectory && Args.subdirectory.is_a?(String)
   Util.block do
