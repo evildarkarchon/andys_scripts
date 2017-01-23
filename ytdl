@@ -125,19 +125,39 @@ when !Args.no_stats
       false unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
     end
   end
-end
 
+  puts Mood.neutral('Step 3:') if Args.pretend
+  print "#{Files}\n" if Args.pretend
+  puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
+  exit if Files.nil? || Files.empty?
+
+  Util::FindApp.which('mkvpropedit') do |mpe|
+    raise "Couldn't find mkvpropedit" unless mpe
+    raise 'mkvpropedit is not executable' unless mpe && File.executable?(mpe)
+    Files.each do |file|
+      puts Mood.happy("Adding statistic tags to #{file}")
+      cmd = %W(#{mpe} --add-track-statistics-tags #{file})
+      Util::Program.runprogram(cmd) unless Args.pretend
+      puts cmd if Args.pretend
+    end
+  end
+end
+=begin
 puts Mood.neutral('Step 3:') if Args.pretend
 print "#{Files}\n" if Args.pretend
 puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
 exit if Files.nil? || Files.empty?
-Util::FindApp.which('mkvpropedit') do |mpe|
-  raise "Couldn't find mkvpropedit" unless (mpe && !Args.no_stats) || Args.no_stats
-  raise 'mkvpropedit is not executable' unless (mpe && File.executable?(mpe) && !Args.no_stats) || Args.no_stats
-  Files.each do |file|
-    puts Mood.happy("Adding statistic tags to #{file}")
-    cmd = %W(#{mpe} --add-track-statistics-tags #{file})
-    Util::Program.runprogram(cmd) unless Args.pretend
-    puts cmd if Args.pretend
+case
+when !Args.no_stats
+  Util::FindApp.which('mkvpropedit') do |mpe|
+    raise "Couldn't find mkvpropedit" unless mpe
+    raise 'mkvpropedit is not executable' unless mpe && File.executable?(mpe)
+    Files.each do |file|
+      puts Mood.happy("Adding statistic tags to #{file}")
+      cmd = %W(#{mpe} --add-track-statistics-tags #{file})
+      Util::Program.runprogram(cmd) unless Args.pretend
+      puts cmd if Args.pretend
+    end
   end
 end
+=end
