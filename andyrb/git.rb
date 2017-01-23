@@ -12,6 +12,10 @@ class Git
     @wdpath = Pathname.new(wd)
     @wd = wd
     @wdlock = @wdpath + '.git/index.lock'
+    Util::FindApp.which('git') do |git|
+      raise 'git not found.' unless git
+      raise 'git found, but is not executable' if git && !File.executable?(git)
+    end
 
     case
     when !@use_sudo && @sudo_user && !Util.privileged?(@sudo_user)
