@@ -62,7 +62,7 @@ when !Args.no_date && Args.directory.to_s.include?('/data/Videos/Youtube')
   Args.directory.parent + 'downloaded.txt'
 else
   Args.directory + 'downloaded.txt'
-end
+end # rubocop:disable Lint/EndAlignment
 case
 when Args.subdirectory && Args.subdirectory.is_a?(String)
   Util.block do
@@ -105,7 +105,6 @@ when !Args.no_stats
   Files.keep_if do |file|
     magic = FileMagic.new(:mime_type)
     whitelist = %w(video/webm video/x-matroska audio/x-matroska)
-    # whitelist = ['video/webm', 'video/x-matroska', 'audio/x-matroska']
     whitelist.include?(magic.file(file.to_s))
   end
 
