@@ -50,10 +50,10 @@ Args.directory = Args.directory + Args.date if Args.directory.to_s == '/data/Vid
 
 # YoutubeDL = Util::FindApp.which('youtube-dl')
 # MkvPropEdit = Util::FindApp.which('mkvpropedit')
-raise "Couldn't find youtube-dl" unless YoutubeDL
-raise "Couldn't find mkvpropedit" unless (MkvPropEdit && !Args.no_stats) || Args.no_stats
-raise 'youtube-dl is not executable' unless YoutubeDL && File.executable?(YoutubeDL)
-raise 'mkvpropedit is not executable' unless (MkvPropEdit && File.executable?(MkvPropEdit) && !Args.no_stats) || Args.no_stats
+# raise "Couldn't find youtube-dl" unless YoutubeDL
+# raise "Couldn't find mkvpropedit" unless (MkvPropEdit && !Args.no_stats) || Args.no_stats
+# raise 'youtube-dl is not executable' unless YoutubeDL && File.executable?(YoutubeDL)
+# raise 'mkvpropedit is not executable' unless (MkvPropEdit && File.executable?(MkvPropEdit) && !Args.no_stats) || Args.no_stats
 
 Archive = case
 when Args.archive
@@ -81,6 +81,8 @@ when !Args.directory.exist?
 end
 Dir.chdir(Args.directory.to_s)
 Util::FindApp.which('youtube-dl') do |yt|
+  raise "Couldn't find youtube-dl" unless yt
+  raise 'youtube-dl is not executable' unless yt && File.executable?(yt)
   ytdlf = %w(#{yt}) + Urls if Args.force
   ytdln = %W(#{yt} --download-archive #{Archive}) + Urls unless Args.force
 
@@ -128,6 +130,8 @@ print "#{Files}\n" if Args.pretend
 puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
 exit if Files.nil? || Files.empty?
 Util::FindApp.which('mkvpropedit') do |mpe|
+  raise "Couldn't find mkvpropedit" unless (mpe && !Args.no_stats) || Args.no_stats
+  raise 'mkvpropedit is not executable' unless (mpe && File.executable?(mpe) && !Args.no_stats) || Args.no_stats
   Files.each do |file|
     puts Mood.happy("Adding statistic tags to #{file}")
     cmd = %W(#{mpe} --add-track-statistics-tags #{file})
