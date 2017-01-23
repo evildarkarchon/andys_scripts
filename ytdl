@@ -48,8 +48,8 @@ raise 'No URLs specified (or code is bugged)' if (Urls.empty? || Urls.nil?) && !
 
 Args.directory = Args.directory + Args.date if Args.directory.to_s == '/data/Videos/Youtube' && !Args.no_date
 
-YoutubeDL = Util::FindApp.which('youtube-dl')
-MkvPropEdit = Util::FindApp.which('mkvpropedit')
+# YoutubeDL = Util::FindApp.which('youtube-dl')
+# MkvPropEdit = Util::FindApp.which('mkvpropedit')
 raise "Couldn't find youtube-dl" unless YoutubeDL
 raise "Couldn't find mkvpropedit" unless (MkvPropEdit && !Args.no_stats) || Args.no_stats
 raise 'youtube-dl is not executable' unless YoutubeDL && File.executable?(YoutubeDL)
@@ -80,17 +80,18 @@ when !Args.directory.exist?
   Args.directory.mkpath
 end
 Dir.chdir(Args.directory.to_s)
+Util::FindApp.which('youtube-dl') do |yt|
+  ytdlf = %w(#{yt}) + Urls if Args.force
+  ytdln = %W(#{yt} --download-archive #{Archive}) + Urls unless Args.force
 
-ytdlf = %w(youtube-dl) + Urls if Args.force
-ytdln = %W(youtube-dl --download-archive #{Archive}) + Urls unless Args.force
-
-Util::Program.runprogram(ytdlf) if Args.force && !Args.pretend && !Args.mkv_only
-Util::Program.runprogram(ytdln) unless Args.force && !Args.pretend && !Args.mkv_only
-case
-when Args.force && Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
-  print "#{ytdlf}\n"
-when !Args.force && Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
-  print "#{ytdln}\n"
+  Util::Program.runprogram(ytdlf) if Args.force && !Args.pretend && !Args.mkv_only
+  Util::Program.runprogram(ytdln) unless Args.force && !Args.pretend && !Args.mkv_only
+  case
+  when Args.force && Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
+    print "#{ytdlf}\n"
+  when !Args.force && Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
+    print "#{ytdln}\n"
+  end
 end
 
 Files = Args.directory.find.to_a
@@ -126,10 +127,11 @@ puts Mood.neutral('Step 3:') if Args.pretend
 print "#{Files}\n" if Args.pretend
 puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
 exit if Files.nil? || Files.empty?
-
-Files.each do |file|
-  puts Mood.happy("Adding statistic tags to #{file}")
-  cmd = %W(#{MkvPropEdit} --add-track-statistics-tags #{file})
-  Util::Program.runprogram(cmd) unless Args.pretend
-  puts cmd if Args.pretend
+Util::FindApp.which('mkvpropedit') do |mpe|
+  Files.each do |file|
+    puts Mood.happy("Adding statistic tags to #{file}")
+    cmd = %W(#{mpe} --add-track-statistics-tags #{file})
+    Util::Program.runprogram(cmd) unless Args.pretend
+    puts cmd if Args.pretend
+  end
 end
