@@ -75,8 +75,7 @@ module Util
     end
 
     def write(filename)
-      outputfile = open(filename, 'w')
-      outputfile.write(@output)
+      File.open(filename, 'w') { |of| of.write(@output) }
     end
   end
 
