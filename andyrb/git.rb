@@ -41,8 +41,9 @@ class Git
   end
 
   def gc(aggressive = false)
-    Util::Program.runprogram(%w(git gc --aggressive), use_sudo: @use_sudo, sudo_user: @sudo_user) if aggressive
-    Util::Program.runprogram(%w(git gc), use_sudo: @use_sudo, sudo_user: @sudo_user) unless aggressive
+    gccmd = %w(git gc)
+    gccmd << '--aggressive' if aggressive
+    Util::Program.runprogram(gccmd, use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 
   def pull
