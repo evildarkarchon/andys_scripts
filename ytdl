@@ -63,6 +63,7 @@ when !Args.no_date && Args.directory.to_s.include?('/data/Videos/Youtube')
 else
   Args.directory + 'downloaded.txt'
 end # rubocop:disable Lint/EndAlignment
+
 case
 when Args.subdirectory && Args.subdirectory.is_a?(String)
   Util.block do
@@ -99,6 +100,7 @@ end
 Files = Args.directory.find.to_a
 puts Mood.neutral('No matroska files to calculate statistics for.') if Files.nil? || Files.empty?
 exit if Files.nil? || Files.empty?
+
 case
 when !Args.no_stats
   Files.keep_if(&:file?)
