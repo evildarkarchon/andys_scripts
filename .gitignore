@@ -1,9 +1,7 @@
 .*
 *test*
-generate-json.py
-generate-json.rb
-generate-abs-json.py
-generate-abs-json.rb
+generate-json*
+generate-abs-json*
 __pycache__
 !.gitignore
 oldhashfile.py
