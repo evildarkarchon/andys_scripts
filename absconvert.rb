@@ -59,8 +59,13 @@ class Options
 
       opts.on('--passes [pass]', '-p [pass]', 'Number of video encoding passes.') do |passes|
         case
-        when !passes.respond_to?(:to_i) || !passes.between?(1, 2)
-          raise ArgumentError
+        when !passes.respond_to?(:to_i)
+          raise 'Argument passed is not an integer or convertible to an integer.'
+        when !passes.between?(1, 2)
+          options.passes = 1 if passes <= 0
+          puts Mood.neutral('Passes argument is less than or equal to 0, setting passes to 1') if passes <= 0
+          options.passes = 2 if passes >= 3
+          puts Mood.neutral('Passes argument is greater than or equal to 3, setting to 2') if passes >= 3
         else
           options.passes = passes.to_i
         end
@@ -69,9 +74,9 @@ class Options
       opts.on('--video-codec-opts [opts]', 'Options to pass to the video codec') { |vco| options.videocodecopts = vco.shellsplit }
       opts.on('--frame-rate [rate]', '-f [rate]', 'Manually specify the frame rate (e.g. useful for MPEG2-PS files)') { |fr| options.framerate = fr.to_f if fr.respond_to?(:to_f) }
 
-      opts.on('--no-video', 'Disable video channel') do |nv|
+      opts.on('--no-video', 'Disable video channel') do
         options.videocodec = nil
-        options.novideo == nv
+        options.novideo = true
       end
 
       opts.on('--audio-bitrate [bitrate]', 'Bitrate of the output audio.') { |abitrate| options.audiobitrate = abitrate }
