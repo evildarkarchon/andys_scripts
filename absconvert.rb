@@ -335,7 +335,8 @@ Args.files.each do |file|
     outpath.delete if outpath.exist?
     raise e
   else
-    Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', outpath.to_s]) if Args.stats
+    # Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', outpath.to_s]) if Args.stats
+    Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{outpath})) if Args.stats
     case
     when !Args.converttest && !Args.debug
       del = GenerateVideoInfo::Videoinfo.all(filename: filepath.basename.to_s)
