@@ -64,10 +64,8 @@ Args.files = Util::SortEntries.sort(ARGV) if Args.sort
 Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 # Args.lossy = true if !Args.lossy && !Args.lossless
 raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
-SevenZ = Util::FindApp.which('7za')
-Convert = Util::FindApp.which('convert')
-raise 'convert not found or is not executable.' unless Convert && File.executable?(Convert)
-raise '7za not found or is not executable.' if Args.backuparchive && !SevenZ || Args.backuparchive && SevenZ && !File.executable?(SevenZ)
+# SevenZ = Util::FindApp.which('7za')
+# Convert = Util::FindApp.which('convert')
 
 Args.outputdir.mkpath unless Args.outputdir.exist? && Args.outputdir.directory? && !Args.outputdir.file?
 raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory?
@@ -122,14 +120,18 @@ class Command
     lossymode = true unless losslessmode
     # puts lossymode
     # puts losslessmode
-    @list = [Convert, @filepath.to_s]
-    @list += %W(-quality #{Args.quality}) # ['-quality', Args.quality] if defined?(Args.quality) && Args.quality
-    @list += lossless if losslessmode
-    @list += %w(-define webp:thread-level=1) # ['-define', 'webp:thread-level=1']
-    @list << '-verbose' if Args.verbose
-    @list << @outpath.to_s
-    @list.flatten!
-    @list.compact!
+    Util::FindApp.which('convert') do |c|
+      raise 'convert not found or is not executable.' unless c && File.executable?(c)
+      # @list = [Convert, @filepath.to_s]
+      @list = %W(#{c} #{filepath})
+      @list += %W(-quality #{Args.quality}) # ['-quality', Args.quality] if defined?(Args.quality) && Args.quality
+      @list += lossless if losslessmode
+      @list += %w(-define webp:thread-level=1) # ['-define', 'webp:thread-level=1']
+      @list << '-verbose' if Args.verbose
+      @list << @outpath.to_s
+      @list.flatten!
+      @list.compact!
+    end
   end
 end
 
@@ -150,7 +152,11 @@ def backuparchive
   end
 
   begin
-    Util::Program.runprogram(%W(#{SevenZ} a #{Args.backuparchive} #{paths.join(' ')}))
+    Util::FindApp.which('7za') do |z|
+      raise '7za not found or is not executable.' if Args.backuparchive && !z || Args.backuparchive && z && !File.executable?(z)
+      Util::Program.runprogram(%W(#{z} a #{Args.backuparchive} #{paths.join(' ')}))
+    end
+    # Util::Program.runprogram(%W(#{SevenZ} a #{Args.backuparchive} #{paths.join(' ')}))
     # Util::Program.runprogram([SevenZ, 'a', Args.backuparchive, paths.join(' ')])
   rescue Subprocess::NonZeroExit => e
     puts e.message
