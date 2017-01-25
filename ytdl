@@ -5,7 +5,7 @@ require 'pathname'
 require 'filemagic'
 require 'uri'
 
-require_relative 'andyrb/videoinfo_dm'
+require_relative 'andyrb/videoinfo'
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
 

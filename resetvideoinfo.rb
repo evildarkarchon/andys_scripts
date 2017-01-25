@@ -6,7 +6,7 @@ require 'find'
 
 # require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
-require_relative 'andyrb/videoinfo_dm'
+require_relative 'andyrb/videoinfo'
 
 class Options
   def self.parse(args)
