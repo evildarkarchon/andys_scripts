@@ -10,7 +10,7 @@ require 'shellwords'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
-require_relative 'andyrb/videoinfo_dm'
+require_relative 'andyrb/videoinfo'
 # rubocop:disable Style/CaseIndentation, Lint/EndAlignment, Lint/UnneededDisable
 class Options
   def self.parse(args)
@@ -99,7 +99,7 @@ class Options
       end
 
       opts.on('--database [location]', 'Location of the videoinfo database') { |db| optons.db = Pathname.new(db) }
-      opts.on('--convert-test', "Don't delete any videoinfo entries.") { |ct| options.converttest = ct }
+      opts.on('--convert-test', "Don't delete any videoinfo entries.") { options.converttest = true }
       opts.on('--config [path]', '-c [path]', 'Location of the configuration json file') { |config| options.config = Pathname.new(config) }
       opts.on('--container [extension]', 'Container to be used for the output file (the dot must be included).') { |ext| options.container = ext }
       opts.on('--no-sort', "Don't sort the file list.") { options.sort = false }
@@ -107,8 +107,8 @@ class Options
       opts.on('--debug', '-d', 'Print variables and exit.') { options.debug = true }
       opts.on('--backup [dir]', '-b [dir]', 'Location of the backup directory (if any)') { |backup| options.backup = Pathname.new(backup) }
       opts.on('--output [dir]', '-o [dir]', 'Location of the output directory') { |output| options.outputdir = Pathname.new(output) }
-      opts.on('--verbose', '-v', 'Make the script a bit more chatty.') { |v| options.verbose = v }
-      opts.on('--convert-test', "Don't delete any database entries.") { |c| options.converttest = c }
+      opts.on('--verbose', '-v', 'Make the script a bit more chatty.') { options.verbose = true }
+      opts.on('--convert-test', "Don't delete any database entries.") { options.converttest = true }
     end
     optparse.parse!(args)
     options
@@ -133,10 +133,11 @@ raise 'mkvpropedit is not executable' unless (MkvPropEdit && File.executable?(Mk
 
 Config = case # rubocop:disable Style/ConstantName
 when File.exist?(Args.config)
-  configfile = File.open(Args.config)
-  config = JSON.parse(configfile.read)
+  config = nil
+  File.open(Args.config) do |cf|
+    config = JSON.parse(cf.read)
+  end
   config = Util.recursive_symbolize_keys(config)
-  configfile.close
   print "#{config}\n" if Args.debug && config
   config
 end
