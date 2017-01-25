@@ -51,16 +51,18 @@ module Util
     end
   end
 
-  def self.privileged?(user = 'root')
-    currentuser = Etc.getpwuid
-    privuser = nil
+  def self.privileged?(user = 'root', path = nil)
+    currentuser = Etc.getpwuid unless path
+    privuser = nil unless path
     value = false
-    if user.respond_to?(:to_s)
+    path = Pathname.new(path) if path && !path.is_a?(Pathname)
+    if user.respond_to?(:to_s) && !path
       privuser = Etc.getpwnam(user)
-    elsif user.respond_to?(:to_i)
+    elsif user.respond_to?(:to_i) && !path
       privuser = Etc.getpwuid(user.to_i)
     end
-    value = true if currentuser.uid == privuser.uid
+    value = true if currentuser.uid == privuser.uid && !path
+    value = true if path && path.respond_to?(:writable?) && path.writable?
     yield value if block_given?
     value
   end
