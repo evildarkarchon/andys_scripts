@@ -66,16 +66,19 @@ module Util
   end
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
-    attr_reader :output
     def initialize(input, pretty = true)
       raise 'Input must be able to be converted to a JSON string.' unless input.respond_to?(:to_json)
-      @output = JSON.parse(input.to_json)
-      @output = JSON.pretty_generate(@output) if pretty
+      @output = JSON.pretty_generate(JSON.parse(input.to_json)) if pretty
       @output = input.to_json unless pretty
     end
 
     def write(filename)
       File.open(filename, 'w') { |of| of.write(@output) }
+    end
+
+    def output
+      yield @output if block_given?
+      @output
     end
   end
 
