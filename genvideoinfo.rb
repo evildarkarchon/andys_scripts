@@ -8,7 +8,7 @@ require 'data_mapper'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
-require_relative 'andyrb/videoinfo_dm'
+require_relative 'andyrb/videoinfo'
 
 # rubocop:disable Style/Semicolon
 class Options
@@ -20,12 +20,12 @@ class Options
 
     optparse = OptionParser.new do |opts|
       opts.on('--database file', 'Location where the database will be written') { |d| options.db = Pathname.new(d) }
-      opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") { |d| options.debug = d; options.verbose = d }
-      opts.on('-m', '--maintainence', 'Performs simple maintainence operations on the database.') { |m| options.m = m }
-      opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { |r| options.regen = r }
-      opts.on('--reset-json', 'Drops and recreates the videojson table.') { |r| options.reset_json = r }
-      opts.on('--reset-all', 'Drops and recreates both the videoinfo and videojson tables.') { |r| options.reset_all = r }
-      opts.on('-v', '--verbose', 'Activates Verbose Mode') { |v| options.verbose = v }
+      opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") { options.debug = true; options.verbose = true }
+      opts.on('-m', '--maintainence', 'Performs simple maintainence operations on the database.') { options.m = true }
+      opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { options.regen = true }
+      opts.on('--reset-json', 'Drops and recreates the videojson table.') { options.reset_json = true }
+      opts.on('--reset-all', 'Drops and recreates both the videoinfo and videojson tables.') { options.reset_all = true }
+      opts.on('-v', '--verbose', 'Activates Verbose Mode') { options.verbose = true }
     end
     optparse.parse!(args)
     options
