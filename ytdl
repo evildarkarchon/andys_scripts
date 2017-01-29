@@ -42,9 +42,10 @@ ARGV.uniq! if ARGV.respond_to?(:uniq!)
 Args = Options.parse(ARGV)
 
 Urls = ARGV
+Urls.keep_if { |url| url.is_a?(String) }
 Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
 
-raise 'No URLs specified (or code is bugged)' if (Urls.empty? || Urls.nil?) && !Args.pretend
+raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend
 
 Args.directory = Args.directory + Args.date if Args.directory.to_s == '/data/Videos/Youtube' && !Args.no_date
 
