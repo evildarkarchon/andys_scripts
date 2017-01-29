@@ -1,6 +1,10 @@
 require 'pathname'
 require 'shellwords'
-require 'logger'
+begin
+  require 'systemd/journal'
+rescue LoadError
+  require 'logger'
+end
 require 'optparse'
 require 'date'
 
@@ -22,4 +26,13 @@ ARGV.compact! if ARGV.respond_to?(:compact!)
 Args = Options.parse(ARGV)
 Now = Time.now.strftime('%Y%m%d_%H%M')
 
-logger = Logger.new('/var/log/ttrss_backup.log', 'monthly')
+def class_exists?(name)
+  klass = Module.const_get(name)
+  klass.is_a?(Class) unless klass.is_a?(Module)
+  klass.is_a?(Module) if klass.is_a?(Module)
+  false unless klass.is_a?(Module) || klass.is_a?(Module)
+rescue NameError
+  false
+end
+logger = Logger.new('/var/log/ttrss_backup.log', 'monthly') if Args.cron && !class_exists?('Systemd::Journal')
+sdlog = Systemd::Journal.new if Args.cron && class_exists?('Systemd::Journal')
