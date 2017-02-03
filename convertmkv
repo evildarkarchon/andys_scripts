@@ -79,15 +79,16 @@ MkvMerge = Util::FindApp.which('mkvmerge')
 puts Mood.neutral 'ffmpeg concatenation mode has been disabled for the time being, reverting to mkvmerge.' if Args.combine && Args.ffmpeg
 Args.ffmpeg = false if Args.combine
 
-Config = case # rubocop:disable Style/ConstantName
-when File.exist?(Args.config)
-  configfile = File.open(Args.config)
-  config = JSON.parse(configfile.read)
-  config = Util.recursive_symbolize_keys(config)
-  configfile.close
-  print "#{config}\n" if Args.debug && config
-  config
-end
+Config =
+  case # rubocop:disable Style/ConstantName
+  when File.exist?(Args.config)
+    configfile = File.open(Args.config)
+    config = JSON.parse(configfile.read)
+    config = Util.recursive_symbolize_keys(config)
+    configfile.close
+    print "#{config}\n" if Args.debug && config
+    config
+  end
 
 case
 when !FFMPEG && Args.ffmpeg && MkvMerge, FFMPEG && !File.executable?(FFMPEG) && MkvMerge && File.executable?(MkvMerge)
@@ -146,12 +147,13 @@ class Convenience
         end
       end
     end
-    jsondata = case
-    when !Args.outputdb
-      GVI.json(@filename, Args.debug)
-    when Args.outputdb
-      DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) }
-    end
+    jsondata =
+      case
+      when !Args.outputdb
+        GVI.json(@filename, Args.debug)
+      when Args.outputdb
+        DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) }
+      end
     # jsondata = GVI.json(@filename, Args.debug) unless Args.outputdb
     # jsondata = DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) } if Args.outputdb
     GenerateVideoInfo.genhash(@filename, jsondata, outhash) do |h|
@@ -174,7 +176,6 @@ class Convenience
   end
 
   def self.mkvmergeconcat
-    # basecommand = [MkvMerge, '-o', Args.output.to_s]
     basecommand = %W(#{MkvMerge} -o #{Args.output})
     filelist = Args.files.join(' + ')
     filelist = filelist.split
@@ -196,18 +197,6 @@ class Convenience
       vientry = GenerateVideoInfo::Videoinfo.all(filename: @filename)
       vientry.destroy
     end
-=begin
-    if !Args.backup.nil? && Args.backup.directory? # rubocop:disable Style/GuardClause
-      puts Mood.happy("Moving #{@filename} to #{Args.backup}")
-      FileUtils.mv(@filename, Args.backup.to_s) unless Args.debug
-      if Args.db
-        unless Vi.nil? || Args.debug
-          vientry = GenerateVideoInfo::Videoinfo.all(filename: @filename)
-          vientry.destroy
-        end
-      end
-    end
-=end
   end
 end
 
