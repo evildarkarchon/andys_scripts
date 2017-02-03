@@ -30,10 +30,12 @@ module Util
     hashes
   end
 
-  def self.block(*args, **kwargs) # Convenience method to quickly make code blocks.
-    yield args if defined?(args) && !args.nil? && !args.empty?
-    yield kwargs if defined?(kwargs) && !kwargs.nil? && !kwargs.empty?
-    yield if kwargs.empty? && args.empty?
+  def self.block(&block) # Convenience method to quickly make code blocks.
+    # yield args if defined?(args) && !args.nil? && !args.empty?
+    # yield kwargs if defined?(kwargs) && !kwargs.nil? && !kwargs.empty?
+    # yield if kwargs.empty? && args.empty?
+    block.call
+    raise 'Use a lambda or Proc instead.'
   end
 
   def self.recursive_symbolize_keys(my_hash)
