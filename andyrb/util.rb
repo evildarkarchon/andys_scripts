@@ -34,7 +34,7 @@ module Util
     # yield args if defined?(args) && !args.nil? && !args.empty?
     # yield kwargs if defined?(kwargs) && !kwargs.nil? && !kwargs.empty?
     # yield if kwargs.empty? && args.empty?
-    block.call
+    shutup = block
     raise 'Use a lambda or Proc instead.'
   end
 
