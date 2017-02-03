@@ -31,9 +31,7 @@ module Util
   end
 
   def self.block(&block) # Convenience method to quickly make code blocks.
-    # yield args if defined?(args) && !args.nil? && !args.empty?
-    # yield kwargs if defined?(kwargs) && !kwargs.nil? && !kwargs.empty?
-    # yield if kwargs.empty? && args.empty?
+    # yield if block_given?
     shutup = block
     raise 'Use a lambda or Proc instead.'
   end
