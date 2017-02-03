@@ -12,9 +12,10 @@ class Git
     @wdpath = Pathname.new(wd)
     @wd = wd
     @wdlock = @wdpath + '.git/index.lock'
-    Util::FindApp.which('git') do |git|
-      raise 'git not found.' unless git
-      raise 'git found, but is not executable' if git && !File.executable?(git)
+    @git = Util::FindApp.which('git') do |loc|
+      raise 'git not found.' unless loc
+      raise 'git found, but is not executable' if loc && !File.executable?(loc)
+      loc
     end
 
     case
@@ -41,17 +42,17 @@ class Git
   end
 
   def clone(url)
-    Util::Program.runprogram(%W(git clone #{url} #{@wd}), use_sudo: @use_sudo, sudo_user: @sudo_user)
+    Util::Program.runprogram(%W(#{@git} clone #{url} #{@wd}), use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 
   def gc(aggressive = false)
-    gccmd = %w(git gc)
-    gccmd << '--aggressive' if aggressive
+    gccmd = %W(#{@git} gc)
+    gccmd += '--aggressive' if aggressive
     Util::Program.runprogram(gccmd, use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 
   def pull
     Dir.chdir(@wd)
-    Util::Program.runprogram(%w(git pull), use_sudo: @use_sudo, sudo_user: @sudo_user)
+    Util::Program.runprogram(%W(#{@git} pull), use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 end
