@@ -88,17 +88,8 @@ class Command
     lossless_mime.flatten!
     lossless_mime.compact!
 
-    raw = Util.block do
-      # r1 = ['.3fr', '.ari', '.arw', '.srf', '.sr2', '.bay', '.crw', '.cr2', '.cap']
-      # r2 = ['.iiq', '.eip', '.dcs', '.dcr', '.drf', '.k25', '.kdc', '.dng', '.erf', '.fff', '.mef', '.mdc', '.mos', '.mrw']
-      # r3 = ['.nef', '.nrw', '.orf', '.pef', '.ptx', '.pxn', '.r3d', '.raf', '.raw', '.rw2', '.rwl', '.rwz', '.srw', '.x3f']
-      # r = r1 + r2
-      # r += r3
-      # r
-      r1 = %w(.3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw)
-      r2 = %w(.nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f)
-      r1 + r2
-    end
+    raw = %w(.3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw)
+    raw += %w(.nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f)
     raw.flatten!
     raw.compact!
 
@@ -127,8 +118,8 @@ class Command
       @list += %W(-quality #{Args.quality}) # ['-quality', Args.quality] if defined?(Args.quality) && Args.quality
       @list += lossless if losslessmode
       @list += %w(-define webp:thread-level=1) # ['-define', 'webp:thread-level=1']
-      @list << '-verbose' if Args.verbose
-      @list << @outpath.to_s
+      @list += '-verbose' if Args.verbose
+      @list += @outpath.to_s
       @list.flatten!
       @list.compact!
     end
@@ -148,7 +139,7 @@ def backuparchive
 
   paths = []
   Args.files.each do |file|
-    paths << Pathname.new(file).realpath.to_s
+    paths += Pathname.new(file).realpath.to_s
   end
 
   begin
@@ -156,8 +147,6 @@ def backuparchive
       raise '7za not found or is not executable.' if Args.backuparchive && !z || Args.backuparchive && z && !File.executable?(z)
       Util::Program.runprogram(%W(#{z} a #{Args.backuparchive} #{paths.join(' ')}))
     end
-    # Util::Program.runprogram(%W(#{SevenZ} a #{Args.backuparchive} #{paths.join(' ')}))
-    # Util::Program.runprogram([SevenZ, 'a', Args.backuparchive, paths.join(' ')])
   rescue Subprocess::NonZeroExit => e
     puts e.message
     raise e
