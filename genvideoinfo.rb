@@ -10,17 +10,19 @@ require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
 require_relative 'andyrb/videoinfo'
 
-# rubocop:disable Style/Semicolon
 class Options
   def self.parse(args)
     options = OpenStruct.new
-    options.db = Pathname.new('./videoinfo.sqlite')
+    options.db = Pathname.getwd + 'videoinfo.sqlite'
     options.debug = false
     options.verbose = false
 
     optparse = OptionParser.new do |opts|
       opts.on('--database file', 'Location where the database will be written') { |d| options.db = Pathname.new(d) }
-      opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") { options.debug = true; options.verbose = true }
+      opts.on('-d', '--debug', "Don't actually do anything, just print what would be done.") do
+        options.debug = true
+        options.verbose = true
+      end
       opts.on('-m', '--maintainence', 'Performs simple maintainence operations on the database.') { options.m = true }
       opts.on('-r', '--regen', 'Drops and recreates the videoinfo table (used for schema changes, testing, etc.)') { options.regen = true }
       opts.on('--reset-json', 'Drops and recreates the videojson table.') { options.reset_json = true }
@@ -32,12 +34,11 @@ class Options
   end
 end
 Args = Options.parse(ARGV)
-Args.files = []
 Args.files = ARGV unless ARGV.nil? || ARGV.empty?
 Args.files.flatten! if ARGV.respond_to?(:flatten!)
 Args.files.compact! if ARGV.respond_to?(:compact!)
 Args.files.uniq! if ARGV.respond_to?(:uniq!)
-Args.files.keep_if { |filename| Pathname.new(filename).file? } unless Args.files.nil? || Args.files.empty?
+Args.files.keep_if { |filename| File.file?(filename) } unless Args.files.nil? || Args.files.empty?
 
 case
 when Args.files.empty?
@@ -110,20 +111,30 @@ end
 initlist = []
 
 case
-when Args.files && Args.files.respond_to?(:each)
+when Args.files && Args.files.is_a?(Array)
   Args.files.each do |entry|
     path = Pathname.new(entry).realpath
     initlist << path.to_s if path.file?
-    if path.directory? # rubocop:disable Style/Next
-      Find.find(path) do |direntry|
-        if File.basename(entry)[0] == ?. # rubocop:disable Style/CharacterLiteral
-          Find.prune # Don't look any further into this directory.
-        else
-          initlist << direntry.to_s if File.file? direntry # rubocop:disable Metrics/BlockNesting
-          next
+    # if path.directory? # rubocop:disable Style/Next
+    #   Find.find(path) do |direntry|
+    #     if File.basename(entry)[0].include?('.')
+    #       Find.prune # Don't look any further into this directory.
+    #     else
+    #       initlist << direntry.to_s if File.file? direntry # rubocop:disable Metrics/BlockNesting
+    #       next
+    #    end
+    #   end
+    # end
+    dir =
+      case
+      when path.directory?
+        dir = path.find do |i|
+          Find.prune if i.basename[0].include?('.')
         end
+        dir = dir.to_a
+        dir.keep_if(&:file?)
+        dir.each { |d| initlist << d.to_s }
       end
-    end
   end
 end
 
