@@ -55,7 +55,7 @@ module Util
     currentuser = Etc.getpwuid unless path
     privuser = nil unless path
     value = false
-    path = Pathname.new(path) if path && !path.is_a?(Pathname)
+    path &&= Pathname.new(path) unless path.is_a?(Pathname)
     if user.respond_to?(:to_s) && !path
       privuser = Etc.getpwnam(user)
     elsif user.respond_to?(:to_i) && !path
