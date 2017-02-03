@@ -55,7 +55,6 @@ Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
 raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend
 
 Args.directory &&= Args.directory + Args.date if Args.directory.to_s == '/data/Videos/Youtube' && !Args.no_date
-Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && Args.directory.to_s.include?('/data/Videos/Youtube')
 
 Archive =
   case
@@ -66,6 +65,8 @@ Archive =
   else
     Args.directory + 'downloaded.txt'
   end
+
+Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && Args.directory.to_s.include?('/data/Videos/Youtube')
 
 case
 when Args.directory.exist? && !Args.directory.directory?
