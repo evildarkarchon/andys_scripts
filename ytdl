@@ -25,6 +25,7 @@ class Options
     options.no_mux = false
     options.config = Pathname.new(Dir.home) + '.config' + 'convertmkv.json'
     options.keep_original = false
+    options.keep_split = false
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -38,6 +39,10 @@ class Options
       opts.on('--no-mux', '-nm', "Don't mux non-mkv files") { options.no_mux = true }
       opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| options.config = c } # Reusing the convertmkv config file since the options used are the same.
       opts.on('--keep-original', '-k', 'Keep the original file if muxing non-mkv files.') { options.keep_original = true }
+      opts.on('--keep-split', '-ks', 'Keep the original split download files (if there are any)') do
+        options.keep_split = true
+        options.no_mux = true
+      end
     end
     optparse.parse!(args)
     options
@@ -53,6 +58,9 @@ Urls.keep_if { |url| url.is_a?(String) }
 Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
 
 raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend
+raise 'Somehow, Args.directory is nil' if Args.directory.nil?
+raise 'Somehow, Args.directory is empty' if Args.directory.respond_to?(:empty?) && Args.directory.empty?
+raise 'Somehow, Args.directory is not a Pathname' unless Args.directory.is_a?(Pathname)
 
 Args.directory &&= Args.directory + Args.date if Args.directory.to_s == '/data/Videos/Youtube' && !Args.no_date
 
@@ -82,10 +90,13 @@ Util::FindApp.which('youtube-dl') do |yt|
   ytdl =
     case
     when Args.force
-      %W(#{yt}) + Urls
+      %W(#{yt})
     else
-      %W(#{yt} --download-archive #{Archive}) + Urls
+      %W(#{yt} --download-archive #{Archive})
     end
+
+  ytdl += '-k' if Args.keep_split
+  ytdl += Urls
   # ytdl = %W(#{yt}) + Urls if Args.force
   # ytdl = %W(#{yt} --download-archive #{Archive}) + Urls unless Args.force
 
