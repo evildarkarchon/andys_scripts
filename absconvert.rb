@@ -46,13 +46,14 @@ class Options
 
     optparse = OptionParser.new do |opts|
       opts.on('--video-codec [codec]', 'Video codec for the output video.') do |vcodec|
-        options.videocodec = case
-        when vcodec == 'none'
-          options.novideo = true
-          nil
-        else
-          vcodec
-        end
+        options.videocodec =
+          case
+          when vcodec == 'none'
+            options.novideo = true
+            nil
+          else
+            vcodec
+          end
       end
 
       opts.on('--video-bitrate [bitrate]', 'Video bitrate for the output video.') { |vbitrate| options.videobitrate = vbitrate }
@@ -82,13 +83,14 @@ class Options
       opts.on('--audio-bitrate [bitrate]', 'Bitrate of the output audio.') { |abitrate| options.audiobitrate = abitrate }
 
       opts.on('--audio-codec [codec]', 'Codec of the output audio.') do |acodec|
-        options.audiocodec = case
-        when acodec == 'none'
-          options.noaudio = true
-          nil
-        else
-          acodec
-        end
+        options.audiocodec =
+          case
+          when acodec == 'none'
+            options.noaudio = true
+            nil
+          else
+            acodec
+          end
       end
 
       opts.on('--audio-filter [filter]', 'Filter to be used for the output audio.') { |afilter| options.audiofilter = afilter }
