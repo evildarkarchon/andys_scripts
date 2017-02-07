@@ -30,7 +30,7 @@ module Util
     hashes
   end
 
-  def self.block(&block) # Convenience method to quickly make code blocks.
+  def self.block(&block) # Deprecated method that only serves to show what the & argument does.
     # yield if block_given?
     shutup = block
     raise 'Use a lambda or Proc instead.'
@@ -53,16 +53,22 @@ module Util
 
   def self.privileged?(user = 'root', path = nil)
     currentuser = Etc.getpwuid unless path
-    privuser = nil unless path
     value = false
     path &&= Pathname.new(path) unless path.is_a?(Pathname)
-    if user.respond_to?(:to_s) && !path
-      privuser = Etc.getpwnam(user)
-    elsif user.respond_to?(:to_i) && !path
-      privuser = Etc.getpwuid(user.to_i)
-    end
-    value = true if currentuser.uid == privuser.uid && !path
-    value = true if path && path.respond_to?(:writable?) && path.writable?
+    privuser =
+      case
+      when user.respond_to?(:to_s) && !path
+        Etc.getpwnam(user)
+      when user.respond_to?(:to_i) && !path
+        Etc.getpwuid(user.to_i)
+      end
+    # value = true if currentuser.uid == privuser.uid && !path
+    # value = true if path && path.respond_to?(:writable?) && path.writable?
+    value =
+      case
+      when path && path.respond_to?(:writable?) && path.writable?, currentuser.uid == privuser.uid && !path
+        true
+      end
     yield value if block_given?
     value
   end
@@ -105,8 +111,18 @@ module Util
   class DateDiff
     def self.getdiff(timestamp)
       now = Date.today
-      than = timestamp.to_date if timestamp.is_a?(Time)
-      than = Time.at(timestamp).to_date unless than.nil? || than.is_a?(Date)
+      # than = timestamp.to_date if timestamp.is_a?(Time)
+      # than = Time.at(timestamp).to_date unless than.nil? || than.is_a?(Date)
+      raise 'timestamp must be a Date or Time object or any object convertable to an integer.' unless timestamp.is_a?(Date) || timestamp.is_a?(Time) || timestamp.respond_to?(:to_i)
+      than =
+        case
+        when timestamp.is_a?(Time)
+          timestamp.to_date
+        when !timestamp.is_a?(Date) && !timestamp.is_a?(Time) && timestamp.respond_to?(:to_i)
+          Time.at(timestamp.to_i).to_date
+        when timestamp.is_a?(Date)
+          timestamp
+        end
       diff = now - than
       yield diff if block_given?
       diff.to_i if diff.respond_to?(:to_i) && !block_given?
@@ -131,13 +147,13 @@ module Util
   end
 
   class Program
-    def self.runprogram(program = nil, use_sudo = false, sudo_user = nil, parse_output = false)
+    def self.runprogram(program, use_sudo = false, sudo_user = nil, parse_output = false)
       raise 'Program argument blank and no block given.' unless block_given? || program
       cmdline = []
       # sudo_user = 'root' if use_sudo && !sudo_user
       # cmdline << ['sudo', '-u', sudo_user] if use_sudo
-      program = yield if block_given? && !program
-      raise 'Program variable is not an array' unless program && program.is_a?(Array)
+      raise 'Program variable is not an array or convertable to an array' unless program.is_a?(Array) || program.respond_to?(:to_a)
+      program = program.to_a unless program.is_a?(Array)
       cmdline << %W(sudo -u #{sudo_user}) if use_sudo && sudo_user
       cmdline << %w(sudo) if use_sudo && !sudo_user
       cmdline << program
@@ -147,7 +163,7 @@ module Util
       begin
         Subprocess.check_call(cmdline) unless parse_output
         output = Subprocess.check_output(cmdline) if parse_output
-      rescue Interrupt
+      rescue Subprocess::NonZeroExit, Interrupt
         exit 1
       else
         yield output if block_given? && output
