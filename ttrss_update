@@ -12,10 +12,12 @@ class Options
     options = OpenStruct.new
     options.aggressive = false
     options.replace = false
+    options.restart = false
 
     optparse = OptionParser.new do |opts|
       opts.on('-a', '--aggressive', 'Activate git gc in aggressive mode if run.') { options.aggressive = true }
       opts.on('-r', '--replace', 'Rename any existing directory if a repository is not found.') { options.replace = true }
+      opts.on('--restart', 'Restart ttrssd.') { options.restart = true }
     end
     optparse.parse!(args)
     options
@@ -60,7 +62,7 @@ when repopath.directory?
 when wdpath.exist? && !repopath.exist?
   case
   when Args.replace
-    puts Mood.neutral("No git repository located in the target directory, renaming it to #{wdpath}.old")
+    puts Mood.neutral { "No git repository located in the target directory, renaming it to #{wdpath}.old" }
     Util::Program.runprogram(%W(mv #{wdpath} #{wdpath}.old), use_sudo: true, sudo_user: 'nginx')
     TTrss.clone(giturl)
   else
@@ -77,3 +79,5 @@ else
 end
 
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
+
+Util::Program.runprogram(%w(systemctl restart ttrssd)) if Args.restart
