@@ -64,12 +64,12 @@ Args.outputdb = Args.output.join('videoinfo.sqlite') if Args.outputdb.nil? && !A
 FileUtils.touch(Args.db.to_s) unless Args.db.file?
 FileUtils.touch(Args.outputdb.to_s) if Args.outputdb && !Args.outputdb.parent.directory? && !Args.outputdb.file?
 
-Args.files = Util::SortEntries.sort(ARGV) if Args.sort
-Args.files = ARGV unless Args.sort
+Args.files = ARGV
 Args.files.flatten!
 Args.files.compact!
 Args.files.uniq!
-Args.files.keep_if { |filename| Pathname.new(filename).file? }
+Args.files.keep_if { |filename| File.file?(filename) }
+Args.files = Util::SortEntries.sort(Args.files) if Args.sort
 # print "#{Args.files}\n"
 
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
