@@ -102,19 +102,12 @@ Util::FindApp.which('youtube-dl') do |yt|
       Args.directory + 'downloaded.txt'
     end
   puts Mood.neutral { archive } if Args.pretend
-  ytdl =
-    case
-    when Args.force
-      %W(#{yt})
-    else
-      %W(#{yt} --download-archive #{archive})
-    end
+  ytdl = %W(#{yt})
 
+  ytdl += %W(--download-archive #{archive}) unless Args.force
   ytdl += '-k' if Args.keep_split
   ytdl += %w(--external-downloader ffmpeg) if Args.ffmpegdl
   ytdl += Urls
-  # ytdl = %W(#{yt}) + Urls if Args.force
-  # ytdl = %W(#{yt} --download-archive #{Archive}) + Urls unless Args.force
 
   Util::Program.runprogram(ytdl) unless Args.pretend || Args.mkv_only
   print "#{ytdl}\n" if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
