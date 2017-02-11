@@ -37,7 +37,7 @@ class Options
       opts.on('--pretend', '-p', "Don't actually run youtube-dl or mkvpropedit") { options.pretend = true } # Mostly for testing code that doesn't rely on the programs actually running.
       opts.on('--mkv-only', "Don't run youtube-dl but run mkvpropedit.") { options.mkv_only = true }
       opts.on('--no-stats', "Don't calculate statistics for MKV files.") { options.no_stats = true }
-      opts.on('--no-mux', '-nm', "Don't mux non-mkv files") { options.no_mux = true }
+      # opts.on('--no-mux', '-nm', "Don't mux non-mkv files") { options.no_mux = true }
       opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| options.config = c } # Reusing the convertmkv config file since the options used are the same.
       opts.on('--keep-original', '-k', 'Keep the original file if muxing non-mkv files.') { options.keep_original = true }
       opts.on('--keep-split', '-ks', 'Keep the original split download files (if there are any)') do
