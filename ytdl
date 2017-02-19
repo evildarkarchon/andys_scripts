@@ -6,7 +6,7 @@ require 'filemagic'
 require 'uri'
 require 'json'
 
-require_relative 'andyrb/videoinfo'
+require_relative 'andyrb/vidinfo'
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
 
@@ -106,8 +106,9 @@ Util::FindApp.which('youtube-dl') do |yt|
   puts Mood.neutral { archive } if Args.pretend
   ytdl = %W(#{yt})
   ytdl += %W(--download-archive #{archive}) unless Args.force
-  ytdl += '-k' if Args.keep_split
-  ytdl += %w(--external-downloader ffmpeg --external-downloader-args -hide_banner) if Args.ffmpegdl
+  ytdl << '-k' if Args.keep_split
+  ytdl << '--hls-prefer-ffmpeg' if Args.ffmpegdl && Urls.to_s.include?('twitch.tv')
+  ytdl += %w(--external-downloader ffmpeg) if Args.ffmpegdl
   ytdl += Urls
 
   Util::Program.runprogram(ytdl) unless Args.pretend || Args.mkv_only
@@ -133,10 +134,10 @@ when !Args.no_stats
   puts Mood.neutral('Step 2:') if Args.pretend
   print "#{mkv}\n" if Args.pretend
   mkv.delete_if do |file|
-    json = Util.recursive_symbolize_keys(GenerateVideoInfo.probe(file))
+    jsondata = Util.recursive_symbolize_keys(VidInfo.probe(file))
     case
     when json.respond_to?(:dig)
-      json.dig(:streams, 0, :tags, :BPS)
+      jsondata.dig(:streams, 0, :tags, :BPS)
     when !json.respond_to?(:dig)
       true if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
       false unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
