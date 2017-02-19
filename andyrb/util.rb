@@ -72,6 +72,15 @@ module Util
     yield value if block_given?
     value
   end
+
+  def self.class_exists?(name)
+    klass = Module.const_get(name)
+    klass.is_a?(Class) unless klass.is_a?(Module)
+    klass.is_a?(Module) if klass.is_a?(Module)
+    false unless klass.is_a?(Module) || klass.is_a?(Module)
+  rescue NameError
+    false
+  end
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
     def initialize(input, pretty = true)
@@ -152,7 +161,7 @@ module Util
       cmdline = []
       # sudo_user = 'root' if use_sudo && !sudo_user
       # cmdline << ['sudo', '-u', sudo_user] if use_sudo
-      raise 'Program variable is not an array or convertable to an array' unless program.is_a?(Array) || program.respond_to?(:to_a)
+      raise 'Program variable is not an array or convertable into an array' unless program.is_a?(Array) || program.respond_to?(:to_a)
       program = program.to_a unless program.is_a?(Array)
       cmdline << %W(sudo -u #{sudo_user}) if use_sudo && sudo_user
       cmdline << %w(sudo) if use_sudo && !sudo_user
@@ -163,8 +172,8 @@ module Util
       begin
         Subprocess.check_call(cmdline) unless parse_output
         output = Subprocess.check_output(cmdline) if parse_output
-      rescue Subprocess::NonZeroExit, Interrupt
-        exit 1
+      rescue Subprocess::NonZeroExit, Interrupt => e
+        raise e
       else
         yield output if block_given? && output
         output if output
