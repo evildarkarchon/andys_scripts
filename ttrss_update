@@ -13,11 +13,13 @@ class Options
     options.aggressive = false
     options.replace = false
     options.restart = false
+    options.gc = false
 
     optparse = OptionParser.new do |opts|
       opts.on('-a', '--aggressive', 'Activate git gc in aggressive mode if run.') { options.aggressive = true }
       opts.on('-r', '--replace', 'Rename any existing directory if a repository is not found.') { options.replace = true }
-      opts.on('--restart', 'Restart ttrssd.') { options.restart = true }
+      opts.on('-g', '--garbage-collect', 'Force garbage collection to run.') { options.gc = true }
+      opts.on('--restart-ttrssd', 'Restart ttrssd.') { options.restart = true }
     end
     optparse.parse!(args)
     options
@@ -33,7 +35,7 @@ at_exit do
   TTrss.clean_lock
 end
 
-def ttrssgcfile
+def touchgcfile
   cachepath = Pathname.new('/var/cache/ttrssgc')
   use_sudo = false
   use_sudo = true unless cachepath.parent.writable?
@@ -45,11 +47,17 @@ def ttrssgcfile
   end
 end
 
-ttrssgcfile unless File.exist?('/var/cache/ttrssgc')
+touchgcfile unless File.exist?('/var/cache/ttrssgc')
 
 def ttrssgc(thendate)
   diff = Util::DateDiff.getdiff(thendate)
-  TTrss.gc(Args.aggressive) if diff >= 30
+  begin
+    TTrss.gc(Args.aggressive) if diff >= 30 || Args.gc
+  rescue Interrupt => e
+    raise e
+  else
+    touchgcfile if diff >= 30 || Args.gc
+  end
 end
 
 repopath = Pathname.new('/data/web/feeds/.git')
@@ -66,8 +74,7 @@ when wdpath.exist? && !repopath.exist?
     Util::Program.runprogram(%W(mv #{wdpath} #{wdpath}.old), use_sudo: true, sudo_user: 'nginx')
     TTrss.clone(giturl)
   else
-    puts Mood.sad('No git repository located in the target directory.')
-    raise
+    raise 'No git repository located in the target directory.'
   end
 when wdpath.file?
   puts Mood.neutral('Target location is a file, renaming and cloning repository.')
