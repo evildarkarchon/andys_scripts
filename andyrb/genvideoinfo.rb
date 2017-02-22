@@ -9,6 +9,7 @@ require 'dentaku'
 # rubocop:disable Metrics/ModuleLength, Style/CaseIndentation, Lint/UnneededDisable, Style/ConstantName
 require_relative 'mood'
 require_relative 'util'
+require_relative 'vidinfo'
 
 module GenerateVideoInfo
   class Videoinfo
@@ -78,17 +79,10 @@ module GenerateVideoInfo
         puts Mood.happy("Reading metadata from cache for #{filepath}") if @verbose
         out = Videojson.all(filename: filepath.basename, fields: [:jsondata])
       else
-        puts Mood.happy("Extracting metadata from #{filepath.basename}") if @verbose
-        # out = Subprocess.check_output(['ffprobe', '-i', filepath.realpath.to_s, '-hide_banner', '-of', 'json', '-show_streams', '-show_format', '-loglevel', 'quiet']).to_s
-        Util::FindApp.which('ffprobe') do |fp|
-          raise 'ffprobe not found' unless fp
-          raise 'ffprobe found, but is not executable' if fp && !File.executable?(fp)
-          out = Subprocess.check_output(%W(#{fp} -i #{filepath.realpath} -hide_banner -of json -show_streams -show_format -loglevel quiet)).to_s
-        end
-        cache = JSON.parse(out)
+        out = VidInfo.probe(filepath.realpath.to_s, verbose: @verbose)
         begin
           puts Mood.happy("Caching JSON for #{filepath.basename}") if @verbose
-          insert.attributes = { filename: filepath.basename, jsondata: JSON.generate(cache) }
+          insert.attributes = { filename: filepath.basename, jsondata: JSON.generate(out) }
           # print @vi.attributes
           insert.save
           # print "\n"
