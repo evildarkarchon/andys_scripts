@@ -10,7 +10,7 @@ require_relative 'util'
 require_relative 'mood'
 
 module VidInfo # rubocop:disable Metrics/ModuleLength
-  def self.probe(filepath, verbose = false)
+  def self.probe(filepath, verbose: false)
     raise 'First argument must be either a string or a pathname' unless filepath.is_a?(String) || filepath.is_a?(Pathname)
     out = nil
     filepath = Pathname.new(filepath) unless filepath.is_a?(Pathname)
@@ -19,7 +19,7 @@ module VidInfo # rubocop:disable Metrics/ModuleLength
       raise 'ffprobe not found' unless fp
       raise 'ffprobe found, but is not executable' if fp && !File.executable?(fp)
       cmd = %W(#{fp} -i #{filepath.realpath} -hide_banner -of json -show_streams -show_format -loglevel quiet)
-      out = Util::Program.runprogram(cmd, use_sudo = false, sudo_user = nil, parse_output = true).to_s
+      out = Util::Program.runprogram(cmd, parse_output: true).to_s
     end
     out = JSON.parse(out)
     yield out if block_given?
@@ -28,6 +28,8 @@ module VidInfo # rubocop:disable Metrics/ModuleLength
 
   def self.genhash(filename, inputjson, filehash = nil)
     raise 'You must supply either a json string, or a pre-parsed hash' unless inputjson.is_a?(String) || inputjson.is_a?(Hash) || inputjson.is_a?(DataMapper::Collection)
+    raise 'filehash must be a Hash or convertable to a hash.' if filehash && !filehash.respond_to?(:to_h)
+    filehash.to_h if filehash && filehash.respond_to?(:to_h) && !filehash.is_a?(Hash)
 
     jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson)) if inputjson.is_a?(String)
     jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson[0][:jsondata])) if inputjson.is_a?(DataMapper::Collection)
@@ -129,25 +131,27 @@ module VidInfo # rubocop:disable Metrics/ModuleLength
     outhash
   end
 
-  def self.genfilelist(filelist, testmode = false, sort = true)
+  def self.genfilelist(filelist, testmode: false, sort: true)
+    raise 'filelist must be an array or convertable to an array' unless filelist.respond_to?(:to_a)
     whitelist = %w(video/x-flv video/mp4 video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/webm video/x-matroska video/3gpp2 audio/x-wav)
     whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
     magic = FileMagic.new(:mime_type)
-    filelist = Util::SortEntries.sort(filelist) if sort
+    filelist = Util.sort(filelist) if sort
     puts 'Files to be examined:' if testmode
-    outlist = []
-    filelist.each do |entry|
-      if testmode
-        puts magic.flags
-        puts magic.file(entry)
+    filelist.keep_if { |f| whitelist.include?(magic.file(f)) } unless testmode
+    case
+    when testmode
+      testlist = {}
+      filelist.each do |f|
+        mime = magic.file(f)
+        testlist[File.basename(f).to_sym] = { mimetype: mime, whitelisted: whitelist.include?(mime) } if f.respond_to?(:to_sym)
+        testlist[File.basename(f)] = { mimetype: mime, whitelisted: whitelist.include?(mime) } unless f.respond_to?(:to_sym)
       end
-      outlist << entry if whitelist.include?(magic.file(entry)) && !testmode
-      puts Mood.happy { entry } if whitelist.include?(magic.file(entry)) && testmode
+      puts testlist
     end
     magic.close
-    outlist = Util::SortEntries.sort(outlist) if sort
-    yield outlist if block_given?
-    outlist
+    yield filelist if block_given?
+    filelist
   end
 
   def self.find(directory, verbose = false)
