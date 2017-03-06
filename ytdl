@@ -38,8 +38,8 @@ class Options
       opts.on('--mkv-only', "Don't run youtube-dl but run mkvpropedit.") { options.mkv_only = true }
       opts.on('--no-stats', "Don't calculate statistics for MKV files.") { options.no_stats = true }
       # opts.on('--no-mux', '-nm', "Don't mux non-mkv files") { options.no_mux = true }
-      opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| options.config = c } # Reusing the convertmkv config file since the options used are the same.
-      opts.on('--keep-original', '-k', 'Keep the original file if muxing non-mkv files.') { options.keep_original = true }
+      # opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| options.config = c } # Reusing the convertmkv config file since the options used are the same.
+      # opts.on('--keep-original', '-k', 'Keep the original file if muxing non-mkv files.') { options.keep_original = true }
       opts.on('--keep-split', '-ks', 'Keep the original split download files (if there are any)') do
         options.keep_split = true
         options.no_mux = true
@@ -61,7 +61,7 @@ Urls.keep_if { |url| url.is_a?(String) }
 Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
 print "#{Urls}\n" if Args.pretend
 
-raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend
+raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend && !Args.mkv_only
 raise 'Somehow, Args.directory is nil' if Args.directory.nil?
 raise 'Somehow, Args.directory is empty' if Args.directory.respond_to?(:empty?) && Args.directory.empty?
 raise 'Somehow, Args.directory is not a Pathname' unless Args.directory.is_a?(Pathname)
@@ -83,9 +83,6 @@ Util::FindApp.which('youtube-dl') do |yt|
   raise "Couldn't find youtube-dl" unless yt
   raise 'youtube-dl is not executable' unless yt && File.executable?(yt)
 
-  # archdir = Args.directory.to_s if Args.subdirectory && Args.directory.to_s.include?('/data/Videos/Youtube')
-  # archdir[%r{/#{Args.subdirectory}}] = '' if archdir
-  # archdir = Pathname.new(archdir) if archdir
   archdir = Args.directory.parent.parent if Args.subdirectory && Args.directory.to_s.include?('/data/Videos/Youtube') && !Args.no_date
 
   archive =
@@ -108,7 +105,7 @@ Util::FindApp.which('youtube-dl') do |yt|
   ytdl += %W(--download-archive #{archive}) unless Args.force
   ytdl << '-k' if Args.keep_split
   ytdl << '--hls-prefer-ffmpeg' if Args.ffmpegdl && Urls.to_s.include?('twitch.tv')
-  ytdl += %w(--external-downloader ffmpeg) if Args.ffmpegdl
+  ytdl += %w(--external-downloader ffmpeg --external-downloader-args -hide_banner) if Args.ffmpegdl
   ytdl += Urls
 
   Util::Program.runprogram(ytdl) unless Args.pretend || Args.mkv_only
@@ -136,11 +133,12 @@ when !Args.no_stats
   mkv.delete_if do |file|
     jsondata = Util.recursive_symbolize_keys(VidInfo.probe(file))
     case
-    when json.respond_to?(:dig)
+    when jsondata.respond_to?(:dig)
       jsondata.dig(:streams, 0, :tags, :BPS)
-    when !json.respond_to?(:dig)
-      true if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
-      false unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
+    when !jsondata.respond_to?(:dig)
+      # true if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
+      # false unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
+      json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS] ? true : false
     end
   end
   puts Mood.neutral('Step 3:') if Args.pretend
