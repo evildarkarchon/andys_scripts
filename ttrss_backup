@@ -1,76 +1,70 @@
-#!/usr/bin/env python3
-# pylint: disable=line-too-long
-import pathlib
-import shutil
-import logging
-import systemd.journal as journal  # pylint: disable=e0401
-import argparse
-import lzma
-import locale
-from datetime import datetime
-import os
+#!/usr/bin/env ruby
+require 'pathname'
+require 'shellwords'
+require 'logger'
+require 'optparse'
+require 'date'
+require 'subprocess'
+require 'tempfile'
+require 'fileutils'
 
-from andy.util import Mood, Program, Util
+require_relative 'andyrb/util'
+require_relative 'andyrb/mood'
 
-locale.setlocale(locale.LC_ALL, 'en_US.utf-8')
+class Options
+  def self.parse(args)
+    options = OpenStruct.new
+    options.cron = false
 
-pgdump = shutil.which("pg_dump", mode=os.X_OK)
+    optparse = OptionParser.new do |opts|
+      opts.on('-c', '--cron', "Don't output pretty text and enable logging.") { options.cron = true }
+    end
+    optparse.parse!(args)
+    options
+  end
+end
+ARGV.flatten! if ARGV.respond_to?(:flatten!)
+ARGV.compact! if ARGV.respond_to?(:compact!)
+Args = Options.parse(ARGV)
+Now = Time.now.strftime('%Y%m%d_%H%M')
 
-args = argparse.ArgumentParser()
-args.add_argument("--cron", "-c", action="store_true", help="Activate this program in cron mode.")
-options = vars(args.parse_args())
+Log = Logger.new('/var/log/ttrss_backup.log', 'monthly') if Args.cron
+Log = nil unless Args.cron
 
-if options["cron"]:
-    logformat = '%(asctime)-15s %(message)s'
-    logging.basicConfig(format=logformat)
+PgDump = Util::FindApp.which('pg_dump')
+Xz = Util::FindApp.which('xz')
 
-    log = logging.getLogger('backup')
-    log.propagate = False
-    log.addHandler(journal.JournalHandler(SYSLOG_IDENTIFIER="ttrss_backup"))
-    log.setLevel(logging.DEBUG)
+Tempfile.open('ttrss_') do |f|
+  tmppath = Pathname.new(f.path)
+  xzpath = tmppath.sub_ext('.xz')
 
-if not pgdump:
-    print("{} pg_dump could not be found or is not executable.".format(Mood.sad()))
-    raise FileNotFoundError
+  Subprocess.check_call(%W(#{PgDump} -C -c --if-exists -d feeds -U postgres), stdout: Subprocess::PIPE) do |p|
+    puts Mood.happy { "Dumping database to #{tmppath}" } unless Log.respond_to?(:info)
+    Log.info { "Dumping database to #{tmppath}" } if Log.respond_to?(:info)
+    f.write p.communicate[0]
+    f.fsync
+  end
 
-database = "feeds"
-filename = str(pathlib.Path("/data/ttrssbackup").joinpath("feeds-{}.{}".format(datetime.now().strftime("%Y%m%d_%H%M"), "tar.xz")))
+  # puts f.path
+  out = "/data/ttrssbackup/feeds-#{Now}.xz"
+  puts Mood.happy { "Compressing #{tmppath} to #{out}" } unless Log.respond_to?(:info)
+  Log.info { "Compressing #{tmppath} to #{out}" } if Log.respond_to?(:info)
+  Subprocess.check_call(%W(#{Xz} -k -T 0 #{tmppath}))
+  begin
+    FileUtils.mv(xzpath.to_s, out)
+    FileUtils.chown('evildarkarchon', 'evildarkarchon', out)
+    FileUtils.chmod(0o644, out)
+  ensure
+    FileUtils.rm(xzpath.to_s) if xzpath.exist?
+  end
+end
+cpath = Pathname.new('/data/ttrssbackup')
+clean = cpath.find.to_a
+clean.keep_if(&:file?)
 
-try:
-    if options["cron"]:
-        log.info("Dumping Database.")
-    else:
-        print("{} Dumping Database.".format(Mood.happy()))
-
-    data = Program.returninfo([pgdump, "-C", "-F", "t", "-c", "--if-exists", "-d", database, "-U", "postgres"], string=False)
-    if len(data) and not len(data) > 0:
-        raise "No data from pg_dump."
-
-    with open(filename, mode="wb") as db:
-        if options["cron"]:
-            log.info("Compressing Data.")
-        else:
-            print("{} Compressing Data.".format(Mood.happy()))
-        compress = lzma.compress(data)
-        if options["cron"]:
-            log.info("Writing File: {}.".format(filename))  # pylint: disable=W1202
-        else:
-            print("{} Writing File: {}".format(Mood.happy(), filename))
-        db.write(compress)
-except KeyboardInterrupt:
-    pathlib.Path(filename).unlink()
-    raise
-
-now = datetime.now()
-
-files = Util.sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
-
-for filepath in files:
-    then = datetime.fromtimestamp(filepath.stat().st_mtime)
-    filetime = now - then
-    if filetime.days > 14:
-        if options["cron"]:
-            log.info("Removing {} from backup directory.".format(filepath.name))  # pylint: disable=W1202
-        else:
-            print("{} Removing {} from backup directory.".format(Mood.neutral(), filepath.name))
-        filepath.unlink()
+clean.each do |f|
+  diff = Util::DateDiff.getdiff(f.mtime)
+  puts Mood.happy { "Removing #{f}" } if diff > 14 && !Log.respond_to?(:info)
+  Log.info { "Removing #{f}" } if diff > 14 && Log.respond_to?(:info)
+  f.delete if diff > 14
+end
