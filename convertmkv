@@ -53,13 +53,6 @@ when Args.outputdb.nil? && Args.output.directory?, Args.outputdb.nil? && !Args.o
 when Args.outputdb.nil? && !Args.output.directory? && !Args.combine
   Args.output + 'videoinfo.sqlite'
 end
-=begin
-Args.outputdb = Args.db if Args.outputdb.nil? && Args.output.directory?
-Args.outputdb = Args.db if Args.outputdb.nil? && !Args.output.exist?
-Args.outputdb = Args.db if Args.outputdb && Args.outputdb == Args.output + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
-Args.outputdb = Args.output.join('videoinfo.sqlite') if Args.outputdb.nil? && !Args.output.directory?(Args.output) && !Args.combine
-=end
-# puts Args.outputdb
 
 FileUtils.touch(Args.db.to_s) unless Args.db.file?
 FileUtils.touch(Args.outputdb.to_s) if Args.outputdb && !Args.outputdb.parent.directory? && !Args.outputdb.file?
@@ -147,6 +140,7 @@ class Convenience
         end
       end
     end
+
     jsondata =
       case
       when !Args.outputdb
@@ -154,8 +148,7 @@ class Convenience
       when Args.outputdb
         DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) }
       end
-    # jsondata = GVI.json(@filename, Args.debug) unless Args.outputdb
-    # jsondata = DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) } if Args.outputdb
+
     GenerateVideoInfo.genhash(@filename, jsondata, outhash) do |h|
       begin
         puts Mood.happy("Writing metadata for #{File.basename(@filename)}")
@@ -205,7 +198,6 @@ Args.output.mkpath unless Args.output.exist? || Args.combine
 if Args.combine
   raise 'Output specified is not a file' if Args.output.exist? && !Args.output.file?
   Convenience.mkvmergeconcat unless Args.ffmpeg && Args.debug == false
-  # Convenience.ffmpegconcat if Args.ffmpeg == true && Args.debug == false
   Args.files.each do |file|
     convenience = Convenience.new(file)
     convenience.backup
@@ -221,14 +213,13 @@ else
     else
       Args.output + filepath.sub_ext('.mkv').basename
     end
-    # fileoutpath = Args.output.join(filepath.sub_ext('.mkv').basename.to_s) unless Args.audio
-    # fileoutpath = Args.output.join(filepath.sub_ext('.mka').basename.to_s) if Args.audio
+
     puts Mood.happy("Muxing #{file} to a matroska file.")
     if Args.ffmpeg
       ffcmd = %W(#{FFMPEG} -i #{filepath.realpath} -c copy -f matroska -hide_banner -y #{fileoutpath})
       ffcmd.flatten!
       ffcmd.compact!
-      # longcmd = [FFMPEG, '-i', filepath.realpath.to_s, '-c', 'copy', '-f', 'matroska', '-hide_banner', '-y', fileoutpath.to_s]
+
       mpecmd = %W(#{MkvPropEdit} --add-track-statistics-tags #{fileoutpath})
       mpecmd.flatten!
       mpecmd.compact!
@@ -237,9 +228,7 @@ else
         Util::Program.runprogram(ffcmd)
         Util::Program.runprogram(mpecmd)
       end
-      # Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', fileoutpath.to_s]) unless Args.debug
     else
-      # command = [MkvMerge, Config[:mkvmerge], '-o', fileoutpath.to_s, '=', file]
       command = %W(#{MkvMerge} #{Config[:mkvmerge]} -o #{fileoutpath} = #{file})
       command.flatten!
       command.compact!
