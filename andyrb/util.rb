@@ -10,24 +10,42 @@ require 'subprocess'
 require_relative 'mood'
 # rubocop disable:Metrics/MethodLength
 module Util
+  def self.cleanup_array(array, unique: true)
+    raise "#{array} is not an array." unless array.is_a?(Array)
+    array.flatten!
+    array.compact!
+    array.uniq! if unique
+    array
+  end
+
   def self.hashfile(filelist)
     hashes = {}
+    calc = lambda do |i|
+      filedata = File.read(i)
+      sha256 = OpenSSL::Digest.new('sha256')
+      puts Mood.happy { "Calculating hash for #{i}" }
+      sha256 << filedata
+      hashes[i] = sha256.hexdigest
+      sha256.reset
+    end
     if filelist.respond_to?(:each)
       filelist.each do |file|
-        filedata = File.read(file)
+        # filedata = File.read(file)
         # sha256 = Digest::SHA256.new
-        sha256 = OpenSSL::Digest.new('sha256')
-        puts Mood.happy { "Calculating hash for #{file}" }
-        sha256 << filedata
-        hashes[file] = sha256.hexdigest
+        # sha256 = OpenSSL::Digest.new('sha256')
+        # puts Mood.happy { "Calculating hash for #{file}" }
+        # sha256 << filedata
+        # hashes[file] = sha256.hexdigest
+        calc.call(file)
       end
     else
-      filedata = File.read(filelist)
+      # filedata = File.read(filelist)
       # sha256 = Digest::SHA256.new
-      sha256 = OpenSSL::Digest.new('sha256')
-      puts Mood.happy { "Calculating hash for #{filelist}" }
-      sha256 << filedata
-      hashes[filelist] = sha256.hexdigest
+      # sha256 = OpenSSL::Digest.new('sha256')
+      # puts Mood.happy { "Calculating hash for #{filelist}" }
+      # sha256 << filedata
+      # hashes[filelist] = sha256.hexdigest
+      calc.call(filelist)
     end
     yield hashes if block_given?
     hashes
