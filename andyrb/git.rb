@@ -6,7 +6,7 @@ require_relative 'mood'
 require_relative 'util'
 class Git
   attr_reader :use_sudo, :sudo_user, :wd, :wdpath
-  def initialize(wd, use_sudo = false, sudo_user = 'root')
+  def initialize(wd, use_sudo: false, sudo_user: 'root')
     @use_sudo = use_sudo
     @sudo_user = sudo_user
     @wdpath = Pathname.new(wd)
@@ -45,9 +45,9 @@ class Git
     Util::Program.runprogram(%W(#{@git} clone #{url} #{@wd}), use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 
-  def gc(aggressive = false)
+  def gc(aggressive: false)
     gccmd = %W(#{@git} gc)
-    gccmd += '--aggressive' if aggressive
+    gccmd << '--aggressive' if aggressive
     Util::Program.runprogram(gccmd, use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 
