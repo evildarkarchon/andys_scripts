@@ -71,6 +71,17 @@ module VidInfo # rubocop:disable Metrics/ModuleLength
       end
     end
 
+    hw = lambda do |i|
+      return nil unless jsondata[:streams][0][i] || jsondata[:streams][1][i]
+      case
+      when jsondata.respond_to?(:dig)
+        jsondata.dig(:streams, 1, i) ? jsondata[:streams][1][i] : jsondata[:streams][0][i]
+      else
+        jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1][i] ? jsondata[:streams][1][i] : jsondata[:streams][0][i]
+      end
+      # jsondata[:streams][0].is_a?(Hash) && jsondata[:streams][0][i] ? jsondata[:streams][0][i] : nil
+    end
+
     brr = lambda do |n|
       dig = jsondata.respond_to?(:dig)
       nh = jsondata[:streams][n].is_a?(Hash)
@@ -92,33 +103,19 @@ module VidInfo # rubocop:disable Metrics/ModuleLength
     outhash[:duration_raw] = jsondata[:format][:duration]
     outhash[:numstreams] = jsondata[:format][:nb_streams]
     outhash[:bitrate_total] = fs.call(jsondata[:format][:bit_rate])
+
     outhash[:bitrate_0_raw] = brr.call(0)
     outhash[:bitrate_0] = fs.call(outhash[:bitrate_0_raw])
     outhash[:type_0] = jsondata[:streams][0][:codec_type] if jsondata[:streams][0].key?(:codec_type)
     outhash[:codec_0] = jsondata[:streams][0][:codec_name] if jsondata[:streams][0].key?(:codec_name)
+
     outhash[:bitrate_1_raw] = brr.call(1) if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash)
-
     outhash[:bitrate_1] = fs.call(outhash[:bitrate_1_raw]) if outhash[:bitrate_1_raw]
-
     outhash[:type_1] = jsondata[:streams][1][:codec_type] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_type)
-
     outhash[:codec_1] = jsondata[:streams][1][:codec_name] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_name)
 
-    outhash[:height] =
-      case
-      when jsondata[:streams][0][:height]
-        jsondata[:streams][0][:height]
-      when jsondata[:streams].length >= 2 && jsondata[:streams][1].respond_to?(:key?) && jsondata[:streams][1].key?(:height)
-        jsondata[:streams][1][:height]
-      end
-
-    outhash[:width] =
-      case
-      when jsondata[:streams][0].key?(:width)
-        jsondata[:streams][0][:width]
-      when jsondata[:streams].respond_to?(:length) && jsondata[:streams].length >= 2 && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:width)
-        jsondata[:streams][1][:width]
-      end
+    outhash[:height] = hw.call(:height)
+    outhash[:width] = hw.call(:width)
 
     outhash[:frame_rate] =
       case
