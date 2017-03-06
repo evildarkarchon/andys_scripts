@@ -1,5 +1,6 @@
 require 'json'
-require 'digest'
+# require 'digest'
+require 'openssl'
 require 'pathname'
 require 'date'
 require 'etc'
@@ -14,26 +15,22 @@ module Util
     if filelist.respond_to?(:each)
       filelist.each do |file|
         filedata = File.read(file)
-        sha256 = Digest::SHA256.new
+        # sha256 = Digest::SHA256.new
+        sha256 = OpenSSL::Digest.new('sha256')
         puts Mood.happy { "Calculating hash for #{file}" }
         sha256 << filedata
         hashes[file] = sha256.hexdigest
       end
     else
       filedata = File.read(filelist)
-      sha256 = Digest::SHA256.new
+      # sha256 = Digest::SHA256.new
+      sha256 = OpenSSL::Digest.new('sha256')
       puts Mood.happy { "Calculating hash for #{filelist}" }
       sha256 << filedata
       hashes[filelist] = sha256.hexdigest
     end
     yield hashes if block_given?
     hashes
-  end
-
-  def self.block(&block) # Deprecated method that only serves to show what the & argument does.
-    # yield if block_given?
-    shutup = block
-    raise 'Use a lambda or Proc instead.'
   end
 
   def self.recursive_symbolize_keys(my_hash)
@@ -77,16 +74,30 @@ module Util
     klass = Module.const_get(name)
     klass.is_a?(Class) unless klass.is_a?(Module)
     klass.is_a?(Module) if klass.is_a?(Module)
-    false unless klass.is_a?(Module) || klass.is_a?(Module)
+    false unless klass.is_a?(Module) || klass.is_a?(Class)
   rescue NameError
     false
   end
+
+  def self.sort(input)
+    input = input.to_a if input.respond_to?(:to_a)
+    begin
+      sorted = Naturalsorter::Sorter.sort(input, true)
+    rescue NameError
+      sorted = input
+      sorted.sort_by! { |m| m.group.name.downcase }
+    end
+    yield sorted if block_given?
+    sorted
+  end
+
   # Convenience class for writing or printing pretty JSON.
   class GenJSON
-    def initialize(input, pretty = true)
+    def initialize(input, pretty: true)
       raise 'Input must be able to be converted to a JSON string.' unless input.respond_to?(:to_json)
-      @output = JSON.pretty_generate(JSON.parse(input.to_json)) if pretty
-      @output = input.to_json unless pretty
+      @output = pretty ? JSON.pretty_generate(JSON.parse(input.to_json)) : input.to_json
+      # @output = JSON.pretty_generate(JSON.parse(input.to_json)) if pretty
+      # @output = input.to_json unless pretty
     end
 
     def write(filename)
@@ -133,30 +144,24 @@ module Util
           timestamp
         end
       diff = now - than
-      yield diff if block_given?
+      yield diff.to_i if diff.respond_to?(:to_i) && block_given?
       diff.to_i if diff.respond_to?(:to_i) && !block_given?
     end
   end
 
   # Class to sort the entries in a given variable.
+  # This class is deprecated.
   # Params:
   # +input+:: The data that will be sorted.
   class SortEntries
     def self.sort(input)
       input = input.to_a if input.respond_to?(:to_a)
-      begin
-        sorted = Naturalsorter::Sorter.sort(input, true)
-      rescue NameError
-        sorted = input
-        sorted.sort_by! { |m| m.group.name.downcase }
-      end
-      yield sorted if block_given?
-      sorted
+      raise 'Use Util.sort instead.'
     end
   end
 
   class Program
-    def self.runprogram(program, use_sudo = false, sudo_user = nil, parse_output = false)
+    def self.runprogram(program, use_sudo: false, sudo_user: nil, parse_output: false)
       raise 'Program argument blank and no block given.' unless block_given? || program
       cmdline = []
       # sudo_user = 'root' if use_sudo && !sudo_user
