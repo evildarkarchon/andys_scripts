@@ -10,7 +10,7 @@ require 'shellwords'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
-require_relative 'andyrb/videoinfo'
+require_relative 'andyrb/genvideoinfo'
 # rubocop:disable Style/CaseIndentation, Lint/EndAlignment, Lint/UnneededDisable
 class Options
   def self.parse(args)
@@ -119,7 +119,7 @@ end
 
 Args = Options.parse(ARGV)
 Args.files = ARGV
-Args.files.keep_if { |filename| Pathname.new(filename).file? } if Args.files.respond_to?(:keep_if)
+Args.files.keep_if { |i| File.file?(i) } if Args.files.respond_to?(:keep_if)
 
 DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
@@ -154,7 +154,7 @@ def backup(sourcefile, backupdir)
   sourcepath.rename(backuppath.join(sourcepath.basename)) if sourcepath.exist?
 end
 
-class Database
+class Metadata
   attr_reader :bitrates, :frame_rate
   def initialize(filename)
     path = Pathname.new(filename).basename.to_s
@@ -202,11 +202,11 @@ class Command
   attr_reader :list
   def initialize(filename, passnum, passmax)
     filepath = Pathname.new(filename)
-    db = Database.new(filename)
-    db.bitrate!
-    db.framerate! unless Args.novideo
-    bitrates = db.bitrates
-    framerate = db.frame_rate
+    md = Metadata.new(filename)
+    md.bitrate!
+    md.framerate! unless Args.novideo
+    bitrates = md.bitrates
+    framerate = md.frame_rate
     vcodec =
       case
       when Args.novideo || bitrates[:video].nil?
@@ -353,8 +353,9 @@ Args.files.each do |file|
       deljson = GenerateVideoInfo::Videojson.all(filename: filepath.basename.to_s)
       del.destroy
       deljson.destroy
+    when Args.converttest
+      puts Mood.happy('In convert testing mode, not deleting database entry')
     end
-    puts Mood.happy('In convert testing mode, not deleting database entry') if Args.converttest
   ensure
     logpath.delete if Args.passes == 2 && logpath && logpath.exist? && !Args.debug
   end
