@@ -1,77 +1,163 @@
-#!/usr/bin/env python3
-# pylint: disable=w0611
-import pathlib
-import argparse
-from sqlalchemy import create_engine  # , Column, Float, Integer, String
-# from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+#!/usr/bin/env ruby
+require 'ostruct'
+require 'optparse'
+require 'pathname'
+require 'find'
 
-from andy2.util import Util, Mood
-from andy2.videoinfo import VideoInfo, VideoJSON, VideoData, FindVideoInfo, Info, sqa_session
+# require_relative 'andyrb/mood'
+require_relative 'andyrb/util'
+require_relative 'andyrb/genvideoinfo'
+require_relative 'andyrb/vidinfo'
 
-args = argparse.ArgumentParser(description="resetvideoinfo: Resets all videoinfo databases in a directory.")
-args.add_argument("--verbose", "-v", action="store_true", help="Run in verbose mode.")
-args.add_argument("--regen-json", "-rj", action="store_true", help="Regenerate the json cache as well")
-args.add_argument("directory", default="/data/Private", nargs="?", help="Directory to look for videoinfo databases")
+class Options
+  def self.parse(args)
+    options = OpenStruct.new
+    options.reset_json = false
+    options.reset_all = false
+    options.verbose = false
+    # options.del = false
 
-options = vars(args.parse_args())
-del args
+    optparse = OptionParser.new do |opts|
+      opts.on('--reset-json', 'Purges the JSON caches for all databases found.') { |j| options.reset_json = j }
+      opts.on('--reset-all', 'Resets the entire database.') { |a| options.reset_all = a }
+      opts.on('-v', '--verbose', 'Makes this script extra chatty') { |v| options.verbose = v }
+      # opts.on('--delete', 'Only drop and recreate tables.') { |del| options.del = del }
+    end
+    optparse.parse!(args)
+    options
+  end
+end
+ARGV.flatten! if ARGV.respond_to?(:flatten!) && !ARGV.nil? && !ARGV.empty?
+ARGV.compact! if ARGV.respond_to?(:compact!) && !ARGV.nil? && !ARGV.empty?
+ARGV.uniq! if ARGV.respond_to?(:uniq!) && !ARGV.nil? && !ARGV.empty?
+Args = Options.parse(ARGV)
+Args.directory = ARGV unless ARGV.nil? || ARGV.empty?
+Args.directory = ['/data/Private'] if ARGV.nil? || ARGV.empty?
+Args.directory.keep_if { |dirname| File.directory?(dirname) }
 
-fvi = FindVideoInfo()
+DataMapper::Model.raise_on_save_failure = true
+DataMapper::Logger.new($stdout, :debug) if Args.verbose
 
-directories = list(fvi.find(options["directory"]))
+directories = []
+if Args.directory.respond_to?(:each)
+  Args.directory.each do |i|
+    directories << VidInfo.find(i, true)
+    directories.compact!
+    directories.uniq!
+    directories.flatten!
+  end
+else
+  directories << VidInfo.find(Args.directory, true)
+  directories.compact!
+  directories.uniq!
+  directories.flatten!
+end
 
-for directory in directories:
-    path = pathlib.Path(directory).resolve()
+directories = directories[0] if directories.is_a?(Array) && directories.length == 1
+filelist = []
+initlist = []
 
-    def gfl():
-        """Generator function that iterates over the directory specified in the directory variable and yields all files contained within."""
+case
+when directories.is_a?(Array) && directories.length > 1
+  directories.each do |d|
+    dbpath = Pathname.new(d).realpath
+    dbpath = dbpath.dirname if dbpath.file?
+    dir = dbpath.to_s
+    DataMapper.setup(:default, "sqlite:#{dbpath.join('videoinfo.sqlite')}")
+    DataMapper.finalize
+    # puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
+    GenerateVideoInfo::Videoinfo.auto_migrate! unless Args.reset_json
+    GenerateVideoInfo::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
+=begin
+    Find.find(dir) do |path|
+      if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
+        Find.prune # Don't look any further into this directory.
+      else
+        initpath = Pathname.new(path.to_s)
+        initlist << initpath.to_s if initpath.file?
+        next
+      end
+    end
+=end
+    Find.find(dir) do |path|
+      Find.prune if File.basename(path)[0].include?('.') # Don't look any further into this directory.
+      file = File.file?(path)
+      next unless file
+      puts path if Args.debug
+      initlist << path if file
+    end
+    initlist.flatten!
+    initlist.compact!
+    initlist.uniq!
+    filelist = Util.sort(VidInfo.genfilelist(initlist))
+    filelist.keep_if { |f| File.file?(f) }
+  end
+else
+  dbpath = Pathname.new(directories).realpath
+  dbpath = dbpath.dirname if dbpath.file?
+  dir = dbpath.to_s
 
-        for filename in path.iterdir():  # pylint: disable=e1101, w0640, w0621
-            yield str(filename)
+  DataMapper.setup(:default, "sqlite:#{dbpath.join('videoinfo.sqlite')}")
+  DataMapper.finalize
+  # puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
+  # GenerateVideoInfo::Videoinfo.auto_migrate! unless Args.reset_json
+  # GenerateVideoInfo::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
+  case
+  when Args.reset_json
+    GenerateVideoInfo::Videojson.auto_migrate!
+  when !Args.reset_json && !Args.reset_all
+    GenerateVideoInfo::Videoinfo.auto_migrate!
+  when Args.reset_all
+    GenerateVideoInfo::Videoinfo.auto_migrate!
+    GenerateVideoInfo::Videojson.auto_migrate!
+  end
 
-    files = list(gfl())
+  Find.find(dir) do |path|
+    Find.prune if File.basename(path)[0].include?('.') # Don't look any further into this directory.
+    file = File.file?(path)
+    next unless file
+    puts path if Args.debug
+    initlist << path if file
+  end
 
-    vd = VideoData(db=str(path.joinpath("videoinfo.sqlite")), verbose=options["verbose"], regen=True, regenjson=options["regen_json"])
+  initlist.flatten!
+  initlist.compact!
+  initlist.uniq!
+  filelist = Util.sort(VidInfo.genfilelist(initlist))
+  filelist.keep_if { |i| File.file?(i) }
+  # filelist.each do |i|
+  #   filepath = Pathname.new(i)
+  #   filelist.delete(i) unless filepath.file?
+  #   puts 'Bad' unless filepath.file?
+  # end
+  # puts filelist
+end
 
-    database = create_engine("sqlite:///{}".format(str(path.joinpath("videoinfo.sqlite"))))
-    sm = sessionmaker(bind=database)
-    session = sm()
-    filelist = Util.sortentries(list(vd.genfilelist(files)))
-    filehashes = dict(vd.genhashlist(filelist))
-    for filename in filelist:
-        print("{} Putting information from {} into the database.".format(Mood.happy(), pathlib.Path(filename).name))
-        vi = VideoInfo()
-        vj = VideoJSON()
-        filejson = vd.parse(filename)
-        # print(filehashes)
-        fileinfo = Info(filename, filejson, filehashes[filename])
-        if options["verbose"]:
-            print("{} Video Information:\n{}".format(Mood.happy(), fileinfo))
-        with sqa_session(session) as sess:
-            vi.filename = fileinfo.filename
-            vi.duration = fileinfo.duration
-            vi.duration_raw = fileinfo.duration_raw
-            vi.numstreams = fileinfo.numstreams
-            vi.container = fileinfo.container
-            vi.width = fileinfo.width
-            vi.height = fileinfo.height
-            vi.frame_rate = fileinfo.frame_rate
-            vi.type_0 = fileinfo.type_0
-            vi.type_1 = fileinfo.type_1
-            vi.codec_0 = fileinfo.codec_0
-            vi.codec_1 = fileinfo.codec_1
-            vi.bitrate_0 = fileinfo.bitrate_0
-            vi.bitrate_0_raw = fileinfo.bitrate_0_raw
-            vi.bitrate_1 = fileinfo.bitrate_1
-            vi.bitrate_1_raw = fileinfo.bitrate_1_raw
-            vi.bitrate_total = fileinfo.bitrate_total
-            vi.filehash = fileinfo.hash
-            if not session.query(VideoJSON).filter(VideoJSON.filename == fileinfo.filename).count() >= 1 or options["regen_json"]:
-                vj.json = fileinfo.jsondata
-                vj.filename = fileinfo.filename
-                sess.add(vj)
-            sess.add(vi)
-        del vi
-        del filejson
-        del fileinfo
+digests = Util.hashfile(filelist)
+
+filelist.each do |file|
+  filepath = Pathname.new(file)
+  # puts filepath.dirname
+  FileUtils.touch(file) unless filepath.file?
+
+  DataMapper.setup(:default, "sqlite:#{filepath.dirname.join('videoinfo.sqlite')}") if filepath.file?
+  DataMapper.setup(:default, "sqlite:#{filepath.join('videoinfo.sqlite')}") if filepath.directory?
+  gvi = GenerateVideoInfo::Data.new(filepath.dirname.join('videoinfo.sqlite').to_s, Args.verbose) if filepath.file?
+  gvi = GenerateVideoInfo::Data.new(filepath.join('videoinfo.sqlite').to_s, Args.verbose) if filepath.directory?
+  insert = GenerateVideoInfo::Videoinfo.new
+  # db = DataMapper.repository(:default).adapter
+
+  jsondata = gvi.json(file, Args.verbose)
+
+  VidInfo.genhash(file, jsondata, digests) do |h|
+    begin
+      puts Mood.happy { "Writing metadata for #{File.basename(file)}" }
+      insert.attributes = h
+      insert.save
+    rescue DataMapper::SaveFailureError
+      insert.errors.each { |e| puts e } if Args.verbose
+    end
+  end
+
+  digests.delete(file)
+end
