@@ -52,7 +52,7 @@ touchgcfile unless File.exist?('/var/cache/ttrssgc')
 def ttrssgc(thendate)
   diff = Util::DateDiff.getdiff(thendate)
   begin
-    TTrss.gc(Args.aggressive) if diff >= 30 || Args.gc
+    TTrss.gc(aggressive: Args.aggressive) if diff >= 30 || Args.gc
   rescue Interrupt => e
     raise e
   else
