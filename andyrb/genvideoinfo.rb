@@ -35,7 +35,7 @@ module GenerateVideoInfo
     property :bitrate_1_raw, Integer
     property :type_1, String
     property :codec_1, String
-    property :filehash, String, key: true, unique: true, lazy: false
+    property :filehash, String, length: 64, unique: true, lazy: false
   end
 
   class Videojson
