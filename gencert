@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+require 'io/console'
+require 'openssl'
+require 'date'
+
+require_relative 'andyrb/util'
+# These are placeholders just to map out what data is going to be needed for this script.
+CaPrivate = File.open('/home/evildarkarchon/certificates/andyECC.key')
+CaPublic = File.open('/home/evildarkarchon/certificates/andyECC2.crt')
+Enterprise_E_Private = File.open('/home/evildarkarchon/certificates/enterprise-e.key')
+Enterprise_F_Private = File.open('/home/evildarkarchon/certificates/enterprise-f.key')
+Expire = (Date.today >> 24).to_time
