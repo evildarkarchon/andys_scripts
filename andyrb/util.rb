@@ -20,13 +20,13 @@ module Util
 
   def self.hashfile(filelist)
     hashes = {}
+    sha256 = OpenSSL::Digest.new('sha256')
     calc = lambda do |i|
+      sha256.reset
       filedata = File.read(i)
-      sha256 = OpenSSL::Digest.new('sha256')
       puts Mood.happy { "Calculating hash for #{i}" }
       sha256 << filedata
       hashes[i] = sha256.hexdigest
-      sha256.reset
     end
     if filelist.respond_to?(:each)
       filelist.each do |file|
