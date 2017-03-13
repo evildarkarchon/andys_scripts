@@ -9,8 +9,10 @@ require 'data_mapper'
 require 'shellwords'
 
 require_relative 'andyrb/mood'
-require_relative 'andyrb/util'
-require_relative 'andyrb/genvideoinfo'
+require_relative 'andyrb/util/program'
+require_relative 'andyrb/util/sort'
+require_relative 'andyrb/videoinfo/database'
+
 # rubocop:disable Style/CaseIndentation, Lint/EndAlignment, Lint/UnneededDisable
 class Options
   def self.parse(args)
@@ -116,14 +118,14 @@ class Options
     options
   end
 end
-
+ARGV.cleanup!
 Args = Options.parse(ARGV)
 Args.files = ARGV
 Args.files.keep_if { |i| File.file?(i) } if Args.files.respond_to?(:keep_if)
+Util.sort(ARGV) if Args.sort
 
 DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
-# vi = GenerateVideoInfo::Videoinfo.new
 
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
 FFmpeg = Util::FindApp.which('ffmpeg')
@@ -158,7 +160,7 @@ class Metadata
   attr_reader :bitrates, :frame_rate
   def initialize(filename)
     path = Pathname.new(filename).basename.to_s
-    @query = GenerateVideoInfo::Videoinfo.all(filename: path, fields: [:bitrate_0_raw, :type_0, :bitrate_1_raw, :type_1, :frame_rate])
+    @query = VideoInfo::Database::Videoinfo.all(filename: path, fields: [:bitrate_0_raw, :type_0, :bitrate_1_raw, :type_1, :frame_rate])
     @frame_rate = nil
     @bitrates = {}
     @bitrates[:video] = nil
@@ -198,114 +200,104 @@ class Metadata
   end
 end
 
-class Command
-  attr_reader :list
-  def initialize(filename, passnum, passmax)
-    filepath = Pathname.new(filename)
-    md = Metadata.new(filename)
-    md.bitrate!
-    md.framerate! unless Args.novideo
-    bitrates = md.bitrates
-    framerate = md.frame_rate
-    vcodec =
-      case
-      when Args.novideo || bitrates[:video].nil?
-        '-vn'
-      when Config[:defaults][:video]
-        %W(-c:v #{Config[:defaults][:video]})
-      when Args.videocodec
-        %W(-c:v #{Args.videocodec})
-      end
+def cmdline(filename, passnum: 1, passmax: 2)
+  filepath = Pathname.new(filename)
+  md = Metadata.new(filename)
+  md.bitrate!
+  md.framerate! unless Args.novideo
+  bitrates = md.bitrates
+  framerate = md.frame_rate
+  vcodec =
+    case
+    when Args.novideo || bitrates[:video].nil?
+      '-vn'
+    when Config[:defaults][:video]
+      %W(-c:v #{Config[:defaults][:video]})
+    when Args.videocodec
+      %W(-c:v #{Args.videocodec})
+    end
 
-    vbitrate =
-      case
-      when !Args.novideo && bitrates[:video]
-        %W(-b:v #{bitrates[:video]})
-      end
+  vbitrate =
+    case
+    when !Args.novideo && bitrates[:video]
+      %W(-b:v #{bitrates[:video]})
+    end
 
-    vcodecopts =
-      case
-      when !Args.novideo && Args.videocodecopts
-        Args.videocodecopts
-      when !Args.novideo && Config[:defaults][Args.videocodec.to_sym]
-        Config[:codecs][Args.videocodec.to_sym]
-      end
+  vcodecopts =
+    case
+    when !Args.novideo && Args.videocodecopts
+      Args.videocodecopts
+    when !Args.novideo && Config[:defaults][Args.videocodec.to_sym]
+      Config[:codecs][Args.videocodec.to_sym]
+    end
 
-    acodec =
-      case
-      when passnum == 1 || Args.noaudio || bitrates[:audio].nil?
-        '-an'
-      when Args.audiocodec
-        %W(-c:a #{Args.audiocodec})
-      when Config[:defaults][:audio]
-        Config[:defaults][:audio]
-      else
-        %w(-c:a libopus)
-      end
+  acodec =
+    case
+    when passnum == 1 || Args.noaudio || bitrates[:audio].nil?
+      '-an'
+    when Args.audiocodec
+      %W(-c:a #{Args.audiocodec})
+    when Config[:defaults][:audio]
+      Config[:defaults][:audio]
+    else
+      %w(-c:a libopus)
+    end
 
-    acodecopts =
-      case
-      when !Args.noaudio && Args.audiocodecopts
-        Args.audiocodecopts
-      when !Args.noaudio && Config[:codecs][Args.audiocodec.to_sym]
-        Config[:codecs][Args.audiocodec.to_sym]
-      end
+  acodecopts =
+    case
+    when !Args.noaudio && Args.audiocodecopts
+      Args.audiocodecopts
+    when !Args.noaudio && Config[:codecs][Args.audiocodec.to_sym]
+      Config[:codecs][Args.audiocodec.to_sym]
+    end
 
-    abitrate =
-      case
-      when !Args.noaudio && bitrates[:audio]
-        %W(-b:a #{bitrates[:audio]})
-      end
+  abitrate =
+    case
+    when !Args.noaudio && bitrates[:audio]
+      %W(-b:a #{bitrates[:audio]})
+    end
 
-    afilter =
-      case
-      when !Args.noaudio && Config[:defaults][:audiofilter]
-        %W(-af #{Config[:defaults][:audiofilter]})
-        # ['-af', Config['defaults']['audiofilter']]
-      when !Args.noaudio && Args.audiofilter
-        %W(-af #{Args.audiofilter})
-        # ['-af', Args.audiofilter]
-      end
-    outcon =
-      case
-      when Args.container
-        ".#{Args.container}"
-      when Config[:defaults][:container]
-        ".#{Config[:defaults][:container]}"
-      else
-        '.mkv'
-      end
-    # print "#{passmax}\n"
-    # @list = [FFmpeg, '-i', filename]
-    @list = %W(#{FFmpeg} -i #{filename})
-    @list += vcodec
-    # @list << %W(-pass #{passnum})
-    @list += vbitrate if vbitrate
-    # @list << ['-pass', passnum.to_s, '-passlogfile', filepath.sub_ext('').to_s] if passmax == 2
-    @list += %W(-pass #{passnum} -passlogfile #{filepath.sub_ext('')}) if passmax == 2
-    @list += vcodecopts if vcodecopts
-    # @list << ['-filter:v', "fps = #{framerate}"] if framerate
-    @list += %W(-filter:v fps=#{framerate}) if framerate
-    @list += acodec
-    @list += abitrate if abitrate
-    @list += acodecopts if acodecopts
-    @list += afilter if afilter
-    # @list << ['-hide_banner', '-y']
-    @list += %w(-hide_banner -y)
-    @list +=
-      case
-      when passnum == 1 && passmax == 2
-        # ['-f', 'matroska', '/dev/null']
-        %w(-f matroska /dev/null)
-      when passnum == 2 && passmax == 2, passmax == 1
-        # Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
-        path = Args.outputdir + filepath.basename.sub_ext(outcon)
-        path.to_s
-      end
-    @list.flatten!
-    @list.compact!
-  end
+  afilter =
+    case
+    when !Args.noaudio && Config[:defaults][:audiofilter]
+      %W(-af #{Config[:defaults][:audiofilter]})
+    when !Args.noaudio && Args.audiofilter
+      %W(-af #{Args.audiofilter})
+    end
+  outcon =
+    case
+    when Args.container
+      ".#{Args.container}"
+    when Config[:defaults][:container]
+      ".#{Config[:defaults][:container]}"
+    else
+      '.mkv'
+    end
+  # print "#{passmax}\n"
+  out = %W(#{FFmpeg} -i #{filename})
+  out << vcodec
+  out << vbitrate if vbitrate
+  out << %W(-pass #{passnum} -passlogfile #{filepath.sub_ext('')}) if passmax == 2
+  out << vcodecopts if vcodecopts
+  out << %W(-filter:v fps=#{framerate}) if framerate
+  out << acodec
+  out << abitrate if abitrate
+  out << acodecopts if acodecopts
+  out << afilter if afilter
+  out << %w(-hide_banner -y)
+  out <<
+    case
+    when passnum == 1 && passmax == 2
+      # ['-f', 'matroska', '/dev/null']
+      %w(-f matroska /dev/null)
+    when passnum == 2 && passmax == 2, passmax == 1
+      # Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
+      (Args.outputdir + filepath.basename.sub_ext(outcon)).to_s
+    end
+  out.cleanup!(unique: false)
+  out
 end
+
 Args.files.each do |file|
   outcon =
     case
@@ -322,10 +314,10 @@ Args.files.each do |file|
   logpath = filepath.sub_ext('-0.log') if Args.passes == 2
   case Args.passes
   when 2
-    cmdpass1 = Command.new(file, 1, 2).list
-    cmdpass2 = Command.new(file, 2, 2).list
+    cmdpass1 = cmdline(file, 1, 2)
+    cmdpass2 = cmdline(file, 2, 2)
   when 1
-    cmd1pass = Command.new(file, passmax: 1).list
+    cmd1pass = cmdline(file, passmax: 1)
   end
   if Args.debug
     puts cmdpass1 if cmdpass1
@@ -345,12 +337,11 @@ Args.files.each do |file|
     outpath.delete if outpath.exist?
     raise e
   else
-    # Util::Program.runprogram([MkvPropEdit, '--add-track-statistics-tags', outpath.to_s]) if Args.stats
     Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{outpath})) if Args.stats
     case
     when !Args.converttest && !Args.debug
-      del = GenerateVideoInfo::Videoinfo.all(filename: filepath.basename.to_s)
-      deljson = GenerateVideoInfo::Videojson.all(filename: filepath.basename.to_s)
+      del = VideoInfo::Database::Videoinfo.all(filename: filepath.basename.to_s)
+      deljson = VideoInfo::Database::Videojson.all(filename: filepath.basename.to_s)
       del.destroy
       deljson.destroy
     when Args.converttest
