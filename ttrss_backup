@@ -10,6 +10,7 @@ require 'fileutils'
 
 require_relative 'andyrb/util'
 require_relative 'andyrb/mood'
+require_relative 'andyrb/core/cleanup'
 
 class Options
   def self.parse(args)
@@ -23,13 +24,15 @@ class Options
     options
   end
 end
-ARGV.flatten! if ARGV.respond_to?(:flatten!)
-ARGV.compact! if ARGV.respond_to?(:compact!)
+ARGV.cleanup!(unique: false)
 Args = Options.parse(ARGV)
 Now = Time.now.strftime('%Y%m%d_%H%M')
 
-Log = Logger.new('/var/log/ttrss_backup.log', 'monthly') if Args.cron
-Log = nil unless Args.cron
+begin
+  Log = Args.cron ? Logger.new('/var/log/ttrss/ttrss_backup.log', 'monthly') : nil
+rescue Errno::EACCES
+  Log = nil
+end
 
 PgDump = Util::FindApp.which('pg_dump')
 Xz = Util::FindApp.which('xz')
@@ -63,7 +66,7 @@ clean = cpath.find.to_a
 clean.keep_if(&:file?)
 
 clean.each do |f|
-  diff = Util::DateDiff.getdiff(f.mtime)
+  diff = Util.datediff(f.mtime)
   puts Mood.happy { "Removing #{f}" } if diff > 14 && !Log.respond_to?(:info)
   Log.info { "Removing #{f}" } if diff > 14 && Log.respond_to?(:info)
   f.delete if diff > 14
