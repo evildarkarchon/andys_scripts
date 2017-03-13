@@ -2,6 +2,7 @@ require 'json'
 require 'pathname'
 
 require_relative '../util/program'
+require_relative '../util/findapp'
 
 module VideoInfo
   def self.probe(filepath, verbose: false)

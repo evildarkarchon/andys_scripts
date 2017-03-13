@@ -1,7 +1,7 @@
 require 'filemagic'
 require 'find'
 
-require_relative '../mood'
+require_relative '../../mood'
 
 module VideoInfo
   module Database
