@@ -1,7 +1,7 @@
+require_relative 'cleanup'
 class Object
   def in?(*arr)
-    arr.flatten! if arr.respond_to?(:flatten!)
-    arr.uniq! if arr.respond_to?(:uniq!)
+    arr.cleanup!
     arr.include? self
   end
 end
