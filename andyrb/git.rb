@@ -3,7 +3,8 @@ require 'fileutils'
 require 'pathname'
 
 require_relative 'mood'
-require_relative 'util'
+require_relative 'util/program'
+require_relative 'util/findapp'
 class Git
   attr_reader :use_sudo, :sudo_user, :wd, :wdpath
   def initialize(wd, use_sudo: false, sudo_user: 'root')
