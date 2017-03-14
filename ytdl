@@ -6,9 +6,12 @@ require 'filemagic'
 require 'uri'
 require 'json'
 
-require_relative 'andyrb/vidinfo'
+require_relative 'andyrb/videoinfo/probe'
 require_relative 'andyrb/mood'
-require_relative 'andyrb/util'
+require_relative 'andyrb/core/cleanup'
+require_relative 'andyrb/util/program'
+require_relative 'andyrb/util/findapp'
+require_relative 'andyrb/util/recursive_symbolize_keys'
 
 class Options
   def self.parse(args)
@@ -19,14 +22,15 @@ class Options
     options.no_date = false
     options.force = false
     options.pretend = false
-    options.no_stats = false
+    options.stats = true
     options.archive = nil
     options.mkv_only = false
-    options.no_mux = false
+    options.mux = false
     options.config = Pathname.new(Dir.home) + '.config/convertmkv.json'
     options.keep_original = false
     options.keep_split = false
     options.ffmpegdl = false
+    options.webm = false
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -36,10 +40,11 @@ class Options
       opts.on('-f', '--force', "Don't add the url(s) to the list of succesfully downloaded videos or read from said list.") { options.force = true }
       opts.on('--pretend', '-p', "Don't actually run youtube-dl or mkvpropedit") { options.pretend = true } # Mostly for testing code that doesn't rely on the programs actually running.
       opts.on('--mkv-only', "Don't run youtube-dl but run mkvpropedit.") { options.mkv_only = true }
-      opts.on('--no-stats', "Don't calculate statistics for MKV files.") { options.no_stats = true }
-      # opts.on('--no-mux', '-nm', "Don't mux non-mkv files") { options.no_mux = true }
-      # opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| options.config = c } # Reusing the convertmkv config file since the options used are the same.
-      # opts.on('--keep-original', '-k', 'Keep the original file if muxing non-mkv files.') { options.keep_original = true }
+      opts.on('--no-stats', "Don't calculate statistics for MKV files.") { options.stats = false }
+      opts.on('--webm', 'use webm instead of mkv for merging files (videos that have separate files per stream).') { options.webm = true }
+      opts.on('--mux', '-m', 'mux non-mkv files') { options.mux = true }
+      opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| options.config = c } # Reusing the convertmkv config file since the options used are the same.
+      opts.on('--keep-original', '-k', 'Keep the original file if muxing non-mkv files.') { options.keep_original = true }
       opts.on('--keep-split', '-ks', 'Keep the original split download files (if there are any)') do
         options.keep_split = true
         options.no_mux = true
@@ -50,9 +55,8 @@ class Options
     options
   end
 end
-ARGV.compact! if ARGV.respond_to?(:compact!)
-ARGV.flatten! if ARGV.respond_to?(:flatten!)
-ARGV.uniq! if ARGV.respond_to?(:uniq!)
+
+ARGV.cleanup!
 Args = Options.parse(ARGV)
 puts Args if Args.pretend
 
@@ -102,26 +106,26 @@ Util::FindApp.which('youtube-dl') do |yt|
     end
   puts Mood.neutral { archive } if Args.pretend
   ytdl = %W(#{yt})
-  ytdl += %W(--download-archive #{archive}) unless Args.force
+  ytdl << %W(--download-archive #{archive}) unless Args.force
+  ytdl << %w(--merge-output-format webm) if Args.webm
   ytdl << '-k' if Args.keep_split
   ytdl << '--hls-prefer-ffmpeg' if Args.ffmpegdl && Urls.to_s.include?('twitch.tv')
-  ytdl += %w(--external-downloader ffmpeg --external-downloader-args -hide_banner) if Args.ffmpegdl
-  ytdl += Urls
+  ytdl << %w(--external-downloader ffmpeg --external-downloader-args -hide_banner) if Args.ffmpegdl
+  ytdl << Urls
+  ytdl.cleanup!(unique: false)
 
   Util::Program.runprogram(ytdl) unless Args.pretend || Args.mkv_only
   print "#{ytdl}\n" if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
 end
 
 Files = Args.directory.find.to_a
-Files.keep_if(&:file?)
 
 puts Mood.neutral('Step 1:') if Args.pretend
 print "#{Files}\n" if Args.pretend
 puts Mood.neutral('No files found in this directory, will not do any statistics calculation or muxing.') if Files.nil? || Files.empty?
 exit if Files.nil? || Files.empty?
 
-case
-when !Args.no_stats
+if Args.stats
   mkv = Files.dup
   mkv.keep_if do |file|
     magic = FileMagic.new(:mime_type)
@@ -131,35 +135,37 @@ when !Args.no_stats
   puts Mood.neutral('Step 2:') if Args.pretend
   print "#{mkv}\n" if Args.pretend
   mkv.delete_if do |file|
-    jsondata = Util.recursive_symbolize_keys(VidInfo.probe(file))
+    jsondata = Util.recursive_symbolize_keys(VideoInfo.probe(file))
     case
     when jsondata.respond_to?(:dig)
       jsondata.dig(:streams, 0, :tags, :BPS)
     when !jsondata.respond_to?(:dig)
-      # true if json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
-      # false unless json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS]
       json[:streams][0] && json[:streams][0][:tags] && json[:streams][0][:tags][:BPS] ? true : false
     end
   end
   puts Mood.neutral('Step 3:') if Args.pretend
   print "#{mkv}\n" if Args.pretend
   puts Mood.neutral('No matroska files to calculate statistics for.') if mkv.nil? || mkv.empty?
-  exit if mkv.nil? || mkv.empty?
 
   Util::FindApp.which('mkvpropedit') do |mpe|
     raise "Couldn't find mkvpropedit" unless mpe
     raise 'mkvpropedit is not executable' unless mpe && File.executable?(mpe)
-    mkv.each do |file|
-      puts Mood.happy("Adding statistic tags to #{file}")
-      cmd = %W(#{mpe} --add-track-statistics-tags #{file})
-      Util::Program.runprogram(cmd) unless Args.pretend
-      print "#{cmd}\n" if Args.pretend
+    if mkv.respond_to?(:each) && mkv.respond_to?(:empty?) && !mkv.empty?
+      mkv.each do |file|
+        puts Mood.happy { "Adding statistic tags to #{file}" }
+        cmd = %W(#{mpe} --add-track-statistics-tags #{file})
+        begin
+          Util::Program.runprogram(cmd) unless Args.pretend
+          print "#{cmd}\n" if Args.pretend
+        rescue Subprocess::NonZeroExit => e
+          puts e.message
+          next
+        end
+      end
     end
   end
 end
-=begin
-case
-when !Args.no_mux
+if Args.mux
   muxfiles = Files.dup
   magic = FileMagic.new(:mime_type)
   muxfiles.delete_if do |file|
@@ -170,14 +176,13 @@ when !Args.no_mux
   print "#{muxfiles}\n" if Args.pretend
 
   muxfiles.keep_if do |file|
-    whitelist = %w(video/x-flv video/mp4 video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
+    whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
     whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
     whitelist.include?(magic.file(file.to_s))
   end
   puts Mood.neutral('Step 3:') if Args.pretend
   print "#{muxfiles}\n" if Args.pretend
 
-  exit if muxfiles.nil? || muxfiles.empty?
   Util::FindApp.which('mkvmerge') do |mkvm|
     raise "Couldn't find mkvmerge" unless mkvm
     raise 'mkvmerge is not executable' unless mkvm && File.executable?(mkvm)
@@ -186,26 +191,27 @@ when !Args.no_mux
       when Args.config.exist?
         configfile = Args.config.open
         confighash = JSON.parse(configfile.read)
-        confighash = Util.recursive_symbolize_keys(config)
+        confighash = Util.recursive_symbolize_keys(confighash)
         configfile.close
-        print "#{confighash}\n" if Args.pretend && config
+        print "#{confighash}\n" if Args.pretend && confighash
         confighash
       end
-    muxfiles.each do |file|
-      out = Args.directory + file.basename.sub_ext('.mkv')
-      cmd = %W(#{mkvm} #{config[:mkvmerge]} -o #{out} = #{file})
-      cmd.flatten!
-      cmd.compact!
-      print "#{cmd}\n" if Args.pretend
+    if muxfiles.respond_to?(:each) && muxfiles.respond_to?(:empty?) && !muxfiles.empty?
+      muxfiles.each do |file|
+        out = Args.directory + file.basename.sub_ext('.mkv')
+        cmd = config[:mkvmerge] ? %W(#{mkvm} #{config[:mkvmerge]} -o #{out} = #{file}) : %W(#{Util::FindApp.which(mkvmerge)} -o #{out} = #{file})
+        cmd.cleanup!(unique: false)
+        print "#{cmd}\n" if Args.pretend
 
-      begin
-        Util::Program.runprogram(cmd) unless Args.pretend
-      rescue Subprocess::NonZeroExit
-        next
-      else
-        file.delete unless Args.pretend || Args.keep_original
+        begin
+          Util::Program.runprogram(cmd) unless Args.pretend
+        rescue Subprocess::NonZeroExit => e
+          puts e.message
+          next
+        else
+          file.delete unless Args.pretend || Args.keep_original
+        end
       end
     end
   end
 end
-=end
