@@ -5,10 +5,15 @@ require 'pathname'
 require 'fileutils'
 require 'data_mapper'
 require 'json'
-# rubocop:disable Metrics/ModuleLength, Style/CaseIndentation, Lint/UnneededDisable, Style/ConstantName, Lint/EndAlignment
+
 require_relative 'andyrb/mood'
-require_relative 'andyrb/util'
-require_relative 'andyrb/videoinfo'
+require_relative 'andyrb/util/sort'
+require_relative 'andyrb/util/program'
+require_relative 'andyrb/util/recursive_symbolize_keys'
+require_relative 'andyrb/util/findapp'
+require_relative 'andyrb/videoinfo/database'
+require_relative 'andyrb/videoinfo/genhash'
+require_relative 'andyrb/core/cleanup'
 
 class Options
   def self.parse(args)
@@ -47,22 +52,21 @@ end
 
 Args = Options.parse(ARGV)
 Args.db = Args.db.realpath if Args.db.exist?
-Args.outputdb = case
-when Args.outputdb.nil? && Args.output.directory?, Args.outputdb.nil? && !Args.output.exist?, Args.outputdb && Args.outputdb == Args.output + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
-  Args.db
-when Args.outputdb.nil? && !Args.output.directory? && !Args.combine
-  Args.output + 'videoinfo.sqlite'
-end
+Args.outputdb =
+  case
+  when Args.outputdb.nil? && Args.output.directory?, Args.outputdb.nil? && !Args.output.exist?, Args.outputdb && Args.outputdb == Args.output + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
+    Args.db
+  when Args.outputdb.nil? && !Args.output.directory? && !Args.combine
+    Args.output + 'videoinfo.sqlite'
+  end
 
 FileUtils.touch(Args.db.to_s) unless Args.db.file?
 FileUtils.touch(Args.outputdb.to_s) if Args.outputdb && !Args.outputdb.parent.directory? && !Args.outputdb.file?
 
 Args.files = ARGV
-Args.files.flatten!
-Args.files.compact!
-Args.files.uniq!
+Args.files.cleanup!
 Args.files.keep_if { |filename| File.file?(filename) }
-Args.files = Util::SortEntries.sort(Args.files) if Args.sort
+Args.files = Util.sort(Args.files) if Args.sort
 # print "#{Args.files}\n"
 
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
@@ -73,7 +77,7 @@ puts Mood.neutral 'ffmpeg concatenation mode has been disabled for the time bein
 Args.ffmpeg = false if Args.combine
 
 Config =
-  case # rubocop:disable Style/ConstantName
+  case
   when File.exist?(Args.config)
     configfile = File.open(Args.config)
     config = JSON.parse(configfile.read)
@@ -103,8 +107,8 @@ if Args.db
   DataMapper.setup(:output, "sqlite:#{Args.outputdb.realpath}") if Args.outputdb
   DataMapper::Logger.new($stdout, :debug) # if Args.debug || Args.verbose
   # db = DataMapper.repository(:default).adapter
-  VI = GenerateVideoInfo::Videoinfo.new
-  GVI = GenerateVideoInfo::Data.new(Args.db.realpath, Args.verbose) if Args.gvi
+  VI = VideoInfo::Database::Videoinfo.new
+  GVI = VideoInfo::Database::Data.new(Args.db.realpath, Args.verbose) if Args.gvi
   DataMapper.finalize
   begin
     DataMapper.auto_upgrade!
@@ -123,20 +127,20 @@ class Convenience
 
   def genvi
     filepath = Pathname.new(@filename).realpath
-    insert = GenerateVideoInfo::Videoinfo.new
+    insert = VideoInfo::Database::Videoinfo.new
     outhash = Util.hashfile(filepath.realpath.to_s)
     print "#{outhash}\n"
     puts Mood.happy("Extracting metadata from #{filepath}")
     if Args.outputdb
       DataMapper.repository(:output) do
-        GenerateVideoInfo::Videoinfo.storage_names[:output] = 'videoinfo'
-        GenerateVideoInfo::Videojson.storage_names[:output] = 'videojson'
+        VideoInfo::Database::Videoinfo.storage_names[:output] = 'videoinfo'
+        VideoInfo::Database::Videojson.storage_names[:output] = 'videojson'
         begin
-          GenerateVideoInfo::Videoinfo.auto_upgrade!
-          GenerateVideoInfo::Videojson.auto_upgrade!
+          VideoInfo::Database::Videoinfo.auto_upgrade!
+          VideoInfo::Database::Videojson.auto_upgrade!
         rescue DataObjects::SyntaxError
-          GenerateVideoInfo::Videoinfo.auto_migrate!
-          GenerateVideoInfo::Videojson.auto_migrate!
+          VideoInfo::Database::Videoinfo.auto_migrate!
+          VideoInfo::Database::Videojson.auto_migrate!
         end
       end
     end
@@ -149,7 +153,7 @@ class Convenience
         DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) }
       end
 
-    GenerateVideoInfo.genhash(@filename, jsondata, outhash) do |h|
+    VideoInfo.genhash(@filename, jsondata, outhash) do |h|
       begin
         puts Mood.happy("Writing metadata for #{File.basename(@filename)}")
         if !Args.outputdb
@@ -157,7 +161,7 @@ class Convenience
           insert.save
         else
           DataMapper.repository(:output) do
-            GenerateVideoInfo::Videoinfo.storage_names[:output] = 'videoinfo'
+            VideoInfo::Database::Videoinfo.storage_names[:output] = 'videoinfo'
             insert.attributes = h
             insert.save
           end
@@ -187,7 +191,7 @@ class Convenience
     end
     case
     when Args.db && !Vi.nil? && !Args.debug
-      vientry = GenerateVideoInfo::Videoinfo.all(filename: @filename)
+      vientry = VideoInfo::Database::Videoinfo.all(filename: @filename)
       vientry.destroy
     end
   end
@@ -207,12 +211,13 @@ else
   Args.files.each do |file|
     convenience = Convenience.new(file)
     filepath = Pathname.new(file)
-    fileoutpath = case
-    when Args.audio
-      Args.output + filepath.sub_ext('.mka').basename
-    else
-      Args.output + filepath.sub_ext('.mkv').basename
-    end
+    fileoutpath =
+      case
+      when Args.audio
+        Args.output + filepath.sub_ext('.mka').basename
+      else
+        Args.output + filepath.sub_ext('.mkv').basename
+      end
 
     puts Mood.happy("Muxing #{file} to a matroska file.")
     if Args.ffmpeg
