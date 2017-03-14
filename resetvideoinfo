@@ -54,8 +54,7 @@ directories = directories[0] if directories.is_a?(Array) && directories.length =
 filelist = []
 initlist = []
 
-case
-when directories.is_a?(Array) && directories.length > 1
+if directories.is_a?(Array) && directories.length > 1
   directories.each do |d|
     dbpath = Pathname.new(d).realpath
     dbpath = dbpath.dirname if dbpath.file?
@@ -83,7 +82,7 @@ when directories.is_a?(Array) && directories.length > 1
     filelist = Util.sort(VideoInfo.genfilelist(initlist))
     filelist.keep_if { |f| File.file?(f) }
   end
-else
+elsif (directories.is_a?(Array) && directories.length == 1) || directories.is_a?(String)
   # dbpath = Pathname.new(directories[0]) if directories.is_a?(Array)
   # dbpath = Pathname.new(directories).realpath unless directories.is_a?(Array)
   dbpath = directories.is_a?(Array) ? Pathname.new(directories[0]).realpath : Pathname.new(directories).realpath
