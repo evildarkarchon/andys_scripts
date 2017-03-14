@@ -3,9 +3,11 @@ require 'pathname'
 require 'fileutils'
 require 'optparse'
 
-require_relative 'andyrb/util'
+require_relative 'andyrb/util/program'
+require_relative 'andyrb/util/datediff'
 require_relative 'andyrb/git'
 require_relative 'andyrb/mood'
+require_relative 'andyrb/core/cleanup'
 
 class Options
   def self.parse(args)
@@ -26,9 +28,7 @@ class Options
   end
 end
 
-ARGV.compact! if ARGV.respond_to?(:compact!)
-ARGV.flatten! if ARGV.respond_to?(:flatten!)
-ARGV.uniq! if ARGV.respond_to?(:uniq!)
+ARGV.cleanup!
 Args = Options.parse(ARGV)
 TTrss = Git.new('/data/web/feeds', use_sudo: true, sudo_user: 'nginx')
 at_exit do
@@ -50,7 +50,7 @@ end
 touchgcfile unless File.exist?('/var/cache/ttrssgc')
 
 def ttrssgc(thendate)
-  diff = Util::DateDiff.getdiff(thendate)
+  diff = Util.datediff(thendate)
   begin
     TTrss.gc(aggressive: Args.aggressive) if diff >= 30 || Args.gc
   rescue Interrupt => e
