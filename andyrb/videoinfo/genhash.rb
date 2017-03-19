@@ -114,8 +114,8 @@ module VideoInfo
       when fr.call(1)
         frc.call(jsondata[:streams][1][:avg_frame_rate])
       end
-    yield outhash if block_given?
     outhash.freeze
+    yield outhash if block_given?
     outhash
   end
 end
