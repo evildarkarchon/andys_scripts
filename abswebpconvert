@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 require 'ostruct'
 require 'optparse'
 require 'shellwords'
@@ -11,6 +12,7 @@ require_relative 'andyrb/mood'
 require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/util/findapp'
 require_relative 'andyrb/util/program'
+require_relative 'andyrb/util/sort'
 
 class Options
   def self.parse(args)
@@ -58,8 +60,9 @@ end
 
 Args = Options.parse(ARGV)
 ARGV.cleanup!(unique: false)
-Args.files = ARGV unless Args.sort
-Args.files = Util::SortEntries.sort(ARGV) if Args.sort
+# Args.files = ARGV unless Args.sort
+# Args.files = Util::SortEntries.sort(ARGV) if Args.sort
+Args.files = Args.sort ? Util.sort(ARGV) : ARGV
 
 Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 Args.lossy = true if !Args.lossy && !Args.lossless
@@ -80,19 +83,23 @@ end
 class Command
   attr_reader :list, :outpath, :filepath
   def initialize(filename)
-    @filepath = Pathname.new(filename).realpath
+    @filepath = Pathname.new(filename).realpath.freeze
     ext = @filepath.extname.downcase
     magic = FileMagic.new(:mime_type)
     @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s
+    @outpath.freeze
+
     lossless_mime = %w(image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop)
     lossless_mime.cleanup!(unique: false)
+    lossless_mime.freeze
 
     raw = %w(.3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw)
     raw += %w(.nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f)
     raw.cleanup!(unique: false)
+    raw.freeze
 
     # lossless = ['-define', 'webp:lossless=true']
-    lossless = %w(-define webp:lossless=true)
+    lossless = %w(-define webp:lossless=true).freeze
     lossymode = Args.lossy
     losslessmode = Args.lossless
 
@@ -100,14 +107,16 @@ class Command
       lossymode = false
       losslessmode = true
       Args.lossy = false
+      Args.lossless = true
     end
 
     losslessmode = false if lossymode
 
     losslessmode = true if Args.lossless
-    # lossymode = false if losslessmode
-    # lossymode = true unless losslessmode
     lossymode = losslessmode ? false : true
+
+    lossymode.freeze
+    losslessmode.freeze
     # puts lossymode
     # puts losslessmode
     Util::FindApp.which('convert') do |c|
@@ -119,12 +128,13 @@ class Command
       @list << '-verbose' if Args.verbose
       @list << @outpath.to_s
       @list.cleanup!(unique: false)
+      @list.freeze
     end
   end
 end
 
 def backuparchive
-  backuparchivepath = Pathname.new(Args.backuparchive)
+  backuparchivepath = Pathname.new(Args.backuparchive).freeze
   case
   when backarchivepath.parent.exist? && !backuparchive.parent.directory?
     raise "#{backuparchivepath.parent} is not a directory."
@@ -136,9 +146,11 @@ def backuparchive
 
   paths = Args.files.dup
   paths.map! { |i| Pathname.new(i) }
+  paths.freeze
 
   begin
     Util::FindApp.which('7za') do |z|
+      z.freeze
       raise '7za not found or is not executable.' if (Args.backuparchive && !z) || (Args.backuparchive && z && !File.executable?(z))
       Util::Program.runprogram(%W(#{z} a #{Args.backuparchive} #{paths.join(' ')}))
     end
@@ -160,17 +172,23 @@ def archive
   puts Mood.happy("Creating directory #{archivepath.parent}") unless archivepath.parent.directory?
   archivepath.parent.mkpath unless archivepath.parent.directory?
   archivepath = archivepath.realpath
+  archivepath.freeze
+
   paths = Args.files.dup
   paths.map! { |file| Pathname.new(file).realpath.sub_ext('.webp').to_s }
+  paths.freeze
+
   puts Mood.happy("Adding files to #{archivepath}")
   begin
-    Util::Program.runprogram([SevenZ, 'a', Args.archive, paths.join(' ')])
-  rescue Subprocess::NonZeroExit => e
+    # Util::Program.runprogram([SevenZ, 'a', Args.archive, paths.join(' ')])
+    Util::FindApp.which('7za') { |z| Util::Program.runprogram(%W(#{z} a #{Args.archive} paths.join(' '))) }
+  rescue Subprocess::NonZeroExit, Interrupt => e
     puts e.message
     raise e
   else
     if Args.removeoriginal
       paths.each do |file|
+        file.freeze
         puts Mood.happy("Removing #{file}")
         file.delete
       end
@@ -179,13 +197,14 @@ def archive
 end
 
 Args.files.each do |file|
+  file.freeze
   cmdline = Command.new(file)
-  outname = cmdline.outpath.to_s
+  outname = cmdline.outpath.to_s.freeze
   if cmdline.outpath.exist? && !Args.force
-    puts Mood.neutral("#{cmdline.outpath} already exists, skipping.")
+    puts Mood.neutral { "#{cmdline.outpath} already exists, skipping." }
     next
   elsif cmdline.outpath.exist? && Args.force
-    puts Mood.neutral("Force mode active, deleting #{cmdline.outpath}")
+    puts Mood.neutral { "Force mode active, deleting #{cmdline.outpath}" }
     FileUtils.rm(outname)
   end
 
@@ -199,7 +218,7 @@ Args.files.each do |file|
     next
   rescue Interrupt => e
     FileUtils.rm(outname) if cmdline.outpath.exist?
-    exit 1
+    raise e
   end
 
   next if Args.nobackup
