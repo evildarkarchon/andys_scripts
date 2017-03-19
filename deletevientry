@@ -1,17 +1,17 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 require 'pathname'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util'
 require_relative 'andyrb/videoinfo'
 
-files = ARGV
+files = ARGV.respond_to?(:map) ? ARGV.map { |i| Pathname.new(i) } : Pathname.new(ARGV)
 
 raise 'No files specified' unless files.length >= 1
 
 files.each do |f|
-  path = Pathname.new(f)
-  puts Mood.happy("Deleting #{path.basename}'s entry from the database.")
+  puts Mood.happy("Deleting #{f.basename}'s entry from the database.")
   del = GenerateVideoInfo::Videoinfo.all(filename: f.basename.to_s)
   del.destroy
 end
