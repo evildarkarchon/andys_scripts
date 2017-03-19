@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'subprocess'
 require 'fileutils'
 require 'pathname'
@@ -31,6 +32,11 @@ class Git
       @sudo_user = 'root'
       puts Mood.neutral('Working directory is not writable, sudo forced.')
     end
+    @git.freeze
+    @use_sudo.freeze
+    @wdpath.freeze
+    @wd.freeze
+    @wdlock.freeze
   end
 
   def clean_lock
@@ -47,8 +53,10 @@ class Git
   end
 
   def gc(aggressive: false)
+    aggressive.freeze
     gccmd = %W(#{@git} gc)
     gccmd << '--aggressive' if aggressive
+    gccmd.freeze
     Util::Program.runprogram(gccmd, use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 
