@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 require 'pathname'
 require 'fileutils'
 require 'optparse'
@@ -37,8 +38,12 @@ end
 
 def touchgcfile
   cachepath = Pathname.new('/var/cache/ttrssgc')
+  cachepath.freeze
+
   use_sudo = false
   use_sudo = true unless cachepath.parent.writable?
+  use_sudo.freeze
+
   case
   when use_sudo
     Util::Program.runprogram(%W(touch #{cachepath}), use_sudo: true)
@@ -50,7 +55,7 @@ end
 touchgcfile unless File.exist?('/var/cache/ttrssgc')
 
 def ttrssgc(thendate)
-  diff = Util.datediff(thendate)
+  diff = Util.datediff(thendate).freeze
   begin
     TTrss.gc(aggressive: Args.aggressive) if diff >= 30 || Args.gc
   rescue Interrupt => e
@@ -60,8 +65,8 @@ def ttrssgc(thendate)
   end
 end
 
-repopath = Pathname.new('/data/web/feeds/.git')
-wdpath = repopath.parent
+repopath = Pathname.new('/data/web/feeds/.git').freeze
+wdpath = repopath.parent.freeze
 giturl = 'https://tt-rss.org/gitlab/fox/tt-rss.git'
 case
 when repopath.directory?
