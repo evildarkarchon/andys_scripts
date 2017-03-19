@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 require 'ostruct'
 require 'optparse'
 require 'pathname'
@@ -120,9 +121,9 @@ class Options
 end
 ARGV.cleanup!
 Args = Options.parse(ARGV)
-Args.files = ARGV
+Args.files = Args.sort ? Util.sort(ARGV) : ARGV
 Args.files.keep_if { |i| File.file?(i) } if Args.files.respond_to?(:keep_if)
-Util.sort(ARGV) if Args.sort
+Args.files.freeze
 
 DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
@@ -135,20 +136,22 @@ raise 'mkvpropedit not found' if (MkvPropEdit.nil? || MkvPropEdit.empty?) && Arg
 raise 'ffmpeg is not executable' unless FFmpeg && !File.executable?(FFmpeg)
 raise 'mkvpropedit is not executable' unless (MkvPropEdit && File.executable?(MkvPropEdit) && Args.stats) || !Args.stats
 
-Config = case # rubocop:disable Style/ConstantName
-when File.exist?(Args.config)
-  config = nil
-  File.open(Args.config) do |cf|
-    config = JSON.parse(cf.read)
+Config =
+  case # rubocop:disable Style/ConstantName
+  when File.exist?(Args.config)
+    config = nil
+    File.open(Args.config) do |cf|
+      config = JSON.parse(cf.read)
+    end
+    config = Util.recursive_symbolize_keys(config)
+    print "#{config}\n" if Args.debug && config
+    config
   end
-  config = Util.recursive_symbolize_keys(config)
-  print "#{config}\n" if Args.debug && config
-  config
-end
+Config.freeze
 
 def backup(sourcefile, backupdir)
-  backuppath = Pathname.new(backupdir)
-  sourcepath = Pathname.new(sourcefile)
+  backuppath = Pathname.new(backupdir).freeze
+  sourcepath = Pathname.new(sourcefile).freeze
 
   backup.mkpath unless backuppath.exist?
   raise 'Backup directory is a file.' if backuppath.exist? && backuppath.file?
@@ -159,8 +162,9 @@ end
 class Metadata
   attr_reader :bitrates, :frame_rate
   def initialize(filename)
-    path = Pathname.new(filename).basename.to_s
+    path = File.basename(filename).freeze
     @query = VideoInfo::Database::Videoinfo.all(filename: path, fields: [:bitrate_0_raw, :type_0, :bitrate_1_raw, :type_1, :frame_rate])
+    @query.freeze
     @frame_rate = nil
     @bitrates = {}
     @bitrates[:video] = nil
@@ -187,6 +191,8 @@ class Metadata
       when @query[0][:type_1] == 'audio'
         @query[0][:bitrate_1_raw]
       end
+
+    @bitrates.freeze
   end
 
   def framerate!
@@ -197,6 +203,8 @@ class Metadata
       when @query[0][:frame_rate]
         @query[0][:frame_rate]
       end
+
+    @frame_rate.freeze
   end
 end
 
@@ -216,12 +224,14 @@ def cmdline(filename, passnum: 1, passmax: 2)
     when Args.videocodec
       %W(-c:v #{Args.videocodec})
     end
+  vcodec.freeze
 
   vbitrate =
     case
     when !Args.novideo && bitrates[:video]
       %W(-b:v #{bitrates[:video]})
     end
+  vbitrate.freeze
 
   vcodecopts =
     case
@@ -230,6 +240,7 @@ def cmdline(filename, passnum: 1, passmax: 2)
     when !Args.novideo && Config[:defaults][Args.videocodec.to_sym]
       Config[:codecs][Args.videocodec.to_sym]
     end
+  vcodecopts.freeze
 
   acodec =
     case
@@ -242,6 +253,7 @@ def cmdline(filename, passnum: 1, passmax: 2)
     else
       %w(-c:a libopus)
     end
+  acodec.freeze
 
   acodecopts =
     case
@@ -250,12 +262,14 @@ def cmdline(filename, passnum: 1, passmax: 2)
     when !Args.noaudio && Config[:codecs][Args.audiocodec.to_sym]
       Config[:codecs][Args.audiocodec.to_sym]
     end
+  acodecopts.freeze
 
   abitrate =
     case
     when !Args.noaudio && bitrates[:audio]
       %W(-b:a #{bitrates[:audio]})
     end
+  abitrate.freeze
 
   afilter =
     case
@@ -264,6 +278,8 @@ def cmdline(filename, passnum: 1, passmax: 2)
     when !Args.noaudio && Args.audiofilter
       %W(-af #{Args.audiofilter})
     end
+  afilter.freeze
+
   outcon =
     case
     when Args.container
@@ -273,7 +289,8 @@ def cmdline(filename, passnum: 1, passmax: 2)
     else
       '.mkv'
     end
-  # print "#{passmax}\n"
+  outcon.freeze
+
   out = %W(#{FFmpeg} -i #{filename})
   out << vcodec
   out << vbitrate if vbitrate
@@ -295,6 +312,7 @@ def cmdline(filename, passnum: 1, passmax: 2)
       (Args.outputdir + filepath.basename.sub_ext(outcon)).to_s
     end
   out.cleanup!(unique: false)
+  out.freeze
   out
 end
 
@@ -310,14 +328,14 @@ Args.files.each do |file|
     end
   filepath = Pathname.new(file)
   # outpath = Pathname.new(Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
-  outpath = Args.outputdir + filepath.basename.sub_ext(outcon)
-  logpath = filepath.sub_ext('-0.log') if Args.passes == 2
+  outpath = (Args.outputdir + filepath.basename.sub_ext(outcon)).freeze
+  logpath = filepath.sub_ext('-0.log').freeze if Args.passes == 2
   case Args.passes
   when 2
-    cmdpass1 = cmdline(file, 1, 2)
-    cmdpass2 = cmdline(file, 2, 2)
+    cmdpass1 = cmdline(file, 1, 2).freeze
+    cmdpass2 = cmdline(file, 2, 2).freeze
   when 1
-    cmd1pass = cmdline(file, passmax: 1)
+    cmd1pass = cmdline(file, passmax: 1).freeze
   end
   if Args.debug
     puts cmdpass1 if cmdpass1
