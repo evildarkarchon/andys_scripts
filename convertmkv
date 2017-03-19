@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 require 'ostruct'
 require 'optparse'
 require 'pathname'
@@ -67,6 +68,7 @@ Args.files = ARGV
 Args.files.cleanup!
 Args.files.keep_if { |filename| File.file?(filename) }
 Args.files = Util.sort(Args.files) if Args.sort
+Args.files.freeze
 # print "#{Args.files}\n"
 
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
@@ -86,6 +88,7 @@ Config =
     print "#{config}\n" if Args.debug && config
     config
   end
+Config.freeze
 
 case
 when !FFMPEG && Args.ffmpeg && MkvMerge, FFMPEG && !File.executable?(FFMPEG) && MkvMerge && File.executable?(MkvMerge)
@@ -122,15 +125,15 @@ GVI = nil unless Args.gvi
 
 class Convenience
   def initialize(filename)
-    @filename = filename
+    @filename = filename.freeze
   end
 
   def genvi
     filepath = Pathname.new(@filename).realpath
     insert = VideoInfo::Database::Videoinfo.new
-    outhash = Util.hashfile(filepath.realpath.to_s)
+    outhash = Util.hashfile(filepath.realpath.to_s).freeze
     print "#{outhash}\n"
-    puts Mood.happy("Extracting metadata from #{filepath}")
+    puts Mood.happy { "Extracting metadata from #{filepath}" }
     if Args.outputdb
       DataMapper.repository(:output) do
         VideoInfo::Database::Videoinfo.storage_names[:output] = 'videoinfo'
@@ -173,12 +176,15 @@ class Convenience
   end
 
   def self.mkvmergeconcat
-    basecommand = %W(#{MkvMerge} -o #{Args.output})
+    basecommand = %W(#{MkvMerge} -o #{Args.output}).freeze
+
     filelist = Args.files.join(' + ')
-    filelist = filelist.split
+    filelist = filelist.split.freeze
+
     command = basecommand + Config[:mkvmerge] + filelist
-    command.flatten!
-    command.compact!
+    command.cleanup!(unique: false)
+    command.freeze
+
     Util::Program.runprogram(command) unless Args.debug
     genvi(Args.output.to_s) if Args.gvi
   end
@@ -210,7 +216,7 @@ else
   raise 'Output specified is not a directory' unless Args.output.directory?
   Args.files.each do |file|
     convenience = Convenience.new(file)
-    filepath = Pathname.new(file)
+    filepath = Pathname.new(file).freeze
     fileoutpath =
       case
       when Args.audio
@@ -218,16 +224,18 @@ else
       else
         Args.output + filepath.sub_ext('.mkv').basename
       end
+    fileoutpath.freeze
 
     puts Mood.happy("Muxing #{file} to a matroska file.")
     if Args.ffmpeg
       ffcmd = %W(#{FFMPEG} -i #{filepath.realpath} -c copy -f matroska -hide_banner -y #{fileoutpath})
-      ffcmd.flatten!
-      ffcmd.compact!
+      ffcmd.cleanup!(unique: false)
+      ffcmd.freeze
 
       mpecmd = %W(#{MkvPropEdit} --add-track-statistics-tags #{fileoutpath})
-      mpecmd.flatten!
-      mpecmd.compact!
+      mpecmd.cleanup!(unique: false)
+      mpecmd.freeze
+
       case
       when !Args.debug
         Util::Program.runprogram(ffcmd)
@@ -235,8 +243,8 @@ else
       end
     else
       command = %W(#{MkvMerge} #{Config[:mkvmerge]} -o #{fileoutpath} = #{file})
-      command.flatten!
-      command.compact!
+      command.cleanup!(unique: false)
+      command.freeze
       Util::Program.runprogram(command) unless Args.debug
     end
     convenience.genvi if Args.gvi && fileoutpath.exist?
