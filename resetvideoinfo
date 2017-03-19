@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 require 'ostruct'
 require 'optparse'
 require 'pathname'
@@ -34,7 +35,7 @@ ARGV.cleanup! unless ARGV.nil? || ARGV.empty? || !ARGV.is_a?(Array)
 Args = Options.parse(ARGV)
 Args.directory = ARGV unless ARGV.nil? || ARGV.empty?
 Args.directory = %w(/data/Private) if ARGV.nil? || ARGV.empty?
-Args.directory.keep_if { |dirname| File.directory?(dirname) }
+Args.directory.keep_if { |dirname| File.directory?(dirname) } if Args.directory.respond_to?(:keep_if)
 
 DataMapper::Model.raise_on_save_failure = true
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
@@ -42,19 +43,22 @@ DataMapper::Logger.new($stdout, :debug) if Args.verbose
 directories = []
 if Args.directory.respond_to?(:each)
   Args.directory.each do |i|
-    directories << VideoInfo::Database.find(i, true)
-    directories.cleanup!
+    directories = VideoInfo::Database.find(i, Args.verbose)
+    # directories.cleanup!
+    # puts 'directories 1:'
+    # print "#{directories}\n"
   end
 else
-  directories << VideoInfo::Database.find(Args.directory, true)
-  directories.cleanup!
+  directories = VideoInfo::Database.find(Args.directory, Args.verbose)
+  # directories.cleanup!
+  # puts 'directories 1:'
+  # print "#{directories}\n"
 end
 
-directories = directories[0] if directories.is_a?(Array) && directories.length == 1
 filelist = []
 initlist = []
 
-if directories.is_a?(Array) && directories.length > 1
+if directories.respond_to?(:each)
   directories.each do |d|
     dbpath = Pathname.new(d).realpath
     dbpath = dbpath.dirname if dbpath.file?
@@ -74,18 +78,23 @@ if directories.is_a?(Array) && directories.length > 1
       end
     end
 =end
-    initlist = dbpath.find.to_a
-    initlist.keep_if(&:file?)
-    initlist.map!(&:to_s)
+    initlist << dbpath.find.to_a
+    # puts 'directories 2m:'
+    # print "#{initlist}\n"
+    # puts
     initlist.cleanup!
+    initlist.keep_if { |i| File.file?(i) }
+    initlist.map!(&:to_s)
 
     filelist = Util.sort(VideoInfo.genfilelist(initlist))
-    filelist.keep_if { |f| File.file?(f) }
+    # puts 'directories 3m:'
+    # print "#{filelist}\n"
+    # puts
   end
-elsif (directories.is_a?(Array) && directories.length == 1) || directories.is_a?(String)
+else
   # dbpath = Pathname.new(directories[0]) if directories.is_a?(Array)
   # dbpath = Pathname.new(directories).realpath unless directories.is_a?(Array)
-  dbpath = directories.is_a?(Array) ? Pathname.new(directories[0]).realpath : Pathname.new(directories).realpath
+  dbpath = Pathname.new(directories).realpath
   dbpath = dbpath.dirname if dbpath.file?
   # dir = dbpath.to_s
 
@@ -97,11 +106,11 @@ elsif (directories.is_a?(Array) && directories.length == 1) || directories.is_a?
   case
   when Args.reset_json
     VideoInfo::Database::Videojson.auto_migrate!
-  when !Args.reset_json && !Args.reset_all
-    VideoInfo::Database::Videoinfo.auto_migrate!
   when Args.reset_all
     VideoInfo::Database::Videoinfo.auto_migrate!
     VideoInfo::Database::Videojson.auto_migrate!
+  else
+    VideoInfo::Database::Videoinfo.auto_migrate!
   end
 
   # Find.find(dir) do |path|
@@ -112,11 +121,18 @@ elsif (directories.is_a?(Array) && directories.length == 1) || directories.is_a?
   #   initlist << path if file
   # end
   initlist = dbpath.find.to_a
-  initlist.cleanup!
   initlist.keep_if(&:file?)
   initlist.map!(&:to_s)
+  initlist.cleanup!
+  # puts 'directories 2s:'
+  # print "#{initlist}\n"
+  # puts
 
   filelist = Util.sort(VideoInfo.genfilelist(initlist))
+  # puts 'directories 3s:'
+  # print "#{filelist}\n"
+  # puts
+
   # filelist.each do |i|
   #   filepath = Pathname.new(i)
   #   filelist.delete(i) unless filepath.file?
@@ -138,6 +154,8 @@ filelist.each do |file|
   insert = VideoInfo::Database::Videoinfo.new
 
   jsondata = gvi.json(file, Args.verbose)
+  # print "#{jsondata}\n"
+  # puts jsondata
 
   VideoInfo.genhash(file, jsondata, digests) do |h|
     begin
