@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'data_mapper'
 require 'pathname'
 
@@ -20,9 +21,10 @@ module VideoInfo
       end
 
       def existing
-        out = nil
-        out = Videoinfo.all(fields: [:filename, :filehash]) if Videoinfo.count >= 1
+        # out = nil
+        # out = Videoinfo.all(fields: [:filename, :filehash]) if Videoinfo.count >= 1
         # print out.inspect
+        out = Videoinfo.count >= 1 ? Videoinfo.all(fields: [:filename, :filehash]) : nil
         out
       end
 
@@ -36,6 +38,7 @@ module VideoInfo
         if @db.storage_exists?('videojson') && Videojson.count(filename: filepath.basename.to_s) >= 1
           puts Mood.happy("Reading metadata from cache for #{filepath}") if @verbose
           out = Videojson.all(filename: filepath.basename, fields: [:jsondata])
+          out = out[0][:jsondata]
         else
           out = VideoInfo.probe(filepath.realpath.to_s, verbose: @verbose)
           begin
