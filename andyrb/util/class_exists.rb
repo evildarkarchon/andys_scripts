@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Util
   def self.class_exists?(name)
     klass = Module.const_get(name)

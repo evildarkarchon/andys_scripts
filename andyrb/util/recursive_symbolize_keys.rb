@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Util
   def self.recursive_symbolize_keys(my_hash)
     case my_hash

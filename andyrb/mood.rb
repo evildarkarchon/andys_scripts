@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'termcolor'
 # Convenience methods to add a colored star based on the "mood" method called.
 module Mood
