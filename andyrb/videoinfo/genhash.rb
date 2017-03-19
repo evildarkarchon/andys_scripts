@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'json'
 require 'dentaku'
 require 'pathname'
@@ -10,26 +11,34 @@ module VideoInfo
   def self.genhash(filename, inputjson, filehash = nil)
     raise 'You must supply either a json string, or a pre-parsed hash' unless inputjson.is_a?(String) || inputjson.is_a?(Hash) || inputjson.is_a?(DataMapper::Collection)
     raise 'filehash must be a Hash or convertable to a hash.' if filehash && !filehash.respond_to?(:to_h)
-    filehash.to_h if filehash && filehash.respond_to?(:to_h) && !filehash.is_a?(Hash)
+    filehash = filehash.to_h if filehash && filehash.respond_to?(:to_h) && !filehash.is_a?(Hash)
+    filehash.freeze
 
-    jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson)) if inputjson.is_a?(String)
-    jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson[0][:jsondata])) if inputjson.is_a?(DataMapper::Collection)
-    jsondata = Util.recursive_symbolize_keys(inputjson) if inputjson.is_a?(Hash)
+    jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson)).freeze if inputjson.is_a?(String)
+    jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson[0][:jsondata])).freeze if inputjson.is_a?(DataMapper::Collection)
+    jsondata = Util.recursive_symbolize_keys(inputjson).freeze if inputjson.is_a?(Hash)
 
-    filepath = Pathname.new(filename)
+    filepath = Pathname.new(filename).freeze
 
     calc = Dentaku::Calculator.new
 
     fs = lambda do |n|
+      # puts n.class
+      # puts n.length
+      # puts n
+      # puts n.to_i.class
       out =
         case
+        when n.nil? || n.empty?
+          nil
         when n.to_i >= 1_000_000
           Filesize.from(n.to_s + 'b').to('Mb').round(2).to_s + 'Mb/s'
         when n.to_i.between?(1000, 999_999)
-          Filesize.from(n.to_s + 'b').to('Kb').round.to_s + 'Kb/s' if n.to_i.between?(1000, 999_999)
-        when n.to_i < 1000
+          Filesize.from(n.to_s + 'b').to('Kb').round.to_s + 'Kb/s'
+        when n.to_i < 1000 && n.to_i >= 1
           n.to_s + 'b/s'
         end
+      # puts out
       out
     end
 
@@ -86,12 +95,12 @@ module VideoInfo
     outhash[:bitrate_total] = fs.call(jsondata[:format][:bit_rate])
 
     outhash[:bitrate_0_raw] = brr.call(0)
-    outhash[:bitrate_0] = fs.call(outhash[:bitrate_0_raw])
+    outhash[:bitrate_0] = outhash[:bitrate_0_raw] ? fs.call(outhash[:bitrate_0_raw]) : nil
     outhash[:type_0] = jsondata[:streams][0][:codec_type] if jsondata[:streams][0].key?(:codec_type)
     outhash[:codec_0] = jsondata[:streams][0][:codec_name] if jsondata[:streams][0].key?(:codec_name)
 
     outhash[:bitrate_1_raw] = brr.call(1) if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash)
-    outhash[:bitrate_1] = fs.call(outhash[:bitrate_1_raw]) if outhash[:bitrate_1_raw]
+    outhash[:bitrate_1] = outhash[:bitrate_1_raw] ? fs.call(outhash[:bitrate_1_raw]) : nil
     outhash[:type_1] = jsondata[:streams][1][:codec_type] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_type)
     outhash[:codec_1] = jsondata[:streams][1][:codec_name] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_name)
 
@@ -106,6 +115,7 @@ module VideoInfo
         frc.call(jsondata[:streams][1][:avg_frame_rate])
       end
     yield outhash if block_given?
+    outhash.freeze
     outhash
   end
 end
