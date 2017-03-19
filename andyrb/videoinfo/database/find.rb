@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'filemagic'
 require 'find'
 
@@ -16,24 +17,32 @@ module VideoInfo
       initdirectories.keep_if(&:file?)
       initdirectories.delete_if { |i| i.extname =~ blacklist }
       initdirectories.keep_if { |i| magic.file(i.to_s).include?('SQLite 3.x') }
+      initdirectories.freeze
+      # puts 'find 1:'
+      # print "#{initdirectories}\n"
+      # puts
 
       directories = initdirectories.map(&:dirname)
+      # puts 'find 2:'
+      # print "#{directories}\n"
+      # puts
 
       if verbose
-        directories.each do |i|
-          puts 'Non-deduped directory list:'
-          puts Mood.happy(i.to_s)
-          puts
-        end
+        puts 'Non-deduped directory list:'
+        # puts 'find 3:'
+        print "#{directories}\n"
       end
 
       directories.uniq!
-
+      directories.freeze
+      # puts 'find 4:'
+      # print "#{directories}\n"
+      # puts
       if verbose
-        directories.each do |i|
-          puts 'De-duped directory list:'
-          puts Mood.happy(i.to_s)
-        end
+        # puts 'find 5:'
+        puts 'De-duped directory list:'
+        print "#{directories}\n"
+        puts
       end
 
       yield directories if block_given?
