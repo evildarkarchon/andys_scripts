@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 require 'ostruct'
 require 'optparse'
 require 'pathname'
@@ -42,24 +43,14 @@ Args.files = [] if ARGV.nil? || ARGV.empty?
 Args.files.cleanup! unless Args.files.nil? || Args.files.empty? || !Args.files.is_a?(Array)
 Args.files.keep_if { |filename| File.file?(filename) } unless Args.files.nil? || Args.files.empty?
 
-# case
-# when Args.files.nil? || Args.files.empty?
-#   Find.find(Dir.getwd) do |path|
-#     Find.prune if File.basename(path)[0].include?('.') # Don't look any further into this directory.
-#     file = File.file?(path)
-#     next unless file
-#     puts path if Args.debug
-#     Args.files << path if file
-#   end
-# end
 if Args.files.nil? || Args.files.empty?
   wdpath = Pathname.getwd.find.to_a
-  puts wdpath
+  puts wdpath if Args.debug
   wdpath.keep_if(&:file?)
   Args.files = wdpath.map(&:to_s)
   puts Args.files if Args.debug
 end
-
+Args.files.freeze
 case
 when Args.debug
   # puts Args
@@ -82,8 +73,7 @@ rescue DataObjects::SyntaxError
 end
 DataMapper.auto_migrate! if Args.reset_all
 
-case
-when Args.regen && !Args.reset_all
+if Args.regen && !Args.reset_all
   puts Mood.neutral('Resetting videoinfo table')
   begin
     VideoInfo::Database::Videoinfo.auto_upgrade! # avoid not null errors
@@ -96,8 +86,7 @@ when Args.regen && !Args.reset_all
   db.execute('vacuum')
 end
 
-case
-when Args.reset_json && !Args.reset_all
+if Args.reset_json && !Args.reset_all
   puts Mood.neutral('Resetting JSON Cache')
   VideoInfo::Database::Videojson.all.destroy
   # db.execute('drop table if exists videojson')
@@ -118,25 +107,9 @@ end
 
 initlist = []
 
-# if Args.files && Args.files.is_a?(Array) && !Args.files.empty?
-#   Args.files.each do |entry|
-#     path = Pathname.new(entry).realpath
-#     initlist << path.to_s if path.file?
-
-#     if path.directory?
-#       dir = path.find do |i|
-#         Find.prune if i.basename[0].include?('.')
-#       end
-#       dir = dir.to_a
-#       dir.keep_if(&:file?)
-#       dir.each { |d| initlist << d.to_s }
-#     end
-#   end
-# end
-
 if Args.files && Args.files.is_a?(Array) && !Args.files.empty?
   initlist = Args.files.map do |i|
-    path = Pathname.new(i)
+    path = Pathname.new(i).freeze
     dir = nil
     if path.directory?
       dir = path.find.to_a
@@ -149,12 +122,16 @@ if Args.files && Args.files.is_a?(Array) && !Args.files.empty?
 end
 
 initlist.cleanup!
+initlist.freeze
 
 existing = gvi.existing
 existing.map!(&:filename) if existing.is_a?(Array)
+existing.freeze
+
 # print "#{existing}\n"
 filelist = VideoInfo.genfilelist(initlist, testmode: Args.debug)
 filelist.delete_if { |h| existing.include?(File.basename(h.to_s)) } unless existing.nil? || existing.empty?
+filelist.freeze
 
 case
 when Args.debug
@@ -173,7 +150,7 @@ when filelist.empty?
   exit
 end
 
-digests = Util.hashfile(filelist)
+digests = Util.hashfile(filelist).freeze
 
 case
 when Args.debug
@@ -183,7 +160,7 @@ end
 
 filelist.each do |file|
   insert = VideoInfo::Database::Videoinfo.new
-  jsondata = gvi.json(file)
+  jsondata = gvi.json(file).freeze
   case
   when Args.debug
     print "#{digests[file]}\n"
