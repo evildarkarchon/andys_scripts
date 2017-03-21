@@ -61,7 +61,6 @@ class Git
   end
 
   def pull
-    Dir.chdir(@wd)
-    Util::Program.runprogram(%W(#{@git} pull), use_sudo: @use_sudo, sudo_user: @sudo_user)
+    Util::Program.runprogram(%W(#{@git} pull), use_sudo: @use_sudo, sudo_user: @sudo_user, workdir: @wd)
   end
 end

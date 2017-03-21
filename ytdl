@@ -44,7 +44,7 @@ class Options
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
       opts.on('-a', '--archive [DIRECTORY]', 'Directory for the downloaded video list') { |dir| options.archive = Pathname.new(dir) }
-      opts.on('-s', '--subdirectory [SUBDIRECTORY]', 'Optional subdirectory to tack on the end (only used if directory is set to the default)') { |dir| options.subdirectory = dir.to_s }
+      opts.on('-s', '--subdirectory [SUBDIRECTORY]', 'Optional subdirectory to tack on the end (only used if directory is set to the default)') { |dir| options.subdirectory = dir.to_s.freeze }
       opts.on('-n', '--no-date', "Don't create a subdirectory with the date (only needed if directory is set to the default)") { options.no_date = true }
       opts.on('-f', '--force', "Don't add the url(s) to the list of succesfully downloaded videos or read from said list.") { options.force = true }
       opts.on('--pretend', '-p', "Don't actually run youtube-dl or mkvpropedit") { options.pretend = true } # Mostly for testing code that doesn't rely on the programs actually running.
@@ -83,7 +83,15 @@ raise 'Somehow, Args.directory is not a Pathname' unless Args.directory.is_a?(Pa
 Args.directory &&= Args.directory + Args.date if Args.directory.to_s == '/data/Videos/Youtube' && !Args.no_date
 
 Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && Args.directory.to_s.include?('/data/Videos/Youtube')
-Args.directory.freeze
+
+Args.freeze
+
+OutDir = Args.directory.to_s.freeze
+
+puts Mood.neutral { "Is Args frozen? #{Args.frozen?}" } if Args.pretend
+# puts Args.frozen? if Args.pretend
+# Args.directory.freeze unless Args.directory.frozen?
+puts Mood.neutral { "Is Args.directory frozen? #{Args.directory.frozen?}" } if Args.pretend
 puts Mood.neutral { Args.directory } if Args.pretend
 
 case
@@ -93,13 +101,13 @@ when !Args.directory.exist?
   puts Mood.happy { "Creating Directory #{Args.directory}" }
   Args.directory.mkpath
 end
-Dir.chdir(Args.directory.to_s)
+
 Util::FindApp.which('youtube-dl') do |yt|
   yt.freeze
   raise "Couldn't find youtube-dl" unless yt
   raise 'youtube-dl is not executable' unless yt && File.executable?(yt)
 
-  archdir = Args.directory.parent.parent.freeze if Args.subdirectory && Args.directory.to_s.include?('/data/Videos/Youtube') && !Args.no_date
+  archdir = Args.directory.parent.parent.freeze if Args.subdirectory && OutDir.include?('/data/Videos/Youtube') && !Args.no_date
 
   archive =
     case
@@ -109,7 +117,7 @@ Util::FindApp.which('youtube-dl') do |yt|
     when !Args.no_date && archdir
       puts Mood.neutral { 'Archive in subdirectory parent' } if Args.pretend
       archdir + 'downloaded.txt'
-    when !Args.no_date && Args.directory.to_s.include?('/data/Videos/Youtube')
+    when !Args.no_date && OutDir.include?('/data/Videos/Youtube')
       puts Mood.neutral { 'Archive in parent directory' } if Args.pretend
       Args.directory.parent + 'downloaded.txt'
     else
@@ -123,13 +131,12 @@ Util::FindApp.which('youtube-dl') do |yt|
   ytdl << %W(--download-archive #{archive}) unless Args.force
   ytdl << %w(--merge-output-format webm) if Args.webm
   ytdl << '-k' if Args.keep_split
-  ytdl << '--hls-prefer-ffmpeg' if Args.ffmpegdl && Urls.to_s.include?('twitch.tv')
-  ytdl << %w(--external-downloader ffmpeg --external-downloader-args -hide_banner) if Args.ffmpegdl
+  ytdl << %w(--external-downloader ffmpeg --external-downloader-args -hide_banner --hls-prefer-ffmpeg) if Args.ffmpegdl
   ytdl << Urls
   ytdl.cleanup!(unique: false)
   ytdl.freeze
 
-  Util::Program.runprogram(ytdl) unless Args.pretend || Args.mkv_only
+  Util::Program.runprogram(ytdl, workdir: OutDir) unless Args.pretend || Args.mkv_only
   print "#{ytdl}\n" if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
 end
 
@@ -154,7 +161,8 @@ if Args.stats
   print "#{mkv}\n" if Args.pretend
   mkv.delete_if do |file|
     file.freeze
-    jsondata = Util.recursive_symbolize_keys(VideoInfo.probe(file)).freeze
+    jsondata = Util.recursive_symbolize_keys(VideoInfo.probe(file))
+    jsondata.freeze unless frozen?
     case
     when jsondata.respond_to?(:dig)
       jsondata.dig(:streams, 0, :tags, :BPS)
