@@ -36,6 +36,7 @@ Args = Options.parse(ARGV)
 Args.directory = ARGV unless ARGV.nil? || ARGV.empty?
 Args.directory = %w(/data/Private) if ARGV.nil? || ARGV.empty?
 Args.directory.keep_if { |dirname| File.directory?(dirname) } if Args.directory.respond_to?(:keep_if)
+Args.freeze
 
 DataMapper::Model.raise_on_save_failure = true
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
@@ -124,11 +125,13 @@ else
   initlist.keep_if(&:file?)
   initlist.map!(&:to_s)
   initlist.cleanup!
+  initlist.freeze
   # puts 'directories 2s:'
   # print "#{initlist}\n"
   # puts
 
   filelist = Util.sort(VideoInfo.genfilelist(initlist))
+  filelist.freeze unless frozen?
   # puts 'directories 3s:'
   # print "#{filelist}\n"
   # puts
@@ -141,10 +144,10 @@ else
   # puts filelist
 end
 
-digests = Util.hashfile(filelist)
+digests = Util.hashfile(filelist).freeze
 
 filelist.each do |file|
-  filepath = Pathname.new(file)
+  filepath = Pathname.new(file).freeze
   FileUtils.touch(file) unless filepath.file?
 
   DataMapper.setup(:default, "sqlite:#{filepath.dirname.join('videoinfo.sqlite')}") if filepath.file?
@@ -154,6 +157,7 @@ filelist.each do |file|
   insert = VideoInfo::Database::Videoinfo.new
 
   jsondata = gvi.json(file, Args.verbose)
+  jsondata.freeze unless frozen?
   # print "#{jsondata}\n"
   # puts jsondata
 

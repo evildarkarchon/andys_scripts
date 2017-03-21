@@ -31,14 +31,14 @@ end
 
 ARGV.cleanup!
 Args = Options.parse(ARGV)
+Args.freeze
 TTrss = Git.new('/data/web/feeds', use_sudo: true, sudo_user: 'nginx')
 at_exit do
   TTrss.clean_lock
 end
 
 def touchgcfile
-  cachepath = Pathname.new('/var/cache/ttrssgc')
-  cachepath.freeze
+  cachepath = Pathname.new('/var/cache/ttrssgc').freeze
 
   use_sudo = false
   use_sudo = true unless cachepath.parent.writable?

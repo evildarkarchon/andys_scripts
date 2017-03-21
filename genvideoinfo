@@ -50,7 +50,7 @@ if Args.files.nil? || Args.files.empty?
   Args.files = wdpath.map(&:to_s)
   puts Args.files if Args.debug
 end
-Args.files.freeze
+Args.freeze
 case
 when Args.debug
   # puts Args
@@ -126,12 +126,12 @@ initlist.freeze
 
 existing = gvi.existing
 existing.map!(&:filename) if existing.is_a?(Array)
-existing.freeze
+existing.freeze unless frozen?
 
 # print "#{existing}\n"
 filelist = VideoInfo.genfilelist(initlist, testmode: Args.debug)
 filelist.delete_if { |h| existing.include?(File.basename(h.to_s)) } unless existing.nil? || existing.empty?
-filelist.freeze
+filelist.freeze unless frozen?
 
 case
 when Args.debug

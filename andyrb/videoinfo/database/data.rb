@@ -9,7 +9,7 @@ module VideoInfo
   module Database
     class Data
       def initialize(dbpath, verbose = false)
-        @dbpath = Pathname.new(dbpath)
+        @dbpath = Pathname.new(dbpath).freeze
         @verbose = verbose
         DataMapper.setup(:default, "sqlite:#{@dbpath.realpath}")
         DataMapper::Logger.new($stdout, :debug) if @verbose

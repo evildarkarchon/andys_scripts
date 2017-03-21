@@ -104,6 +104,8 @@ raise 'Can not find mkvmerge or it is not executable' unless (MkvMerge && File.e
 raise 'Can not find ffmpeg or it is not executable' if (Args.ffmpeg && !FFMPEG) || (Args.ffmpeg && FFMPEG && !File.executable?(FFMPEG))
 raise 'Can not find mkvpropedit or it is not executable' unless MkvPropEdit && File.executable?(MkvPropEdit)
 
+Args.freeze
+
 if Args.db
   DataMapper::Model.raise_on_save_failure = true
   DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
@@ -129,7 +131,7 @@ class Convenience
   end
 
   def genvi
-    filepath = Pathname.new(@filename).realpath
+    filepath = Pathname.new(@filename).realpath.freeze
     insert = VideoInfo::Database::Videoinfo.new
     outhash = Util.hashfile(filepath.realpath.to_s).freeze
     print "#{outhash}\n"

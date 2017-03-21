@@ -9,7 +9,7 @@ module VideoInfo
     def self.find(directory, verbose = false)
       magic = FileMagic.new
 
-      dirpath = Pathname.new(directory)
+      dirpath = Pathname.new(directory).freeze
 
       blacklist = /jpg|gif|png|flv|mp4|mkv|webm|vob|ogg|drc|avi|wmv|yuv|rm|rmvb|asf|m4v|mpg|mp2|mpeg|mpe|mpv|3gp|3g2|mxf|roq|nsv|f4v|wav|ra|mka|pdf|odt|docx|webp|swf|cb7|zip|7z|xml|log/i
 

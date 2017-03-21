@@ -7,10 +7,12 @@ require_relative 'andyrb/util'
 require_relative 'andyrb/videoinfo'
 
 files = ARGV.respond_to?(:map) ? ARGV.map { |i| Pathname.new(i) } : Pathname.new(ARGV)
+files.freeze
 
 raise 'No files specified' unless files.length >= 1
 
 files.each do |f|
+  f.freeze
   puts Mood.happy("Deleting #{f.basename}'s entry from the database.")
   del = GenerateVideoInfo::Videoinfo.all(filename: f.basename.to_s)
   del.destroy

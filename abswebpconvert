@@ -60,15 +60,13 @@ end
 
 Args = Options.parse(ARGV)
 ARGV.cleanup!(unique: false)
-# Args.files = ARGV unless Args.sort
-# Args.files = Util::SortEntries.sort(ARGV) if Args.sort
+
 Args.files = Args.sort ? Util.sort(ARGV) : ARGV
 
 Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 Args.lossy = true if !Args.lossy && !Args.lossless
 raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
-# SevenZ = Util::FindApp.which('7za')
-# Convert = Util::FindApp.which('convert')
+Args.freeze
 
 Args.outputdir.mkpath unless Args.outputdir.exist? && Args.outputdir.directory? && !Args.outputdir.file?
 raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory?
@@ -84,10 +82,9 @@ class Command
   attr_reader :list, :outpath, :filepath
   def initialize(filename)
     @filepath = Pathname.new(filename).realpath.freeze
-    ext = @filepath.extname.downcase
+    ext = @filepath.extname.downcase.freeze
     magic = FileMagic.new(:mime_type)
-    @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s
-    @outpath.freeze
+    @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s.freeze
 
     lossless_mime = %w(image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop)
     lossless_mime.cleanup!(unique: false)
@@ -160,6 +157,7 @@ def backuparchive
   else
     if Args.removeoriginal
       paths.each do |file|
+        file.freeze
         puts Mood.happy("Removing #{file}")
         file.delete
       end
@@ -183,7 +181,7 @@ def archive
     # Util::Program.runprogram([SevenZ, 'a', Args.archive, paths.join(' ')])
     Util::FindApp.which('7za') { |z| Util::Program.runprogram(%W(#{z} a #{Args.archive} paths.join(' '))) }
   rescue Subprocess::NonZeroExit, Interrupt => e
-    puts e.message
+    puts e.message.freeze
     raise e
   else
     if Args.removeoriginal
