@@ -9,8 +9,8 @@ begin
   rv = Gem::Version.new(RUBY_VERSION.to_s)
   rvm = Gem::Version.new('2.3.0')
   require 'ruby_dig' if rv < rvm
-rescue LoadError
-  nil
+rescue LoadError => e
+  raise e if rv < rvm
 end
 
 require_relative '../util/recursive_symbolize_keys'
@@ -34,10 +34,9 @@ module VideoInfo
       when inputjson.is_a?(Hash)
         Util.recursive_symbolize_keys(inputjson)
       end
-    jsondata.freeze unless jsondata.frozen?
+    jsondata.freeze unless frozen?
 
-    filepath = Pathname.new(filename)
-    filepath.freeze unless filepath.frozen?
+    filepath = Pathname.new(filename).freeze
 
     calc = Dentaku::Calculator.new
 
@@ -82,56 +81,51 @@ module VideoInfo
 
     hw = lambda do |i|
       return nil unless jsondata[:streams][0][i] || jsondata[:streams][1][i]
-      case
-      when jsondata.respond_to?(:dig)
-        jsondata.dig(:streams, 1, i) ? jsondata[:streams][1][i] : jsondata[:streams][0][i]
-      else
-        jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1][i] ? jsondata[:streams][1][i] : jsondata[:streams][0][i]
-      end
+      jsondata.dig(:streams, 1, i) ? jsondata[:streams][1][i] : jsondata[:streams][0][i]
       # jsondata[:streams][0].is_a?(Hash) && jsondata[:streams][0][i] ? jsondata[:streams][0][i] : nil
     end
 
     brr = lambda do |n|
-      dig = jsondata.respond_to?(:dig)
-      nh = jsondata[:streams][n].is_a?(Hash)
       out =
         case
-        when dig && jsondata.dig(:streams, n, :bit_rate), !dig && nh && jsondata[:streams][n].key?(:bit_rate)
+        when jsondata.dig(:streams, n, :bit_rate)
           jsondata[:streams][n][:bit_rate]
-        when dig && jsondata.dig(:streams, n, :tags, :BPS), !dig && nh && jsondata[:streams][n][:tags].is_a?(Hash) && jsondata[:streams][n][:tags].key?(:BPS)
+        when jsondata.dig(:streams, n, :tags, :BPS)
           jsondata[:streams][n][:tags][:BPS]
         end
       out
     end
 
     outhash = {}
-    outhash[:filename] = filepath.basename.to_s
-    outhash[:filehash] = filehash[filepath.realpath.to_s] if filehash
-    outhash[:container] = jsondata[:format][:format_name]
-    outhash[:duration] = Time.at(jsondata[:format][:duration].to_f).utc.strftime('%H:%M:%S')
-    outhash[:duration_raw] = jsondata[:format][:duration]
-    outhash[:numstreams] = jsondata[:format][:nb_streams]
-    outhash[:bitrate_total] = fs.call(jsondata[:format][:bit_rate])
+    outhash[:filename] = filepath.basename.to_s.freeze
+    outhash[:filehash] = filehash[filepath.realpath.to_s].freeze if filehash
+    outhash[:container] = jsondata[:format][:format_name].freeze
+    outhash[:duration] = Time.at(jsondata[:format][:duration].to_f).utc.strftime('%H:%M:%S').freeze
+    outhash[:duration_raw] = jsondata[:format][:duration].freeze
+    outhash[:numstreams] = jsondata[:format][:nb_streams].freeze
+    outhash[:bitrate_total] = fs.call(jsondata[:format][:bit_rate]).freeze
 
-    outhash[:bitrate_0_raw] = brr.call(0)
-    outhash[:bitrate_0] = outhash[:bitrate_0_raw] ? fs.call(outhash[:bitrate_0_raw]) : nil
-    outhash[:type_0] = jsondata[:streams][0][:codec_type] if jsondata[:streams][0].key?(:codec_type)
-    outhash[:codec_0] = jsondata[:streams][0][:codec_name] if jsondata[:streams][0].key?(:codec_name)
+    outhash[:bitrate_0_raw] = brr.call(0).freeze
+    outhash[:bitrate_0] = outhash[:bitrate_0_raw] ? fs.call(outhash[:bitrate_0_raw]).freeze : nil
+    outhash[:type_0] = jsondata[:streams][0][:codec_type].freeze if jsondata[:streams][0].key?(:codec_type)
+    outhash[:codec_0] = jsondata[:streams][0][:codec_name].freeze if jsondata[:streams][0].key?(:codec_name)
 
-    outhash[:bitrate_1_raw] = brr.call(1) if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash)
-    outhash[:bitrate_1] = outhash[:bitrate_1_raw] ? fs.call(outhash[:bitrate_1_raw]) : nil
-    outhash[:type_1] = jsondata[:streams][1][:codec_type] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_type)
-    outhash[:codec_1] = jsondata[:streams][1][:codec_name] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_name)
+    outhash[:bitrate_1_raw] = brr.call(1).freeze if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash)
+    outhash[:bitrate_1] = outhash[:bitrate_1_raw] ? fs.call(outhash[:bitrate_1_raw]).freeze : nil
+    # outhash[:type_1] = jsondata[:streams][1][:codec_type] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_type)
+    # outhash[:codec_1] = jsondata[:streams][1][:codec_name] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_name)
+    outhash[:type_1] = jsondata[:streams][1][:codec_type].freeze if jsondata.dig(:streams, 1, :codec_type)
+    outhash[:codec_1] = jsondata[:streams][1][:codec_name].freeze if jsondata.dig(:streams, 1, :codec_name)
 
-    outhash[:height] = hw.call(:height)
-    outhash[:width] = hw.call(:width)
+    outhash[:height] = hw.call(:height).freeze
+    outhash[:width] = hw.call(:width).freeze
 
     outhash[:frame_rate] =
       case
       when fr.call(0)
-        frc.call(jsondata[:streams][0][:avg_frame_rate])
+        frc.call(jsondata[:streams][0][:avg_frame_rate]).freeze
       when fr.call(1)
-        frc.call(jsondata[:streams][1][:avg_frame_rate])
+        frc.call(jsondata[:streams][1][:avg_frame_rate]).freeze
       end
     outhash.freeze
     yield outhash if block_given?
