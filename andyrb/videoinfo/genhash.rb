@@ -5,6 +5,14 @@ require 'pathname'
 require 'filesize'
 require 'data_mapper'
 
+begin
+  rv = Gem::Version.new(RUBY_VERSION.to_s)
+  rvm = Gem::Version.new('2.3.0')
+  require 'ruby_dig' if rv < rvm
+rescue LoadError
+  nil
+end
+
 require_relative '../util/recursive_symbolize_keys'
 
 module VideoInfo
@@ -12,13 +20,24 @@ module VideoInfo
     raise 'You must supply either a json string, or a pre-parsed hash' unless inputjson.is_a?(String) || inputjson.is_a?(Hash) || inputjson.is_a?(DataMapper::Collection)
     raise 'filehash must be a Hash or convertable to a hash.' if filehash && !filehash.respond_to?(:to_h)
     filehash = filehash.to_h if filehash && filehash.respond_to?(:to_h) && !filehash.is_a?(Hash)
-    filehash.freeze
+    filehash.freeze unless filehash.frozen?
 
-    jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson)).freeze if inputjson.is_a?(String)
-    jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson[0][:jsondata])).freeze if inputjson.is_a?(DataMapper::Collection)
-    jsondata = Util.recursive_symbolize_keys(inputjson).freeze if inputjson.is_a?(Hash)
+    # jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson)).freeze if inputjson.is_a?(String)
+    # jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson[0][:jsondata])).freeze if inputjson.is_a?(DataMapper::Collection)
+    # jsondata = Util.recursive_symbolize_keys(inputjson).freeze if inputjson.is_a?(Hash)
+    jsondata =
+      case
+      when inputjson.is_a?(String)
+        Util.recursive_symbolize_keys(JSON.parse(inputjson))
+      when inputjson.is_a?(DataMapper::Collection)
+        Util.recursive_symbolize_keys(JSON.parse(inputjson[0][:jsondata]))
+      when inputjson.is_a?(Hash)
+        Util.recursive_symbolize_keys(inputjson)
+      end
+    jsondata.freeze unless jsondata.frozen?
 
-    filepath = Pathname.new(filename).freeze
+    filepath = Pathname.new(filename)
+    filepath.freeze unless filepath.frozen?
 
     calc = Dentaku::Calculator.new
 
