@@ -11,7 +11,8 @@ begin
   rv = Gem::Version.new(RUBY_VERSION.to_s)
   rvm = Gem::Version.new('2.3.0')
   require 'ruby_dig' if rv < rvm
-rescue LoadError
+rescue LoadError => e
+  raise e if rv < rvm
   nil
 end
 
