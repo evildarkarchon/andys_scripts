@@ -5,6 +5,8 @@ require 'pathname'
 require 'filesize'
 require 'data_mapper'
 
+require_relative 'probe'
+
 begin
   rv = Gem::Version.new(RUBY_VERSION.to_s)
   rvm = Gem::Version.new('2.3.0')
@@ -14,25 +16,27 @@ rescue LoadError => e
 end
 
 require_relative '../util/recursive_symbolize_keys'
+require_relative '../mood'
 
 module VideoInfo
-  def self.genhash(filename, inputjson, filehash = nil)
-    raise 'You must supply either a json string, or a pre-parsed hash' unless inputjson.is_a?(String) || inputjson.is_a?(Hash) || inputjson.is_a?(DataMapper::Collection)
+  def self.genhash(filename, inputjson = nil, filehash = nil)
+    ij = inputjson.is_a?(String) || inputjson.is_a?(Hash) || inputjson.is_a?(DataMapper::Collection) || !inputjson ? true : false
+    raise 'You must supply either a json string, or a pre-parsed hash' unless ij
     raise 'filehash must be a Hash or convertable to a hash.' if filehash && !filehash.respond_to?(:to_h)
     filehash = filehash.to_h if filehash && filehash.respond_to?(:to_h) && !filehash.is_a?(Hash)
     filehash.freeze unless filehash.frozen?
 
-    # jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson)).freeze if inputjson.is_a?(String)
-    # jsondata = Util.recursive_symbolize_keys(JSON.parse(inputjson[0][:jsondata])).freeze if inputjson.is_a?(DataMapper::Collection)
-    # jsondata = Util.recursive_symbolize_keys(inputjson).freeze if inputjson.is_a?(Hash)
     jsondata =
       case
-      when inputjson.is_a?(String)
+      when inputjson && inputjson.is_a?(String)
         Util.recursive_symbolize_keys(JSON.parse(inputjson))
-      when inputjson.is_a?(DataMapper::Collection)
+      when inputjson && inputjson.is_a?(DataMapper::Collection)
         Util.recursive_symbolize_keys(JSON.parse(inputjson[0][:jsondata]))
-      when inputjson.is_a?(Hash)
+      when inputjson && inputjson.is_a?(Hash)
         Util.recursive_symbolize_keys(inputjson)
+      when !inputjson
+        puts Mood.neutral { "No json data supplied, running ffprobe on #{File.basename(filename)}" }
+        VideoInfo.probe(File.realpath(filename), verbose: true)
       end
     jsondata.freeze unless frozen?
 
