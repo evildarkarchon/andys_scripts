@@ -4,6 +4,7 @@ require 'pathname'
 
 require_relative '../util/program'
 require_relative '../util/findapp'
+require_relative '../util/recursive_symbolize_keys'
 
 module VideoInfo
   def self.probe(filepath, verbose: false)
@@ -19,7 +20,7 @@ module VideoInfo
       cmd << %w(-loglevel quiet) unless verbose
       out = Util::Program.runprogram(cmd, parse_output: true).to_s
     end
-    out = JSON.parse(out)
+    out = Util.recursive_symbolize_keys(JSON.parse(out))
     out.freeze
     yield out if block_given?
     out
