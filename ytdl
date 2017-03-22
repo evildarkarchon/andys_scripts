@@ -81,11 +81,11 @@ raise 'Somehow, Args.directory is nil' if Args.directory.nil?
 raise 'Somehow, Args.directory is empty' if Args.directory.respond_to?(:empty?) && Args.directory.empty?
 raise 'Somehow, Args.directory is not a Pathname' unless Args.directory.is_a?(Pathname)
 
-OutDir = Args.directory.to_s
+outdir = Args.directory.to_s.freeze
 
-Args.directory &&= Args.directory + Args.date if Args.directory.to_s == '/data/Videos/Youtube' && !Args.no_date
+Args.directory &&= Args.directory + Args.date if outdir == '/data/Videos/Youtube' && !Args.no_date
 
-Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && Args.directory.to_s.include?('/data/Videos/Youtube')
+Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && outdir.include?('/data/Videos/Youtube')
 
 Args.freeze
 
