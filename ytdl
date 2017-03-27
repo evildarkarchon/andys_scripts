@@ -304,14 +304,15 @@ if XSPF_Exists && Args.playlist
   tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   filelist = Files.dup
   filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
+  filelist.delete_if do |i|
+    existing.to_s.include?(i.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
+    existing.to_s.include?(i.relative_path_from(Args.directory).to_s) unless Args.directory.to_s.include?('/data/Videos') && !existing.empty?
+  end
   filelist.freeze
   filelist.each do |file|
     puts Mood.happy { "Adding #{file} to playlist" }
-    exists = false
-    exists = existing.to_s.include?(file.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
-    exists = existing.to_s.include?(file.relative_path_from(Args.directory).to_s) unless Args.directory.to_s.include?('/data/Videos') && !existing.empty?
     track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Args.directory.to_s))
-    tracklist << track unless exists
+    tracklist << track
   end
   playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
   xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
