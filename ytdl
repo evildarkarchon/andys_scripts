@@ -34,7 +34,7 @@ class Options
   def self.parse(args)
     options = OpenStruct.new
     options.date = Time.now.strftime('%Y%m%d').freeze
-    options.time = Time.new.strftime('%Y%m%d_%H%M').freeze
+    options.time = Time.now.strftime('%H%M').freeze
     options.directory = Pathname.new('/data/Videos/Youtube')
     options.subdirectory = nil
     options.no_date = false
@@ -259,10 +259,10 @@ if Args.mux
   end
 end
 
-def genplaylisthash(filename)
+def genplaylisthash(filename, rootdir = '/data/Videos')
   jsondata = VideoInfo.probe(filename)
   filepath = Pathname.new(filename)
-  rootpath = Pathname.new('/data/Videos')
+  rootpath = Pathname.new(rootdir)
   out = {}
   out[:location] = URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s)
   if jsondata.dig(:format, :tags)
@@ -281,20 +281,22 @@ if XSPF_Exists && Args.playlist
   filelist.freeze
   filelist.each do |file|
     puts Mood.happy { "Adding #{file} to playlist" }
-    track = XSPF::Track.new(genplaylisthash(file))
+    track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Args.directory.to_s))
     tracklist << track
   end
   playlist = XSPF::Playlist.new(tracklist: tracklist)
   xspf = XSPF.new(playlist: playlist)
-  playlistloc =
+  outpath =
     case
     when Args.directory.to_s.include?('/data/Videos/Youtube') && Args.subdirectory
-      "/data/Videos/Youtube/Playlists/#{Args.subdirectory}_#{Args.time}.xspf"
+      Pathname.new("/data/Videos/Youtube/Playlists/#{Args.date}/#{Args.subdirectory}_#{Args.time}.xspf")
     when Args.directory.to_s.include?('/data/Videos/Youtube') && !Args.subdirectory
-      "/data/Videos/Youtube/Playlists/#{Args.time}.xspf"
+      Pathname.new("/data/Videos/Youtube/Playlists/#{Args.date}/#{Args.time}.xspf")
     else
-      "#{Args.directory}/Playlists/#{Args.time}.xspf"
+      Pathname.new("#{Args.directory}/Playlists/#{Args.date}/#{Args.time}.xspf")
     end
+  playlistloc = outpath.to_s
+  outpath.dirname.mkpath
   File.open(playlistloc, 'w') do |f|
     puts Mood.happy { "Writing playlist to #{playlistloc}" } unless Args.pretend
     f.write(xspf.to_xml) unless Args.pretend
