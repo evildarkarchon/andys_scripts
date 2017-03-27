@@ -26,7 +26,12 @@ class Options
     options.backup = nil
     options.nobackup = false
     options.archive = nil
-    options.backuparchive = Pathname.getwd.join("Original Files/#{Pathname.getwd.basename}.7z").to_s
+    # options.backuparchive = Pathname.getwd.join("Original Files/#{Pathname.getwd.basename}.7z").to_s
+    cwd = Pathname.getwd
+    # options.backuparchive = Dir.getwd + "Original Files/#{File.basename(Dir.getwd)}.7z" unless Dir.getwd.include?('Just Downloaded')
+    # options.backuparchive = (Pathname.getwd.parent + "Original Files/#{File.basename(Dir.getwd)}.7z").to_s if Dir.getwd.include?('Just Downloaded')
+    options.backuparchive = (cwd + 'Original Files' + "#{cwd.basename}.7z").to_s unless cwd.to_s.include?('Just Downloaded')
+    options.backuparchive = (cwd.parent + 'Original Files' + "#{cwd.parent.basename}.7z").to_s if cwd.to_s.include?('Just Downloaded')
     options.removeoriginal = true
     options.force = false
     options.sort = true
