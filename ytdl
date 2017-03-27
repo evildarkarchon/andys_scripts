@@ -298,7 +298,7 @@ if XSPF_Exists && Args.playlist
     playlist = xspf.playlist
     tracklist = playlist.tracklist
     existing = tracklist.tracks
-    existing.map!(&:location)
+    existing.map!(&:location) if existing.respond_to?(:map!) && !existing.empty?
     o.close
   end
   tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
