@@ -8,12 +8,19 @@ require 'uri'
 require 'json'
 
 begin
-  rv = Gem::Version.new(RUBY_VERSION.to_s)
+  rv = Gem::Version.new(RUBY_VERSION.to_s.freeze)
   rvm = Gem::Version.new('2.3.0')
   require 'ruby_dig' if rv < rvm
 rescue LoadError => e
   raise e if rv < rvm
-  nil
+end
+
+begin
+  require 'xspf'
+rescue LoadError
+  XSPF_Exists = false
+else
+  XSPF_Exists = true
 end
 
 require_relative 'andyrb/videoinfo/probe'
@@ -26,7 +33,8 @@ require_relative 'andyrb/util/recursive_symbolize_keys'
 class Options
   def self.parse(args)
     options = OpenStruct.new
-    options.date = Time.now.strftime("%Y%m%d").freeze # rubocop:disable Style/StringLiterals, Lint/UnneededDisable
+    options.date = Time.now.strftime('%Y%m%d').freeze
+    options.time = Time.new.strftime('%Y%m%d_%H%M').freeze
     options.directory = Pathname.new('/data/Videos/Youtube')
     options.subdirectory = nil
     options.no_date = false
@@ -41,6 +49,7 @@ class Options
     options.keep_split = false
     options.ffmpegdl = false
     options.webm = false
+    options.playlist = true
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -48,18 +57,19 @@ class Options
       opts.on('-s', '--subdirectory [SUBDIRECTORY]', 'Optional subdirectory to tack on the end (only used if directory is set to the default)') { |dir| options.subdirectory = dir.to_s.freeze }
       opts.on('-n', '--no-date', "Don't create a subdirectory with the date (only needed if directory is set to the default)") { options.no_date = true }
       opts.on('-f', '--force', "Don't add the url(s) to the list of succesfully downloaded videos or read from said list.") { options.force = true }
-      opts.on('--pretend', '-p', "Don't actually run youtube-dl or mkvpropedit") { options.pretend = true } # Mostly for testing code that doesn't rely on the programs actually running.
-      opts.on('--mkv-only', "Don't run youtube-dl but run mkvpropedit.") { options.mkv_only = true }
+      opts.on('-p', '--pretend', "Don't actually run youtube-dl or mkvpropedit") { options.pretend = true } # Mostly for testing code that doesn't rely on the programs actually running.
+      opts.on('--no-download', "Run operations that don't require downloading.") { options.mkv_only = true }
       opts.on('--no-stats', "Don't calculate statistics for MKV files.") { options.stats = false }
       opts.on('--webm', 'use webm instead of mkv for merging files (videos that have separate files per stream).') { options.webm = true }
-      opts.on('--mux', '-m', 'mux non-mkv files') { options.mux = true }
-      opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| options.config = c.freeze } # Reusing the convertmkv config file since the options used are the same.
-      opts.on('--keep-original', '-k', 'Keep the original file if muxing non-mkv files.') { options.keep_original = true }
-      opts.on('--keep-split', '-ks', 'Keep the original split download files (if there are any)') do
+      opts.on('-m', '--mux', 'mux non-mkv files') { options.mux = true }
+      opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| options.config = c } # Reusing the convertmkv config file since the options used are the same.
+      opts.on('-k', '--keep-original', 'Keep the original file if muxing non-mkv files.') { options.keep_original = true }
+      opts.on('-ks', '--keep-split', 'Keep the original split download files (if there are any)') do
         options.keep_split = true
         options.no_mux = true
       end
-      opts.on('--ffmpeg-download', 'Download using ffmpeg (hoping this will fix certain video downloads)') { options.ffmpegdl = true }
+      opts.on('--ffmpeg-download', 'Download using ffmpeg') { options.ffmpegdl = true } # hoping this will fix certain video downloads
+      opts.on('--no-playlist', "Don't create a playlist") { options.playlist = false }
     end
     optparse.parse!(args)
     options
@@ -70,7 +80,7 @@ ARGV.cleanup!
 Args = Options.parse(ARGV)
 puts Args if Args.pretend
 
-Urls = ARGV
+Urls = ARGV.dup
 Urls.keep_if { |url| url.is_a?(String) }
 Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
 Urls.freeze
@@ -88,8 +98,7 @@ Args.directory &&= Args.directory + Args.date if outdir == '/data/Videos/Youtube
 Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && outdir.include?('/data/Videos/Youtube')
 
 Args.freeze
-
-OutDir = Args.directory.to_s.freeze
+Args.directory.freeze
 
 puts Mood.neutral { "Is Args frozen? #{Args.frozen?}" } if Args.pretend
 # puts Args.frozen? if Args.pretend
@@ -109,8 +118,8 @@ Util::FindApp.which('youtube-dl') do |yt|
   yt.freeze
   raise "Couldn't find youtube-dl" unless yt
   raise 'youtube-dl is not executable' unless yt && File.executable?(yt)
-
-  archdir = Args.directory.parent.parent.freeze if Args.subdirectory && OutDir.include?('/data/Videos/Youtube') && !Args.no_date
+  outdir = Args.directory.to_s.freeze
+  archdir = Args.directory.parent.parent.freeze if Args.subdirectory && outdir.include?('/data/Videos/Youtube') && !Args.no_date
 
   archive =
     case
@@ -120,7 +129,7 @@ Util::FindApp.which('youtube-dl') do |yt|
     when !Args.no_date && archdir
       puts Mood.neutral { 'Archive in subdirectory parent' } if Args.pretend
       archdir + 'downloaded.txt'
-    when !Args.no_date && OutDir.include?('/data/Videos/Youtube')
+    when !Args.no_date && outdir.include?('/data/Videos/Youtube')
       puts Mood.neutral { 'Archive in parent directory' } if Args.pretend
       Args.directory.parent + 'downloaded.txt'
     else
@@ -139,12 +148,11 @@ Util::FindApp.which('youtube-dl') do |yt|
   ytdl.cleanup!(unique: false)
   ytdl.freeze
 
-  Util::Program.runprogram(ytdl, workdir: OutDir) unless Args.pretend || Args.mkv_only
+  Util::Program.runprogram(ytdl, workdir: outdir) unless Args.pretend || Args.mkv_only
   print "#{ytdl}\n" if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
 end
 
 Files = Args.directory.find.to_a
-
 puts Mood.neutral('Step 1:') if Args.pretend
 print "#{Files}\n" if Args.pretend
 puts Mood.neutral('No files found in this directory, will not do any statistics calculation or muxing.') if Files.nil? || Files.empty?
@@ -249,4 +257,47 @@ if Args.mux
       end
     end
   end
+end
+
+def genplaylisthash(filename)
+  jsondata = VideoInfo.probe(filename)
+  filepath = Pathname.new(filename)
+  rootpath = Pathname.new('/data/Videos')
+  out = {}
+  if jsondata.dig(:format, :tags)
+    out[:location] = URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s)
+    out[:title] = jsondata[:format][:tags][:title] if jsondata.dig(:format, :tags, :title)
+    out[:annotation] = jsondata[:format][:tags][:DESCRIPTION] if jsondata.dig(:format, :tags, :DESCRIPTION)
+    out[:creator] = jsondata[:format][:tags][:ARTIST] if jsondata.dig(:format, :tags, :ARTIST)
+    out[:duration] = jsondata[:format][:duration].to_f.round.to_s if jsondata.dig(:format, :duration)
+  end
+  out
+end
+
+if XSPF_Exists && Args.playlist
+  tracklist = XSPF::Tracklist.new
+  filelist = Files.dup
+  filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
+  filelist.freeze
+  filelist.each do |file|
+    puts Mood.happy { "Adding #{file} to playlist" }
+    track = XSPF::Track.new(genplaylisthash(file))
+    tracklist << track
+  end
+  playlist = XSPF::Playlist.new(tracklist: tracklist)
+  xspf = XSPF.new(playlist: playlist)
+  playlistloc =
+    case
+    when Args.directory.to_s.include?('/data/Videos/Youtube') && Args.subdirectory
+      "/data/Videos/Youtube/Playlists/#{Args.subdirectory}_#{Args.time}.xspf"
+    when Args.directory.to_s.include?('/data/Videos/Youtube') && !Args.subdirectory
+      "/data/Videos/Youtube/Playlists/#{Args.time}.xspf"
+    else
+      "#{Args.directory}/Playlists/#{Args.time}.xspf"
+    end
+  File.open(playlistloc, 'w') do |f|
+    puts Mood.happy { "Writing playlist to #{playlistloc}" } unless Args.pretend
+    f.write(xspf.to_xml) unless Args.pretend
+  end
+  puts xspf.to_xml if Args.pretend
 end
