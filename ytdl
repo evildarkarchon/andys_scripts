@@ -34,7 +34,7 @@ class Options
   def self.parse(args)
     options = OpenStruct.new
     options.date = Time.now.strftime('%Y%m%d').freeze
-    options.time = Time.now.strftime('%H%M').freeze
+    # options.time = Time.now.strftime('%H%M').freeze
     options.directory = Pathname.new('/data/Videos/Youtube')
     options.subdirectory = nil
     options.no_date = false
@@ -50,6 +50,7 @@ class Options
     options.ffmpegdl = false
     options.webm = false
     options.playlist = true
+    options.playlistpath = nil
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -70,6 +71,7 @@ class Options
       end
       opts.on('--ffmpeg-download', 'Download using ffmpeg') { options.ffmpegdl = true } # hoping this will fix certain video downloads
       opts.on('--no-playlist', "Don't create a playlist") { options.playlist = false }
+      opts.on('--playlist-path [FILE]', 'Location to save the playlist') { |i| options.playlistpath = Pathname.new(i) }
     end
     optparse.parse!(args)
     options
@@ -275,31 +277,51 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
 end
 
 if XSPF_Exists && Args.playlist
-  tracklist = XSPF::Tracklist.new
+  outpath =
+    case
+    when Args.playlistpath
+      Args.playlistpath
+    when Args.directory.to_s.include?('/data/Videos/Youtube') && Args.subdirectory
+      Pathname.new("/data/Videos/Youtube/Playlists/#{Args.subdirectory}/#{Args.date}.xspf")
+    when Args.directory.to_s.include?('/data/Videos/Youtube') && !Args.subdirectory
+      Pathname.new("/data/Videos/Youtube/Playlists/#{Args.date}.xspf")
+    else
+      Pathname.new("#{Args.directory}/Playlists/#{Args.date}.xspf")
+    end
+  tracklist = nil
+  playlist = nil
+  xspf = nil
+  existing = []
+  if outpath.exist?
+    o = File.new(outpath.to_s)
+    xspf = XSPF.new(o)
+    playlist = xspf.playlist
+    tracklist = playlist.tracklist
+    existing = tracklist.tracks
+    existing.map!(&:location)
+    o.close
+  end
+  tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   filelist = Files.dup
   filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
   filelist.freeze
   filelist.each do |file|
     puts Mood.happy { "Adding #{file} to playlist" }
+    exists = false
+    exists = existing.to_s.include?(file.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
+    exists = existing.to_s.include?(file.relative_path_from(Args.directory).to_s) unless Args.directory.to_s.include?('/data/Videos') && !existing.empty?
     track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Args.directory.to_s))
-    tracklist << track
+    tracklist << track unless exists
   end
-  playlist = XSPF::Playlist.new(tracklist: tracklist)
-  xspf = XSPF.new(playlist: playlist)
-  outpath =
-    case
-    when Args.directory.to_s.include?('/data/Videos/Youtube') && Args.subdirectory
-      Pathname.new("/data/Videos/Youtube/Playlists/#{Args.date}/#{Args.subdirectory}_#{Args.time}.xspf")
-    when Args.directory.to_s.include?('/data/Videos/Youtube') && !Args.subdirectory
-      Pathname.new("/data/Videos/Youtube/Playlists/#{Args.date}/#{Args.time}.xspf")
-    else
-      Pathname.new("#{Args.directory}/Playlists/#{Args.date}/#{Args.time}.xspf")
+  playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
+  xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
+
+  outpath.dirname.mkpath unless Args.pretend
+  unless Args.pretend
+    File.open(outpath.to_s, 'w') do |f|
+      puts Mood.happy { "Writing playlist to #{outpath}" }
+      f.write(xspf.to_xml)
     end
-  playlistloc = outpath.to_s
-  outpath.dirname.mkpath
-  File.open(playlistloc, 'w') do |f|
-    puts Mood.happy { "Writing playlist to #{playlistloc}" } unless Args.pretend
-    f.write(xspf.to_xml) unless Args.pretend
   end
   puts xspf.to_xml if Args.pretend
 end
