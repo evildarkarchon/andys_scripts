@@ -42,7 +42,7 @@ class Options
     options.pretend = false
     options.stats = true
     options.archive = nil
-    options.mkv_only = false
+    options.no_download = false
     options.mux = false
     options.config = Pathname.new(Dir.home) + '.config/convertmkv.json'
     options.keep_original = false
@@ -51,6 +51,7 @@ class Options
     options.webm = false
     options.playlist = true
     options.playlistpath = nil
+    options.resetplaylist = false
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -59,7 +60,7 @@ class Options
       opts.on('-n', '--no-date', "Don't create a subdirectory with the date (only needed if directory is set to the default)") { options.no_date = true }
       opts.on('-f', '--force', "Don't add the url(s) to the list of succesfully downloaded videos or read from said list.") { options.force = true }
       opts.on('-p', '--pretend', "Don't actually run youtube-dl or mkvpropedit") { options.pretend = true } # Mostly for testing code that doesn't rely on the programs actually running.
-      opts.on('--no-download', "Run operations that don't require downloading.") { options.mkv_only = true }
+      opts.on('--no-download', "Run operations that don't require downloading.") { options.no_download = true }
       opts.on('--no-stats', "Don't calculate statistics for MKV files.") { options.stats = false }
       opts.on('--webm', 'use webm instead of mkv for merging files (videos that have separate files per stream).') { options.webm = true }
       opts.on('-m', '--mux', 'mux non-mkv files') { options.mux = true }
@@ -72,6 +73,7 @@ class Options
       opts.on('--ffmpeg-download', 'Download using ffmpeg') { options.ffmpegdl = true } # hoping this will fix certain video downloads
       opts.on('--no-playlist', "Don't create a playlist") { options.playlist = false }
       opts.on('--playlist-path [FILE]', 'Location to save the playlist') { |i| options.playlistpath = Pathname.new(i) }
+      opts.on('--reset-playlist', 'Do not modify an existing playlist (if it exists)') { options.resetplaylist = true }
     end
     optparse.parse!(args)
     options
@@ -88,7 +90,7 @@ Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
 Urls.freeze
 print "#{Urls}\n" if Args.pretend
 
-raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend && !Args.mkv_only
+raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend && !Args.no_download
 raise 'Somehow, Args.directory is nil' if Args.directory.nil?
 raise 'Somehow, Args.directory is empty' if Args.directory.respond_to?(:empty?) && Args.directory.empty?
 raise 'Somehow, Args.directory is not a Pathname' unless Args.directory.is_a?(Pathname)
@@ -150,8 +152,8 @@ Util::FindApp.which('youtube-dl') do |yt|
   ytdl.cleanup!(unique: false)
   ytdl.freeze
 
-  Util::Program.runprogram(ytdl, workdir: outdir) unless Args.pretend || Args.mkv_only
-  print "#{ytdl}\n" if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.mkv_only
+  Util::Program.runprogram(ytdl, workdir: outdir) unless Args.pretend || Args.no_download
+  print "#{ytdl}\n" if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.no_download
 end
 
 Files = Args.directory.find.to_a
@@ -292,7 +294,7 @@ if XSPF_Exists && Args.playlist
   playlist = nil
   xspf = nil
   existing = []
-  if outpath.exist?
+  if outpath.exist? && !Args.resetplaylist
     o = File.new(outpath.to_s)
     xspf = XSPF.new(o)
     playlist = xspf.playlist
@@ -304,7 +306,7 @@ if XSPF_Exists && Args.playlist
   tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   filelist = Files.dup
   filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
-  unless existing.empty?
+  unless existing.empty? || Args.resetplaylist
     filelist.delete_if do |i|
       existing.to_s.include?(i.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
       existing.to_s.include?(i.relative_path_from(Args.directory).to_s) unless Args.directory.to_s.include?('/data/Videos') && !existing.empty?
