@@ -278,7 +278,37 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   out
 end
 
-def genplaylist(files)
+def genplaylist(files, out)
+  tracklist = nil
+  playlist = nil
+  xspf = nil
+  tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
+  if out.exist? && !Args.resetplaylist
+    o = File.new(out.to_s)
+    xspf = XSPF.new(o)
+    playlist = xspf.playlist
+    tracklist = playlist.tracklist
+    o.close
+  end
+  files.each do |file|
+    puts Mood.happy { "Adding #{file} to playlist" }
+    track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Args.directory.to_s))
+    tracklist << track
+  end
+  playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
+  xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
+  puts Mood.happy { "Creating Directory #{outpath.dirname}" } unless Args.pretend || out.dirname.exist?
+  out.dirname.mkpath unless Args.pretend
+  unless Args.pretend
+    File.open(out.to_s, 'w') do |f|
+      puts Mood.happy { "Writing playlist to #{outpath}" }
+      f.write(xspf.to_xml)
+    end
+  end
+  puts xspf.to_xml if Args.pretend
+end
+
+if XSPF_Exists && Args.playlist
   outpath =
     case
     when Args.playlistpath
@@ -290,11 +320,14 @@ def genplaylist(files)
     else
       Pathname.new("#{Args.directory}/Playlists/#{Args.date}.xspf")
     end
-  tracklist = nil
-  playlist = nil
-  xspf = nil
+
+  whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
+  whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
+  whitelist += %w(video/webm video/x-matroska audio/x-matroska)
+  whitelist.freeze
+  magic = FileMagic.new(:mime_type)
+
   existing = []
-  tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   if outpath.exist? && !Args.resetplaylist
     o = File.new(outpath.to_s)
     xspf = XSPF.new(o)
@@ -304,30 +337,6 @@ def genplaylist(files)
     existing.map!(&:location) if existing.respond_to?(:map!) && !existing.empty?
     o.close
   end
-  files.each do |file|
-    puts Mood.happy { "Adding #{file} to playlist" }
-    track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Args.directory.to_s))
-    tracklist << track
-  end
-  playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
-  xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
-  puts Mood.happy { "Creating Directory #{outpath.dirname}" } unless Args.pretend || outpath.dirname.exist?
-  outpath.dirname.mkpath unless Args.pretend
-  unless Args.pretend
-    File.open(outpath.to_s, 'w') do |f|
-      puts Mood.happy { "Writing playlist to #{outpath}" }
-      f.write(xspf.to_xml)
-    end
-  end
-  puts xspf.to_xml if Args.pretend
-end
-
-if XSPF_Exists && Args.playlist
-  whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
-  whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
-  whitelist += %w(video/webm video/x-matroska audio/x-matroska)
-  whitelist.freeze
-  magic = FileMagic.new(:mime_type)
 
   # tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   filelist = Files.dup
@@ -342,7 +351,6 @@ if XSPF_Exists && Args.playlist
   filelist.keep_if do |file|
     whitelist.include?(magic.file(file.to_s))
   end
-  filelist.freeze
   puts Mood.neutral { 'No files to add to the playlist' } if filelist.empty?
-  genplaylist(filelist) unless filelist.empty?
+  genplaylist(filelist, outpath) unless filelist.empty?
 end
