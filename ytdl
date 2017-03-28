@@ -279,6 +279,10 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
 end
 
 if XSPF_Exists && Args.playlist
+  whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
+  whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
+  whitelist.freeze
+  magic = FileMagic.new(:mime_type)
   outpath =
     case
     when Args.playlistpath
@@ -312,6 +316,9 @@ if XSPF_Exists && Args.playlist
       existing.to_s.include?(i.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
       existing.to_s.include?(i.relative_path_from(Args.directory).to_s) unless Args.directory.to_s.include?('/data/Videos') && !existing.empty?
     end
+  end
+  filelist.keep_if do |file|
+    whitelist.include?(magic.file(file.to_s))
   end
   filelist.freeze
   filelist.each do |file|
