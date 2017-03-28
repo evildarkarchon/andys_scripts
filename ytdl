@@ -6,6 +6,7 @@ require 'pathname'
 require 'filemagic'
 require 'uri'
 require 'json'
+require 'cgi'
 
 begin
   rv = Gem::Version.new(RUBY_VERSION.to_s.freeze)
@@ -271,7 +272,7 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   out[:location] = URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s)
   if jsondata.dig(:format, :tags)
     out[:title] = jsondata[:format][:tags][:title] if jsondata.dig(:format, :tags, :title)
-    out[:annotation] = jsondata[:format][:tags][:DESCRIPTION] if jsondata.dig(:format, :tags, :DESCRIPTION)
+    out[:annotation] = CGI.escapeHTML(jsondata[:format][:tags][:DESCRIPTION]).gsub("'", '&apos;') if jsondata.dig(:format, :tags, :DESCRIPTION)
     out[:creator] = jsondata[:format][:tags][:ARTIST] if jsondata.dig(:format, :tags, :ARTIST)
     out[:duration] = jsondata[:format][:duration].to_f.round.to_s if jsondata.dig(:format, :duration)
   end
@@ -283,7 +284,7 @@ def genplaylist(files, out)
   playlist = nil
   xspf = nil
   tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
-  if out.exist? && !Args.resetplaylist
+  if out.respond_to?(:exist?) && out.exist? && !Args.resetplaylist
     o = File.new(out.to_s)
     xspf = XSPF.new(o)
     playlist = xspf.playlist
@@ -297,18 +298,19 @@ def genplaylist(files, out)
   end
   playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
   xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
-  puts Mood.happy { "Creating Directory #{outpath.dirname}" } unless Args.pretend || out.dirname.exist?
+  puts Mood.happy { "Creating Directory #{out.dirname}" } unless Args.pretend || out.dirname.exist?
   out.dirname.mkpath unless Args.pretend
   unless Args.pretend
     File.open(out.to_s, 'w') do |f|
-      puts Mood.happy { "Writing playlist to #{outpath}" }
+      puts Mood.happy { "Writing playlist to #{out}" }
       f.write(xspf.to_xml)
     end
   end
   puts xspf.to_xml if Args.pretend
 end
 
-if XSPF_Exists && Args.playlist
+def genplfilelist
+  raise Errno::ENOENT unless Args.directory.exist?
   outpath =
     case
     when Args.playlistpath
@@ -335,6 +337,7 @@ if XSPF_Exists && Args.playlist
     tracklist = playlist.tracklist
     existing = tracklist.tracks
     existing.map!(&:location) if existing.respond_to?(:map!) && !existing.empty?
+    # puts existing
     o.close
   end
 
@@ -344,13 +347,24 @@ if XSPF_Exists && Args.playlist
   filelist.keep_if { |i| i.dirname.to_s == Args.directory.to_s }
   unless existing.empty? || Args.resetplaylist
     filelist.delete_if do |i|
-      existing.to_s.include?(i.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
-      existing.to_s.include?(i.relative_path_from(Args.directory).to_s) unless Args.directory.to_s.include?('/data/Videos') && !existing.empty?
+      b = existing.to_s.include?(URI.escape(i.relative_path_from(Pathname.new('/data/Videos')).to_s)) if Args.directory.to_s.include?('/data/Videos')
+      b = existing.to_s.include?(URI.escape(i.relative_path_from(Args.directory).to_s)) unless Args.directory.to_s.include?('/data/Videos')
+      # puts Mood.neutral { "Removing #{i} from file list" } if b
+      b
     end
   end
   filelist.keep_if do |file|
     whitelist.include?(magic.file(file.to_s))
   end
   puts Mood.neutral { 'No files to add to the playlist' } if filelist.empty?
+  puts filelist if Args.pretend
+  puts outpath if Args.pretend
+  out = [filelist, outpath]
+  puts out if Args.pretend
+  out
+end
+
+if XSPF_Exists && Args.playlist
+  filelist, outpath = genplfilelist
   genplaylist(filelist, outpath) unless filelist.empty?
 end
