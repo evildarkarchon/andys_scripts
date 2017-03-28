@@ -305,7 +305,8 @@ if XSPF_Exists && Args.playlist
   end
   tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   filelist = Files.dup
-  filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
+  # filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
+  filelist.keep_if { |i| i.dirname.to_s == Args.directory.to_s }
   unless existing.empty? || Args.resetplaylist
     filelist.delete_if do |i|
       existing.to_s.include?(i.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
