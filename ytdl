@@ -278,12 +278,7 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   out
 end
 
-if XSPF_Exists && Args.playlist
-  whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
-  whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
-  whitelist += %w(video/webm video/x-matroska audio/x-matroska)
-  whitelist.freeze
-  magic = FileMagic.new(:mime_type)
+def genplaylist(files)
   outpath =
     case
     when Args.playlistpath
@@ -299,6 +294,7 @@ if XSPF_Exists && Args.playlist
   playlist = nil
   xspf = nil
   existing = []
+  tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   if outpath.exist? && !Args.resetplaylist
     o = File.new(outpath.to_s)
     xspf = XSPF.new(o)
@@ -308,21 +304,7 @@ if XSPF_Exists && Args.playlist
     existing.map!(&:location) if existing.respond_to?(:map!) && !existing.empty?
     o.close
   end
-  tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
-  filelist = Files.dup
-  # filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
-  filelist.keep_if { |i| i.dirname.to_s == Args.directory.to_s }
-  unless existing.empty? || Args.resetplaylist
-    filelist.delete_if do |i|
-      existing.to_s.include?(i.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
-      existing.to_s.include?(i.relative_path_from(Args.directory).to_s) unless Args.directory.to_s.include?('/data/Videos') && !existing.empty?
-    end
-  end
-  filelist.keep_if do |file|
-    whitelist.include?(magic.file(file.to_s))
-  end
-  filelist.freeze
-  filelist.each do |file|
+  files.each do |file|
     puts Mood.happy { "Adding #{file} to playlist" }
     track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Args.directory.to_s))
     tracklist << track
@@ -338,4 +320,29 @@ if XSPF_Exists && Args.playlist
     end
   end
   puts xspf.to_xml if Args.pretend
+end
+
+if XSPF_Exists && Args.playlist
+  whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
+  whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
+  whitelist += %w(video/webm video/x-matroska audio/x-matroska)
+  whitelist.freeze
+  magic = FileMagic.new(:mime_type)
+
+  # tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
+  filelist = Files.dup
+  # filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
+  filelist.keep_if { |i| i.dirname.to_s == Args.directory.to_s }
+  unless existing.empty? || Args.resetplaylist
+    filelist.delete_if do |i|
+      existing.to_s.include?(i.relative_path_from(Pathname.new('/data/Videos')).to_s) if Args.directory.to_s.include?('/data/Videos') && !existing.empty?
+      existing.to_s.include?(i.relative_path_from(Args.directory).to_s) unless Args.directory.to_s.include?('/data/Videos') && !existing.empty?
+    end
+  end
+  filelist.keep_if do |file|
+    whitelist.include?(magic.file(file.to_s))
+  end
+  filelist.freeze
+  puts Mood.neutral { 'No files to add to the playlist' } if filelist.empty?
+  genplaylist(filelist) unless filelist.empty?
 end
