@@ -321,7 +321,7 @@ if XSPF_Exists && Args.playlist
   end
   playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
   xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
-
+  puts Mood.happy { "Creating Directory #{outpath.dirname}" } unless Args.pretend || outpath.dirname.exist?
   outpath.dirname.mkpath unless Args.pretend
   unless Args.pretend
     File.open(outpath.to_s, 'w') do |f|
