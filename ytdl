@@ -230,6 +230,7 @@ if Args.mux
     mkvm.freeze
     raise "Couldn't find mkvmerge" unless mkvm
     raise 'mkvmerge is not executable' unless mkvm && File.executable?(mkvm)
+
     config =
       case
       when Args.config.exist?
@@ -268,14 +269,16 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   jsondata = VideoInfo.probe(filename)
   filepath = Pathname.new(filename)
   rootpath = Pathname.new(rootdir)
-  out = {}
-  out[:location] = URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s)
+
+  out = { location: URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s).gsub("'", %q(\\')) } # rubocop:disable Style/UnneededPercentQ
+
   if jsondata.dig(:format, :tags)
-    out[:title] = jsondata[:format][:tags][:title] if jsondata.dig(:format, :tags, :title)
+    out[:title] = jsondata[:format][:tags][:title].gsub("'", %q(\\')) if jsondata.dig(:format, :tags, :title) # rubocop:disable Style/UnneededPercentQ
     out[:annotation] = CGI.escapeHTML(jsondata[:format][:tags][:DESCRIPTION]).gsub("'", '&apos;') if jsondata.dig(:format, :tags, :DESCRIPTION)
     out[:creator] = jsondata[:format][:tags][:ARTIST] if jsondata.dig(:format, :tags, :ARTIST)
     out[:duration] = jsondata[:format][:duration].to_f.round.to_s if jsondata.dig(:format, :duration)
   end
+
   out
 end
 
@@ -283,6 +286,7 @@ def genplaylist(files, out)
   tracklist = nil
   playlist = nil
   xspf = nil
+
   tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   if out.respond_to?(:exist?) && out.exist? && !Args.resetplaylist
     o = File.new(out.to_s)
@@ -291,15 +295,19 @@ def genplaylist(files, out)
     tracklist = playlist.tracklist
     o.close
   end
+
   files.each do |file|
     puts Mood.happy { "Adding #{file} to playlist" }
     track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Args.directory.to_s))
     tracklist << track
   end
+
   playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
   xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
+
   puts Mood.happy { "Creating Directory #{out.dirname}" } unless Args.pretend || out.dirname.exist?
   out.dirname.mkpath unless Args.pretend
+
   unless Args.pretend
     File.open(out.to_s, 'w') do |f|
       puts Mood.happy { "Writing playlist to #{out}" }
