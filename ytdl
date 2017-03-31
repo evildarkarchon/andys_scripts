@@ -53,6 +53,7 @@ class Options
     options.playlist = true
     options.playlistpath = nil
     options.resetplaylist = false
+    options.no_blacklist = false
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -75,6 +76,7 @@ class Options
       opts.on('--no-playlist', "Don't create a playlist") { options.playlist = false }
       opts.on('--playlist-path [FILE]', 'Location to save the playlist') { |i| options.playlistpath = Pathname.new(i) }
       opts.on('--reset-playlist', 'Do not modify an existing playlist (if it exists)') { options.resetplaylist = true }
+      opts.on('--no-blacklist', 'Do not put downloaded files in the playlist blacklist if playlist creation (or modification) is disabled.') { options.no_blacklist = true }
     end
     optparse.parse!(args)
     options
@@ -138,7 +140,7 @@ filenames = lambda do
 end
 FileNames = filenames.call.freeze
 
-unless Args.playlist
+unless Args.playlist || Args.no_blacklist
   filenames = FileNames.dup
   n = Args.directory + 'no-playlist.txt'
   n.open('a') do |x|
@@ -402,7 +404,7 @@ def genplfilelist(filelist)
     end
   end
   unless (blacklist && blacklist.respond_to?(:empty?) && blacklist.empty?) || Args.resetplaylist
-    filelist.delete_if { |i| blacklist.to_s.include?(i) }
+    filelist.delete_if { |i| blacklist.to_s.include?(i.to_s) }
   end
   filelist.keep_if do |file|
     whitelist.include?(magic.file(file.to_s))
