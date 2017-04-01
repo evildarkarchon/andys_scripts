@@ -368,6 +368,7 @@ def genplaylist(files, out)
       f.write(xspf.to_xml)
     end
   end
+  puts Mood.neutral { 'Playlist XML Content:' }
   puts xspf.to_xml if Args.pretend
 end
 
