@@ -96,7 +96,8 @@ urls = lambda do
   out
 end
 Urls = urls.call.freeze
-print "#{Urls}\n" if Args.pretend
+# print "#{Urls}\n" if Args.pretend
+puts Urls.inspect if Args.pretend
 
 raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend && !Args.no_download
 
@@ -146,7 +147,8 @@ filenames = lambda do
 end
 FileNames = filenames.call.freeze
 puts Mood.neutral { 'Filenames for downloaded videos:' }
-print "#{FileNames}\n" if Args.pretend
+# print "#{FileNames}\n" if Args.pretend
+puts FileNames.inspect if Args.pretend
 
 unless Args.playlist || Args.no_blacklist
   filenames = FileNames.dup
@@ -196,14 +198,15 @@ Util::FindApp.which('youtube-dl') do |yt|
   ytdl.freeze
 
   Util::Program.runprogram(ytdl, workdir: outdir) unless Args.pretend || Args.no_download
-  print "#{ytdl}\n" if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.no_download
+  puts ytdl.inspect if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.no_download
 end
 
 files = lambda do
   out = Directory.find.to_a
   puts Mood.neutral('Step 1:') if Args.pretend
-  print "#{out}\n" if Args.pretend
-  puts Mood.neutral('No files found in this directory, will not do any statistics calculation or muxing.') if out.nil? || out.empty?
+  # print "#{out}\n" if Args.pretend
+  puts out.inspect if Args.pretend
+  puts Mood.neutral('No files found in this directory, will not do any statistics calculation, muxing, or playlist creation/modification.') if out.nil? || out.empty?
   out.keep_if(&:file?)
 end
 
@@ -218,7 +221,8 @@ def genstatsfl(mkv)
     whitelist.include?(magic.file(file.to_s))
   end
   puts Mood.neutral('Step 2 (stats):') if Args.pretend
-  print "#{mkv}\n" if Args.pretend
+  # print "#{mkv}\n" if Args.pretend
+  puts mkv.inspect if Args.pretend
   mkv.delete_if do |file|
     file.freeze
     jsondata = VideoInfo.probe(file)
@@ -227,7 +231,8 @@ def genstatsfl(mkv)
   end
   mkv.freeze
   puts Mood.neutral('Step 3 (stats):') if Args.pretend
-  print "#{mkv}\n" if Args.pretend
+  # print "#{mkv}\n" if Args.pretend
+  puts mkv.inspect if Args.pretend
   puts Mood.neutral('No matroska files to calculate statistics for.') if mkv.nil? || mkv.empty?
   mkv
 end
@@ -243,7 +248,8 @@ def genstats(filelist)
         cmd = %W(#{mpe} --add-track-statistics-tags #{file}).freeze
         begin
           Util::Program.runprogram(cmd) unless Args.pretend
-          print "#{cmd}\n" if Args.pretend
+          # print "#{cmd}\n" if Args.pretend
+          puts cmd.inspect if Args.pretend
         rescue Subprocess::NonZeroExit => e
           puts e.message
           next
@@ -265,7 +271,8 @@ def genmuxfl(muxfiles)
     blacklist.include?(magic.file(file.to_s))
   end
   puts Mood.neutral('Step 2 (mux):') if Args.pretend
-  print "#{muxfiles}\n" if Args.pretend
+  # print "#{muxfiles}\n" if Args.pretend
+  puts muxfiles.inspect if Args.pretend
 
   muxfiles.keep_if do |file|
     whitelist.include?(magic.file(file.to_s))
@@ -273,7 +280,8 @@ def genmuxfl(muxfiles)
   muxfiles.freeze
 
   puts Mood.neutral('Step 3 (mux):') if Args.pretend
-  print "#{muxfiles}\n" if Args.pretend
+  # print "#{muxfiles}\n" if Args.pretend
+  puts muxfiles.inspect if Args.pretend
   muxfiles
 end
 
@@ -290,7 +298,8 @@ def muxfiles(filelist)
         confighash = JSON.parse(configfile.read)
         confighash = Util.recursive_symbolize_keys(confighash)
         configfile.close
-        print "#{confighash}\n" if Args.pretend && confighash
+        # print "#{confighash}\n" if Args.pretend && confighash
+        puts confighash.inspect if Args.pretend && confighash
         confighash
       end
     config.freeze
@@ -302,7 +311,8 @@ def muxfiles(filelist)
         cmd = config[:mkvmerge] ? %W(#{mkvm} #{config[:mkvmerge]} -o #{out} = #{file}) : %W(#{Util::FindApp.which(mkvmerge)} -o #{out} = #{file})
         cmd.cleanup!(unique: false)
         cmd.freeze
-        print "#{cmd}\n" if Args.pretend
+        # print "#{cmd}\n" if Args.pretend
+        puts cmd.inspect if Args.pretend
 
         begin
           Util::Program.runprogram(cmd) unless Args.pretend
