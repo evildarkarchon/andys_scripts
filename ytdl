@@ -432,10 +432,13 @@ def genplfilelist(filelist)
     whitelist.include?(magic.file(file.to_s))
   end
   puts Mood.neutral { 'No files to add to the playlist' } if filelist.empty?
-  puts filelist if Args.pretend
-  puts outpath if Args.pretend
+  puts Mood.neutral { 'Playlist file list:' } if Args.pretend
+  puts filelist.inspect if Args.pretend
+  puts Mood.neutral { 'Playlist output path:' } if Args.pretend
+  puts outpath.inspect if Args.pretend
   out = [filelist, outpath]
-  puts out if Args.pretend
+  puts Mood.neutral { 'Output array:' } if Args.pretend
+  puts out.inspect if Args.pretend
   out
 end
 
