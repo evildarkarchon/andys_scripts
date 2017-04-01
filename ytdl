@@ -33,6 +33,7 @@ require_relative 'andyrb/util/recursive_symbolize_keys'
 
 class Options
   def self.parse(args)
+    args.cleanup!
     options = OpenStruct.new
     options.date = Time.now.strftime('%Y%m%d').freeze
     # options.time = Time.now.strftime('%H%M').freeze
@@ -82,14 +83,19 @@ class Options
     options
   end
 end
-ARGV.cleanup!
-Args = Options.parse(ARGV)
-puts Args if Args.pretend
 
-Urls = ARGV.dup
-Urls.keep_if { |url| url.is_a?(String) }
-Urls.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
-Urls.freeze
+Args = Options.parse(ARGV.dup)
+puts Args if Args.pretend
+Args.freeze
+
+urls = lambda do
+  out = ARGV.dup
+  out.cleanup!
+  out.keep_if { |url| url.is_a?(String) }
+  out.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
+  out
+end
+Urls = urls.call.freeze
 print "#{Urls}\n" if Args.pretend
 
 raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend && !Args.no_download
@@ -107,8 +113,7 @@ subdir = lambda do
   outdir
 end
 
-Args.directory &&= subdir.call.freeze
-Args.freeze
+Directory = subdir.call.freeze
 
 # Args.directory &&= Args.directory + Args.date if outdir == '/data/Videos/Youtube' && Args.datesubdir
 # Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && outdir.include?('/data/Videos/Youtube')
@@ -116,33 +121,36 @@ Args.freeze
 puts Mood.neutral { "Is Args frozen? #{Args.frozen?}" } if Args.pretend
 # puts Args.frozen? if Args.pretend
 # Args.directory.freeze unless Args.directory.frozen?
-puts Mood.neutral { "Is Args.directory frozen? #{Args.directory.frozen?}" } if Args.pretend
-puts Mood.neutral { Args.directory } if Args.pretend
+puts Mood.neutral { "Is Directory frozen? #{Directory.frozen?}" } if Args.pretend
+puts Mood.neutral { Directory } if Args.pretend
 
 case
-when Args.directory.exist? && !Args.directory.directory?
-  raise "#{Args.directory} exists but is not a directory."
-when !Args.directory.exist?
-  puts Mood.happy { "Creating Directory #{Args.directory}" }
-  Args.directory.mkpath
+when Directory.exist? && !Directory.directory?
+  raise "#{Directory} exists but is not a directory."
+when !Directory.exist?
+  puts Mood.happy { "Creating Directory #{Directory}" }
+  Directory.mkpath
 end
 
 filenames = lambda do
   files = []
   Util::FindApp.which('youtube-dl') do |yt|
     Urls.each do |url|
-      files << Util::Program.runprogram(%W(#{yt} --get-filename #{url}))
+      files << Util::Program.runprogram(%W(#{yt} --get-filename #{url}), parse_output: true)
     end
   end
   files.cleanup!
-  files.map! { |i| (Args.directory + i).to_s }
+  files.map! { |i| Directory.join(i).to_s }
+  files.map!(&:strip)
   files
 end
 FileNames = filenames.call.freeze
+puts Mood.neutral { 'Filenames for downloaded videos:' }
+print "#{FileNames}\n" if Args.pretend
 
 unless Args.playlist || Args.no_blacklist
   filenames = FileNames.dup
-  n = Args.directory + 'no-playlist.txt'
+  n = Directory + 'no-playlist.txt'
   n.open('a') do |x|
     filenames.each do |i|
       puts Mood.happy { "Writing #{i} to #{n}}" } unless Args.pretend
@@ -157,8 +165,8 @@ Util::FindApp.which('youtube-dl') do |yt|
   yt.freeze
   raise "Couldn't find youtube-dl" unless yt
   raise 'youtube-dl is not executable' unless yt && File.executable?(yt)
-  outdir = Args.directory.to_s.freeze
-  archdir = Args.directory.parent.parent.freeze if Args.subdirectory && outdir.include?('/data/Videos/Youtube') && Args.datesubdir
+  outdir = Directory.to_s.freeze
+  archdir = Directory.parent.parent.freeze if Args.subdirectory && outdir.include?('/data/Videos/Youtube') && Args.datesubdir
 
   archive =
     case
@@ -170,10 +178,10 @@ Util::FindApp.which('youtube-dl') do |yt|
       archdir + 'downloaded.txt'
     when Args.datesubdir && outdir.include?('/data/Videos/Youtube')
       puts Mood.neutral { 'Archive in parent directory' } if Args.pretend
-      Args.directory.parent + 'downloaded.txt'
+      Directory.parent + 'downloaded.txt'
     else
       puts Mood.neutral { 'Archive in download directory' } if Args.pretend
-      Args.directory + 'downloaded.txt'
+      Directory + 'downloaded.txt'
     end
   archive.freeze
 
@@ -191,13 +199,16 @@ Util::FindApp.which('youtube-dl') do |yt|
   print "#{ytdl}\n" if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.no_download
 end
 
-Files = Args.directory.find.to_a
-puts Mood.neutral('Step 1:') if Args.pretend
-print "#{Files}\n" if Args.pretend
-puts Mood.neutral('No files found in this directory, will not do any statistics calculation or muxing.') if Files.nil? || Files.empty?
+files = lambda do
+  out = Directory.find.to_a
+  puts Mood.neutral('Step 1:') if Args.pretend
+  print "#{out}\n" if Args.pretend
+  puts Mood.neutral('No files found in this directory, will not do any statistics calculation or muxing.') if out.nil? || out.empty?
+  out.keep_if(&:file?)
+end
+
+Files = files.call.freeze
 exit if Files.nil? || Files.empty?
-Files.keep_if(&:file?)
-Files.freeze
 
 def genstatsfl(mkv)
   whitelist = %w(video/webm video/x-matroska audio/x-matroska).freeze
@@ -206,7 +217,7 @@ def genstatsfl(mkv)
     magic = FileMagic.new(:mime_type)
     whitelist.include?(magic.file(file.to_s))
   end
-  puts Mood.neutral('Step 2:') if Args.pretend
+  puts Mood.neutral('Step 2 (stats):') if Args.pretend
   print "#{mkv}\n" if Args.pretend
   mkv.delete_if do |file|
     file.freeze
@@ -215,7 +226,7 @@ def genstatsfl(mkv)
     jsondata.dig(:streams, 0, :tags, :BPS)
   end
   mkv.freeze
-  puts Mood.neutral('Step 3:') if Args.pretend
+  puts Mood.neutral('Step 3 (stats):') if Args.pretend
   print "#{mkv}\n" if Args.pretend
   puts Mood.neutral('No matroska files to calculate statistics for.') if mkv.nil? || mkv.empty?
   mkv
@@ -253,7 +264,7 @@ def genmuxfl(muxfiles)
   muxfiles.delete_if do |file|
     blacklist.include?(magic.file(file.to_s))
   end
-  puts Mood.neutral('Step 2:') if Args.pretend
+  puts Mood.neutral('Step 2 (mux):') if Args.pretend
   print "#{muxfiles}\n" if Args.pretend
 
   muxfiles.keep_if do |file|
@@ -261,7 +272,7 @@ def genmuxfl(muxfiles)
   end
   muxfiles.freeze
 
-  puts Mood.neutral('Step 3:') if Args.pretend
+  puts Mood.neutral('Step 3 (mux):') if Args.pretend
   print "#{muxfiles}\n" if Args.pretend
   muxfiles
 end
@@ -287,7 +298,7 @@ def muxfiles(filelist)
     if filelist.respond_to?(:each) && filelist.respond_to?(:empty?) && !filelist.empty?
       filelist.each do |file|
         file.freeze
-        out = Args.directory + file.basename.sub_ext('.mkv')
+        out = Directory + file.basename.sub_ext('.mkv')
         cmd = config[:mkvmerge] ? %W(#{mkvm} #{config[:mkvmerge]} -o #{out} = #{file}) : %W(#{Util::FindApp.which(mkvmerge)} -o #{out} = #{file})
         cmd.cleanup!(unique: false)
         cmd.freeze
@@ -341,7 +352,7 @@ def genplaylist(files, out)
 
   files.each do |file|
     puts Mood.happy { "Adding #{file} to playlist" }
-    track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Args.directory.to_s))
+    track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Directory.to_s))
     tracklist << track
   end
 
@@ -365,12 +376,12 @@ def genplfilelist(filelist)
     case
     when Args.playlistpath
       Args.playlistpath
-    when Args.directory.to_s.include?('/data/Videos/Youtube') && Args.subdirectory
+    when Directory.to_s.include?('/data/Videos/Youtube') && Args.subdirectory
       Pathname.new("/data/Videos/Youtube/Playlists/#{Args.subdirectory}/#{Args.date}.xspf")
-    when Args.directory.to_s.include?('/data/Videos/Youtube') && !Args.subdirectory
+    when Directory.to_s.include?('/data/Videos/Youtube') && !Args.subdirectory
       Pathname.new("/data/Videos/Youtube/Playlists/#{Args.date}.xspf")
     else
-      Pathname.new("#{Args.directory}/Playlists/#{Args.date}.xspf")
+      Pathname.new("#{Directory}/Playlists/#{Args.date}.xspf")
     end
 
   whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
@@ -380,7 +391,7 @@ def genplfilelist(filelist)
   magic = FileMagic.new(:mime_type)
 
   existing = []
-  blacklist = Args.directory.join('no-playlist.txt').readlines if Args.directory.join('no-playlist.txt').file?
+  blacklist = Directory.join('no-playlist.txt').readlines if Directory.join('no-playlist.txt').file?
   if outpath.exist? && !Args.resetplaylist
     o = File.new(outpath.to_s)
     xspf = XSPF.new(o)
@@ -394,11 +405,11 @@ def genplfilelist(filelist)
 
   # tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   # filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
-  filelist.keep_if { |i| i.dirname.to_s == Args.directory.to_s }
+  filelist.keep_if { |i| i.dirname.to_s == Directory.to_s }
   unless existing.empty? || Args.resetplaylist
     filelist.delete_if do |i|
-      b = existing.to_s.include?(URI.escape(i.relative_path_from(Pathname.new('/data/Videos')).to_s)) if Args.directory.to_s.include?('/data/Videos')
-      b = existing.to_s.include?(URI.escape(i.relative_path_from(Args.directory).to_s)) unless Args.directory.to_s.include?('/data/Videos')
+      b = existing.to_s.include?(URI.escape(i.relative_path_from(Pathname.new('/data/Videos')).to_s)) if Directory.to_s.include?('/data/Videos')
+      b = existing.to_s.include?(URI.escape(i.relative_path_from(Directory).to_s)) unless Directory.to_s.include?('/data/Videos')
       # puts Mood.neutral { "Removing #{i} from file list" } if b
       b
     end
