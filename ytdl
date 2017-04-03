@@ -32,6 +32,7 @@ require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/util/program'
 require_relative 'andyrb/util/findapp'
 require_relative 'andyrb/util/recursive_symbolize_keys'
+require_relative 'andyrb/util/sort'
 
 class Options
   def self.parse(args)
@@ -57,6 +58,7 @@ class Options
     options.playlistpath = nil
     options.resetplaylist = false
     options.no_blacklist = false
+    options.sort = true
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -80,6 +82,7 @@ class Options
       opts.on('--playlist-path [FILE]', 'Location to save the playlist') { |i| options.playlistpath = Pathname.new(i) }
       opts.on('--reset-playlist', 'Do not modify an existing playlist (if it exists)') { options.resetplaylist = true }
       opts.on('--no-blacklist', 'Do not put downloaded files in the playlist blacklist if playlist creation (or modification) is disabled.') { options.no_blacklist = true }
+      opts.on('--no-sort', 'Do not run any sorting operations.') { options.sort = false }
     end
     optparse.parse!(args)
     options
@@ -147,6 +150,7 @@ end
 
 filenames = lambda do
   files = []
+  puts(Mood.happy { 'Retrieving filenames for videos to be downloaded.' })
   Util::FindApp.which('youtube-dl') do |yt|
     Urls.each do |url|
       files << Util::Program.runprogram(%W(#{yt} --get-filename #{url}), parse_output: true)
@@ -164,8 +168,10 @@ puts FileNames.inspect if Args.pretend
 
 unless Args.playlist || Args.no_blacklist
   filenames = FileNames.dup
+  filenames = Util.sort(filenames) if Args.sort
   n = Directory + 'no-playlist.txt'
   o = n.exist? ? File.readlines(n.to_s) : nil
+
   n.open('a') do |x|
     filenames.each do |i|
       puts(Mood.happy { "Writing #{i} to #{n}" }) unless Args.pretend || (o && o.include?(i))
@@ -218,13 +224,16 @@ files = lambda do
   out = Directory.find.to_a
   puts Mood.neutral('Step 1:') if Args.pretend
   # print "#{out}\n" if Args.pretend
+  out.keep_if(&:file?) if respond_to?(:keep_if)
+  outtemp = Util.sort(out.map(&:to_s))
+  out = outtemp.map { |i| Pathname.new(i) }
   puts out.inspect if Args.pretend
   puts Mood.neutral('No files found in this directory, will not do any statistics calculation, muxing, or playlist creation/modification.') if out.nil? || out.empty?
-  out.keep_if(&:file?)
   out
 end
 
 Files = files.call.freeze
+puts(Mood.neutral { "Is Files Frozen? #{Files.frozen?}" }) if Args.pretend
 exit if Files.nil? || Files.empty?
 
 def genstatsfl(mkv)
@@ -349,7 +358,7 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   rootpath = Pathname.new(rootdir)
 
   # out = { location: URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s).gsub("'", "\\\\'") }
-  out = { location: Addressable::URI.convert_path("z:#{filepath.realpath.relative_path_from(rootpath)}").to_s.gsub("'", "\\\\'") }
+  out = { location: Addressable::URI.convert_path("z:/#{filepath.realpath.relative_path_from(rootpath)}").to_s.gsub("'", "\\\\'") }
 
   if jsondata.dig(:format, :tags)
     out[:title] = jsondata[:format][:tags][:title].gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :title)
@@ -385,7 +394,7 @@ def genplaylist(files, out)
   xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
 
   puts(Mood.happy { "Creating Directory #{out.dirname}" }) unless Args.pretend || out.dirname.exist?
-  out.dirname.mkpath unless Args.pretend
+  out.dirname.mkpath unless Args.pretend || out.dirname.exist?
 
   unless Args.pretend
     File.open(out.to_s, 'w') do |f|
@@ -393,7 +402,7 @@ def genplaylist(files, out)
       f.write(xspf.to_xml)
     end
   end
-  puts(Mood.neutral { 'Playlist XML Content:' })
+  puts(Mood.neutral { 'Playlist XML Content:' }) if Args.pretend
   puts xspf.to_xml if Args.pretend
 end
 
