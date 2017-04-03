@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 require 'ostruct'
 require 'optparse'
 require 'pathname'
@@ -37,26 +38,48 @@ class Options
     options
   end
 end
-Args = Options.parse(ARGV)
-Args.files = ARGV unless ARGV.nil? || ARGV.empty?
-Args.files = [] if ARGV.nil? || ARGV.empty?
-Args.files.cleanup! unless Args.files.nil? || Args.files.empty? || !Args.files.is_a?(Array)
-Args.files.keep_if { |filename| File.file?(filename) } unless Args.files.nil? || Args.files.empty?
 
-if Args.files.nil? || Args.files.empty?
+args = lambda do
+  arg = ARGV.dup.cleanup!
+  outargs = Options.parse(arg)
+  outfiles = arg.nil? || arg.empty? ? [] : arg.dup
+  outfiles.keep_if { |f| File.file?(f) } unless nil? || empty?
+  [outargs, outfiles]
+end
+
+Args, Files = args.call.freeze
+
+# Args = Options.parse(ARGV)
+
+# files = lambda do
+#   out = ARGV.nil? || ARGV.empty? ? [] : ARGV.dup
+#   out.cleanup! unless nil? || empty? || !is_a?(Array)
+#   out.keep_if { |f| File.file?(f) } unless nil? || empty?
+#   out
+# end
+
+# Files = files.call.freeze
+
+# Files = ARGV unless ARGV.nil? || ARGV.empty?
+# Files = [] if ARGV.nil? || ARGV.empty?
+# Files.cleanup! unless Files.nil? || Files.empty? || !Files.is_a?(Array)
+# Files.keep_if { |filename| File.file?(filename) } unless Files.nil? || Files.empty?
+
+if Files.nil? || Files.empty?
   wdpath = Pathname.getwd.find.to_a
   puts wdpath if Args.debug
   wdpath.keep_if(&:file?)
-  Args.files = wdpath.map(&:to_s)
-  puts Args.files if Args.debug
+  Files = wdpath.map(&:to_s)
+  puts Files if Args.debug
 end
 Args.freeze
+
 case
 when Args.debug
   # puts Args
-  # puts Args.files
+  # puts Files
   print "#{Args}\n"
-  print "#{Args.files}\n"
+  print "#{Files}\n"
 end
 
 FileUtils.touch(Args.db.basename.to_s) unless Args.db.file?
@@ -107,8 +130,8 @@ end
 
 initlist = []
 
-if Args.files && Args.files.is_a?(Array) && !Args.files.empty?
-  initlist = Args.files.map do |i|
+if Files && Files.is_a?(Array) && !Files.empty?
+  initlist = Files.map do |i|
     path = Pathname.new(i).freeze
     dir = nil
     if path.directory?
@@ -146,7 +169,7 @@ end
 
 case
 when filelist.empty?
-  puts Mood.happy { 'All files already in the database or there are no media files.' }
+  puts(Mood.happy { 'All files already in the database or there are no media files.' })
   exit
 end
 
@@ -168,7 +191,7 @@ filelist.each do |file|
   when !Args.debug
     VideoInfo.genhash(file, jsondata, digests) do |h|
       begin
-        puts Mood.happy { "Writing metadata for #{File.basename(file)}" }
+        puts(Mood.happy { "Writing metadata for #{File.basename(file)}" })
         insert.attributes = h
         insert.save
       rescue DataMapper::SaveFailureError
