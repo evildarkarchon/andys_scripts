@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 require 'ostruct'
 require 'optparse'
 require 'shellwords'
@@ -19,8 +20,8 @@ class Options
     options = OpenStruct.new
     # options.quality = '80'
     options.verbose = false
-    options.lossy = nil
-    options.lossless = nil
+    # options.lossy = nil
+    # options.lossless = nil
     options.preset = 'default'
     options.outputdir = Pathname.getwd
     options.backup = nil
@@ -35,18 +36,13 @@ class Options
     options.removeoriginal = true
     options.force = false
     options.sort = true
+    options.mode = 'lossy'
 
     optparse = OptionParser.new do |opts|
       opts.on('--quality [n]', '-q [n]', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
       opts.on('--verbose', '-v', 'Make convert more chatty.') { options.verbose = true }
-      opts.on('--lossy', 'Produce lossy images.') do
-        options.lossy = true
-        options.lossless = false
-      end
-      opts.on('--lossless', 'Produce lossless images.') do
-        options.lossless = true
-        options.lossy = false
-      end
+      opts.on('--lossy', 'Produce lossy images.') { options.mode = 'lossy' }
+      opts.on('--lossless', 'Produce lossless images.') { options.mode = 'lossless' }
       opts.on('--output-dir [DIRECTORY]', '-o [DIRECTORY]', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
       opts.on('--backup-dir [DIRECTORY]', '-b [DIRECTORY]', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
       opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
@@ -66,7 +62,7 @@ end
 Args = Options.parse(ARGV)
 ARGV.cleanup!(unique: false)
 
-Args.files = Args.sort ? Util.sort(ARGV) : ARGV
+Files = Args.sort ? Util.sort(ARGV) : ARGV
 
 Args.nobackup = true if Args.removeoriginal && Args.backuparchive
 Args.lossy = true if !Args.lossy && !Args.lossless
@@ -102,30 +98,18 @@ class Command
 
     # lossless = ['-define', 'webp:lossless=true']
     lossless = %w(-define webp:lossless=true).freeze
-    lossymode = Args.lossy
-    losslessmode = Args.lossless
-
-    if (lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)) && !lossymode
-      lossymode = false
-      losslessmode = true
-      Args.lossy = false
-      Args.lossless = true
+    # lossymode = Args.lossy
+    # losslessmode = Args.lossless
+    outmode = Args.mode
+    if (lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)) && !outmode == 'lossy'
+      outmode = 'lossless'
     end
 
-    losslessmode = false if lossymode
-
-    losslessmode = true if Args.lossless
-    lossymode = losslessmode ? false : true
-
-    lossymode.freeze
-    losslessmode.freeze
-    # puts lossymode
-    # puts losslessmode
     Util::FindApp.which('convert') do |c|
       raise 'convert not found or is not executable.' unless c && File.executable?(c)
       @list = %W(#{c} #{filepath})
       @list << %W(-quality #{Args.quality})
-      @list << lossless if losslessmode
+      @list << lossless if outmode == 'lossless'
       @list << %w(-define webp:thread-level=1)
       @list << '-verbose' if Args.verbose
       @list << @outpath.to_s
@@ -146,7 +130,7 @@ def backuparchive
   end
   puts Mood.happy("Backing up original files to #{backuparchivepath}")
 
-  paths = Args.files.dup
+  paths = Files.dup
   paths.map! { |i| Pathname.new(i) }
   paths.freeze
 
@@ -177,7 +161,7 @@ def archive
   archivepath = archivepath.realpath
   archivepath.freeze
 
-  paths = Args.files.dup
+  paths = Files.dup
   paths.map! { |file| Pathname.new(file).realpath.sub_ext('.webp').to_s }
   paths.freeze
 
@@ -199,15 +183,15 @@ def archive
   end
 end
 
-Args.files.each do |file|
+Files.each do |file|
   file.freeze
   cmdline = Command.new(file)
   outname = cmdline.outpath.to_s.freeze
   if cmdline.outpath.exist? && !Args.force
-    puts Mood.neutral { "#{cmdline.outpath} already exists, skipping." }
+    puts(Mood.neutral { "#{cmdline.outpath} already exists, skipping." })
     next
   elsif cmdline.outpath.exist? && Args.force
-    puts Mood.neutral { "Force mode active, deleting #{cmdline.outpath}" }
+    puts(Mood.neutral { "Force mode active, deleting #{cmdline.outpath}" })
     FileUtils.rm(outname)
   end
 
