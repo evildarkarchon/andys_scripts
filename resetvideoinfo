@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 require 'ostruct'
 require 'optparse'
 require 'pathname'
@@ -31,26 +32,37 @@ class Options
     options
   end
 end
-ARGV.cleanup! unless ARGV.nil? || ARGV.empty? || !ARGV.is_a?(Array)
-Args = Options.parse(ARGV)
-Args.directory = ARGV unless ARGV.nil? || ARGV.empty?
-Args.directory = %w(/data/Private) if ARGV.nil? || ARGV.empty?
-Args.directory.keep_if { |dirname| File.directory?(dirname) } if Args.directory.respond_to?(:keep_if)
-Args.freeze
+args = lambda do
+  out = nil
+  out = ARGV.dup.cleanup! unless ARGV.nil? || ARGV.empty?
+  out = Options.parse(out)
+  outdir = out.nil? || out.empty? ? %w(/data/Private) : out
+  outdir.keep_if { |d| File.directory?(d) } if outdir.respond_to?(:keep_if)
+  [out.freeze, outdir.freeze]
+end
+
+# ARGV.cleanup! unless ARGV.nil? || ARGV.empty? || !ARGV.is_a?(Array)
+# Args = Options.parse(ARGV)
+# Directory = ARGV unless ARGV.nil? || ARGV.empty?
+# Directory = %w(/data/Private) if ARGV.nil? || ARGV.empty?
+# Directory.keep_if { |dirname| File.directory?(dirname) } if Directory.respond_to?(:keep_if)
+# Args.freeze
+
+Args, Directory = args.call
 
 DataMapper::Model.raise_on_save_failure = true
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
 
 directories = []
-if Args.directory.respond_to?(:each)
-  Args.directory.each do |i|
+if Directory.respond_to?(:each)
+  Directory.each do |i|
     directories = VideoInfo::Database.find(i, Args.verbose)
     # directories.cleanup!
     # puts 'directories 1:'
     # print "#{directories}\n"
   end
 else
-  directories = VideoInfo::Database.find(Args.directory, Args.verbose)
+  directories = VideoInfo::Database.find(Directory, Args.verbose)
   # directories.cleanup!
   # puts 'directories 1:'
   # print "#{directories}\n"
@@ -68,17 +80,7 @@ if directories.respond_to?(:each)
     # puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
     VideoInfo::Database::Videoinfo.auto_migrate! unless Args.reset_json
     VideoInfo::Database::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
-=begin
-    Find.find(dir) do |path|
-      if File.basename(path)[0] == ?. # rubocop:disable Style/CharacterLiteral
-        Find.prune # Don't look any further into this directory.
-      else
-        initpath = Pathname.new(path.to_s)
-        initlist << initpath.to_s if initpath.file?
-        next
-      end
-    end
-=end
+
     initlist << dbpath.find.to_a
     # puts 'directories 2m:'
     # print "#{initlist}\n"
@@ -163,7 +165,7 @@ filelist.each do |file|
 
   VideoInfo.genhash(file, jsondata, digests) do |h|
     begin
-      puts Mood.happy { "Writing metadata for #{File.basename(file)}" }
+      puts(Mood.happy { "Writing metadata for #{File.basename(file)}" })
       insert.attributes = h
       insert.save
     rescue DataMapper::SaveFailureError
