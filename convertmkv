@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 require 'ostruct'
 require 'optparse'
 require 'pathname'
@@ -51,25 +52,52 @@ class Options
   end
 end
 
-Args = Options.parse(ARGV)
-Args.db = Args.db.realpath if Args.db.exist?
-Args.outputdb =
-  case
-  when Args.outputdb.nil? && Args.output.directory?, Args.outputdb.nil? && !Args.output.exist?, Args.outputdb && Args.outputdb == Args.output + 'videoinfo.sqlite' && !Args.output.parent.directory && Args.combine
-    Args.db
-  when Args.outputdb.nil? && !Args.output.directory? && !Args.combine
-    Args.output + 'videoinfo.sqlite'
-  end
+args = lambda do
+  arg = ARGV.dup
+  outargs = Options.parse(arg)
+  outfiles = arg.dup
+  outfiles.cleanup!
+  outfiles.keep_if { |f| File.file?(f) }
+  Util.sort(outfiles) if Args.sort
+  [outargs.freeze, outfiles.freeze]
+end
 
-FileUtils.touch(Args.db.to_s) unless Args.db.file?
-FileUtils.touch(Args.outputdb.to_s) if Args.outputdb && !Args.outputdb.parent.directory? && !Args.outputdb.file?
+Args, Files = args.call
 
-Args.files = ARGV
-Args.files.cleanup!
-Args.files.keep_if { |filename| File.file?(filename) }
-Args.files = Util.sort(Args.files) if Args.sort
-Args.files.freeze
-# print "#{Args.files}\n"
+Database = Args.db && Args.db.exist? ? Args.db.realpath : nil
+
+prettyodb = lambda do # I know I could do a case statement, but the one I had was very ugly. This is more readable.
+  Database if Args.db && Args.outputdb.nil? && Args.output.directory
+  Database if Args.db && Args.outputdb.nil? && !Args.output.exist?
+  Database if Args.db && Args.outputdb && Args.outputdb == Args.output.join('videoinfo.sqlite')
+  Database if Args.db && !Args.output.parent.directory? && Args.combine
+  Args.output + 'videoinfo.sqlite' if !Args.output.directory? && !Args.combine
+end
+
+# Args = Options.parse(ARGV)
+
+OutputDatabase = prettyodb.call if Database && Args.gvi
+
+FileUtils.touch(Database.to_s) unless Args.gvi && Database.file?
+FileUtils.touch(OutputDatabase.to_s) if Args.gvi && OutputDatabase && !OutputDatabase.parent.directory? && !OutputDatabase.file?
+
+# files = lambda do
+#   out = ARGV.dup
+#   out.cleanup!
+#   out.keep_if { |f| File.file?(f) }
+#   Util.sort(out) if Args.sort
+#   out
+# end
+
+# Files = ARGV.dup
+# Files.cleanup!
+# Files.keep_if { |filename| File.file?(filename) }
+# Files = Util.sort(Files) if Args.sort
+# Files.freeze
+# print "#{Files}\n"
+
+# Files = files.call.freeze
+# puts Files.inspect
 
 MkvPropEdit = Util::FindApp.which('mkvpropedit')
 FFMPEG = Util::FindApp.which('ffmpeg')
@@ -106,14 +134,14 @@ raise 'Can not find mkvpropedit or it is not executable' unless MkvPropEdit && F
 
 Args.freeze
 
-if Args.db
+if Database
   DataMapper::Model.raise_on_save_failure = true
-  DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
-  DataMapper.setup(:output, "sqlite:#{Args.outputdb.realpath}") if Args.outputdb
+  DataMapper.setup(:default, "sqlite:#{Database.realpath}")
+  DataMapper.setup(:output, "sqlite:#{OutputDatabase.realpath}") if OutputDatabase
   DataMapper::Logger.new($stdout, :debug) # if Args.debug || Args.verbose
   # db = DataMapper.repository(:default).adapter
   VI = VideoInfo::Database::Videoinfo.new
-  GVI = VideoInfo::Database::Data.new(Args.db.realpath, Args.verbose) if Args.gvi
+  GVI = VideoInfo::Database::Data.new(Database.realpath, Args.verbose) if Args.gvi
   DataMapper.finalize
   begin
     DataMapper.auto_upgrade!
@@ -122,7 +150,7 @@ if Args.db
   end
 end
 
-VI = nil unless Args.db
+VI = nil unless Database
 GVI = nil unless Args.gvi
 
 class Convenience
@@ -135,8 +163,8 @@ class Convenience
     insert = VideoInfo::Database::Videoinfo.new
     outhash = Util.hashfile(filepath.realpath.to_s).freeze
     print "#{outhash}\n"
-    puts Mood.happy { "Extracting metadata from #{filepath}" }
-    if Args.outputdb
+    puts(Mood.happy { "Extracting metadata from #{filepath}" })
+    if OutputDatabase
       DataMapper.repository(:output) do
         VideoInfo::Database::Videoinfo.storage_names[:output] = 'videoinfo'
         VideoInfo::Database::Videojson.storage_names[:output] = 'videojson'
@@ -152,16 +180,16 @@ class Convenience
 
     jsondata =
       case
-      when !Args.outputdb
+      when !OutputDatabase
         GVI.json(@filename, Args.debug)
-      when Args.outputdb
+      when OutputDatabase
         DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) }
       end
 
     VideoInfo.genhash(@filename, jsondata, outhash) do |h|
       begin
         puts Mood.happy("Writing metadata for #{File.basename(@filename)}")
-        if !Args.outputdb
+        if !OutputDatabase
           insert.attributes = h
           insert.save
         else
@@ -180,7 +208,7 @@ class Convenience
   def self.mkvmergeconcat
     basecommand = %W(#{MkvMerge} -o #{Args.output}).freeze
 
-    filelist = Args.files.join(' + ')
+    filelist = Files.join(' + ')
     filelist = filelist.split.freeze
 
     command = basecommand + Config[:mkvmerge] + filelist
@@ -198,7 +226,7 @@ class Convenience
       FileUtils.mv(@filename, Args.backup.to_s) unless Args.debug
     end
     case
-    when Args.db && !Vi.nil? && !Args.debug
+    when Database && !Vi.nil? && !Args.debug
       vientry = VideoInfo::Database::Videoinfo.all(filename: @filename)
       vientry.destroy
     end
@@ -210,13 +238,13 @@ Args.output.mkpath unless Args.output.exist? || Args.combine
 if Args.combine
   raise 'Output specified is not a file' if Args.output.exist? && !Args.output.file?
   Convenience.mkvmergeconcat unless Args.ffmpeg && Args.debug == false
-  Args.files.each do |file|
+  Files.each do |file|
     convenience = Convenience.new(file)
     convenience.backup
   end
 else
   raise 'Output specified is not a directory' unless Args.output.directory?
-  Args.files.each do |file|
+  Files.each do |file|
     convenience = Convenience.new(file)
     filepath = Pathname.new(file).freeze
     fileoutpath =
