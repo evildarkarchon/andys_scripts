@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'data_mapper'
 require 'pathname'
 require 'json'
@@ -23,7 +24,7 @@ module VideoInfo
       end
 
       def existing
-        out = Videoinfo.count >= 1 ? Videoinfo.all(fields: [:filename, :filehash]) : nil
+        out = Videoinfo.count >= 1 ? Videoinfo.all(fields: %i(filename filehash)) : nil
         out
       end
 

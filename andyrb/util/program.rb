@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'subprocess'
 
 require_relative '../core/cleanup'

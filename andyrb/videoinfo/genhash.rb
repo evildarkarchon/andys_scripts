@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'json'
 require 'dentaku'
 require 'pathname'
@@ -35,7 +36,7 @@ module VideoInfo
       when inputjson && inputjson.is_a?(Hash)
         Util.recursive_symbolize_keys(inputjson)
       when !inputjson
-        puts Mood.neutral { "No json data supplied, running ffprobe on #{File.basename(filename)}" }
+        puts(Mood.neutral { "No json data supplied, running ffprobe on #{File.basename(filename)}" })
         VideoInfo.probe(File.realpath(filename), verbose: true)
       end
     jsondata.freeze unless frozen?

@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 require 'pathname'
 require 'fileutils'
 require 'optparse'
@@ -76,7 +77,7 @@ when repopath.directory?
 when wdpath.exist? && !repopath.exist?
   case
   when Args.replace
-    puts Mood.neutral { "No git repository located in the target directory, renaming it to #{wdpath}.old" }
+    puts(Mood.neutral { "No git repository located in the target directory, renaming it to #{wdpath}.old" })
     Util::Program.runprogram(%W(mv #{wdpath} #{wdpath}.old), use_sudo: true, sudo_user: 'nginx')
     TTrss.clone(giturl)
   else

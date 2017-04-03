@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'json'
 
 module Util
@@ -12,7 +13,8 @@ module Util
     end
 
     def write(filename)
-      File.open(filename, 'w') { |of| of.write(@output) }
+      # File.open(filename, 'w') { |of| of.write(@output) }
+      IO.write(filename, @output)
     end
 
     def output

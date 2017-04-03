@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'openssl'
 
 require_relative '../mood'
@@ -10,7 +11,7 @@ module Util
     calc = lambda do |i|
       sha256.reset
       filedata = File.read(i)
-      puts Mood.happy { "Calculating hash for #{i}" }
+      puts(Mood.happy { "Calculating hash for #{i}" })
       sha256 << filedata
       hashes[i] = sha256.hexdigest
     end

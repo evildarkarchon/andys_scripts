@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 require 'pathname'
 require 'shellwords'
 require 'logger'
@@ -43,7 +44,7 @@ Tempfile.open('ttrss_') do |f|
   xzpath = tmppath.sub_ext('.xz').freeze
 
   Subprocess.check_call(%W(#{PgDump} -C -c --if-exists -d feeds -U postgres), stdout: Subprocess::PIPE) do |p|
-    puts Mood.happy { "Dumping database to #{tmppath}" } unless Log.respond_to?(:info)
+    puts(Mood.happy { "Dumping database to #{tmppath}" }) unless Log.respond_to?(:info)
     Log.info { "Dumping database to #{tmppath}" } if Log.respond_to?(:info)
     f.write p.communicate[0]
     f.fsync
@@ -51,7 +52,7 @@ Tempfile.open('ttrss_') do |f|
 
   # puts f.path
   out = "/data/ttrssbackup/feeds-#{Now}.xz"
-  puts Mood.happy { "Compressing #{tmppath} to #{out}" } unless Log.respond_to?(:info)
+  puts(Mood.happy { "Compressing #{tmppath} to #{out}" }) unless Log.respond_to?(:info)
   Log.info { "Compressing #{tmppath} to #{out}" } if Log.respond_to?(:info)
   Subprocess.check_call(%W(#{Xz} -k -T 0 #{tmppath}))
   begin
@@ -69,7 +70,7 @@ clean.freeze
 
 clean.each do |f|
   diff = Util.datediff(f.mtime).freeze
-  puts Mood.happy { "Removing #{f}" } if diff > 14 && !Log.respond_to?(:info)
+  puts(Mood.happy { "Removing #{f}" }) if diff > 14 && !Log.respond_to?(:info)
   Log.info { "Removing #{f}" } if diff > 14 && Log.respond_to?(:info)
   f.delete if diff > 14
 end
