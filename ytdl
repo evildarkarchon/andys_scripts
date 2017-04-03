@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 require 'optparse'
 require 'subprocess'
 require 'pathname'
@@ -7,6 +8,7 @@ require 'filemagic'
 require 'uri'
 require 'json'
 require 'cgi'
+require 'addressable'
 
 begin
   rv = Gem::Version.new(RUBY_VERSION.to_s.freeze)
@@ -84,27 +86,36 @@ class Options
   end
 end
 
-Args = Options.parse(ARGV.dup)
-puts Args if Args.pretend
-Args.freeze
+# Args = Options.parse(ARGV.dup)
+# puts Args if Args.pretend
+# Args.freeze
 
-urls = lambda do
-  out = ARGV.dup
-  out.cleanup!
-  out.keep_if { |url| url.is_a?(String) }
-  out.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
-  out
+args = lambda do
+  arg = ARGV.dup
+  arg.cleanup!
+  outarg = Options.parse(arg)
+  outurl = arg.dup
+  outurl.keep_if { |url| url.is_a?(String) }
+  outurl.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
+  [outarg.freeze, outurl.freeze]
 end
-Urls = urls.call.freeze
-# print "#{Urls}\n" if Args.pretend
+
+Args, Urls = args.call
+
+# urls = lambda do
+#   out = ARGV.dup
+#   out.cleanup!
+#   out.keep_if { |url| url.is_a?(String) }
+#   out.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
+#   out
+# end
+# Urls = urls.call.freeze
+puts Args.inspect if Args.pretend
 puts Urls.inspect if Args.pretend
 
 raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend && !Args.no_download
 
 raise 'Args.directory is not set properly (somehow)' unless Args.directory && Args.directory.is_a?(Pathname)
-# raise 'Somehow, Args.directory is nil' if Args.directory.nil?
-# raise 'Somehow, Args.directory is empty' if Args.directory.respond_to?(:empty?) && Args.directory.empty?
-# raise 'Somehow, Args.directory is not a Pathname' unless Args.directory.is_a?(Pathname)
 
 subdir = lambda do
   indir = Args.directory.to_s
@@ -119,17 +130,18 @@ Directory = subdir.call.freeze
 # Args.directory &&= Args.directory + Args.date if outdir == '/data/Videos/Youtube' && Args.datesubdir
 # Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && outdir.include?('/data/Videos/Youtube')
 
-puts Mood.neutral { "Is Args frozen? #{Args.frozen?}" } if Args.pretend
+puts(Mood.neutral { "Is Args frozen? #{Args.frozen?}" }) if Args.pretend
+puts(Mood.neutral { "Is Urls frozen? #{Urls.frozen?}" }) if Args.pretend
 # puts Args.frozen? if Args.pretend
 # Args.directory.freeze unless Args.directory.frozen?
-puts Mood.neutral { "Is Directory frozen? #{Directory.frozen?}" } if Args.pretend
-puts Mood.neutral { Directory } if Args.pretend
+puts(Mood.neutral { "Is Directory frozen? #{Directory.frozen?}" }) if Args.pretend
+puts(Mood.neutral { Directory }) if Args.pretend
 
 case
 when Directory.exist? && !Directory.directory?
   raise "#{Directory} exists but is not a directory."
 when !Directory.exist?
-  puts Mood.happy { "Creating Directory #{Directory}" }
+  puts(Mood.happy { "Creating Directory #{Directory}" })
   Directory.mkpath
 end
 
@@ -146,20 +158,21 @@ filenames = lambda do
   files
 end
 FileNames = filenames.call.freeze
-puts Mood.neutral { 'Filenames for downloaded videos:' }
+puts(Mood.neutral { 'Filenames for downloaded videos:' }) if Args.pretend
 # print "#{FileNames}\n" if Args.pretend
 puts FileNames.inspect if Args.pretend
 
 unless Args.playlist || Args.no_blacklist
   filenames = FileNames.dup
   n = Directory + 'no-playlist.txt'
+  o = n.exist? ? File.readlines(n.to_s) : nil
   n.open('a') do |x|
     filenames.each do |i|
-      puts Mood.happy { "Writing #{i} to #{n}}" } unless Args.pretend
-      x.write(i) unless Args.pretend
+      puts(Mood.happy { "Writing #{i} to #{n}" }) unless Args.pretend || (o && o.include?(i))
+      x.write(i) unless Args.pretend || (o && o.include?(i))
     end
   end
-  puts Mood.neutral { 'File names to put on the playlist blacklist:' } if Args.pretend
+  puts(Mood.neutral { 'File names to put on the playlist blacklist:' }) if Args.pretend
   filenames.each { |i| puts i } if Args.pretend
 end
 
@@ -173,21 +186,21 @@ Util::FindApp.which('youtube-dl') do |yt|
   archive =
     case
     when Args.archive
-      puts Mood.neutral { 'Archive from command line' } if Args.pretend
+      puts(Mood.neutral { 'Archive from command line' }) if Args.pretend
       Args.archive + 'downloaded.txt'
     when Args.datesubdir && archdir
-      puts Mood.neutral { 'Archive in subdirectory parent' } if Args.pretend
+      puts(Mood.neutral { 'Archive in subdirectory parent' }) if Args.pretend
       archdir + 'downloaded.txt'
     when Args.datesubdir && outdir.include?('/data/Videos/Youtube')
-      puts Mood.neutral { 'Archive in parent directory' } if Args.pretend
+      puts(Mood.neutral { 'Archive in parent directory' }) if Args.pretend
       Directory.parent + 'downloaded.txt'
     else
-      puts Mood.neutral { 'Archive in download directory' } if Args.pretend
+      puts(Mood.neutral { 'Archive in download directory' }) if Args.pretend
       Directory + 'downloaded.txt'
     end
   archive.freeze
 
-  puts Mood.neutral { archive } if Args.pretend
+  puts(Mood.neutral { archive }) if Args.pretend
   ytdl = %W(#{yt})
   ytdl << %W(--download-archive #{archive}) unless Args.force
   ytdl << %w(--merge-output-format webm) if Args.webm
@@ -208,6 +221,7 @@ files = lambda do
   puts out.inspect if Args.pretend
   puts Mood.neutral('No files found in this directory, will not do any statistics calculation, muxing, or playlist creation/modification.') if out.nil? || out.empty?
   out.keep_if(&:file?)
+  out
 end
 
 Files = files.call.freeze
@@ -244,7 +258,7 @@ def genstats(filelist)
     raise 'mkvpropedit is not executable' unless mpe && File.executable?(mpe)
     if filelist.respond_to?(:each) && filelist.respond_to?(:empty?) && !filelist.empty?
       filelist.each do |file|
-        puts Mood.happy { "Adding statistic tags to #{file}" }
+        puts(Mood.happy { "Adding statistic tags to #{file}" })
         cmd = %W(#{mpe} --add-track-statistics-tags #{file}).freeze
         begin
           Util::Program.runprogram(cmd) unless Args.pretend
@@ -334,15 +348,15 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   filepath = Pathname.new(filename)
   rootpath = Pathname.new(rootdir)
 
-  out = { location: URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s).gsub("'", %q(\\')) } # rubocop:disable Style/UnneededPercentQ
+  # out = { location: URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s).gsub("'", "\\\\'") }
+  out = { location: Addressable::URI.convert_path("z:#{filepath.realpath.relative_path_from(rootpath)}").to_s.gsub("'", "\\\\'") }
 
   if jsondata.dig(:format, :tags)
-    out[:title] = jsondata[:format][:tags][:title].gsub("'", %q(\\')) if jsondata.dig(:format, :tags, :title) # rubocop:disable Style/UnneededPercentQ
-    out[:annotation] = CGI.escapeHTML(jsondata[:format][:tags][:DESCRIPTION]).gsub("'", '&apos;') if jsondata.dig(:format, :tags, :DESCRIPTION)
-    out[:creator] = jsondata[:format][:tags][:ARTIST].gsub("'", %q(\\')) if jsondata.dig(:format, :tags, :ARTIST) # rubocop:disable Style/UnneededPercentQ
+    out[:title] = jsondata[:format][:tags][:title].gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :title)
+    out[:annotation] = CGI.escapeHTML(jsondata[:format][:tags][:DESCRIPTION]).gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :DESCRIPTION)
+    out[:creator] = jsondata[:format][:tags][:ARTIST].gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :ARTIST)
     out[:duration] = jsondata[:format][:duration].to_f.round.to_s if jsondata.dig(:format, :duration)
   end
-
   out
 end
 
@@ -352,6 +366,7 @@ def genplaylist(files, out)
   xspf = nil
 
   tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
+
   if out.respond_to?(:exist?) && out.exist? && !Args.resetplaylist
     o = File.new(out.to_s)
     xspf = XSPF.new(o)
@@ -361,7 +376,7 @@ def genplaylist(files, out)
   end
 
   files.each do |file|
-    puts Mood.happy { "Adding #{file} to playlist" }
+    puts(Mood.happy { "Adding #{file} to playlist" })
     track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Directory.to_s))
     tracklist << track
   end
@@ -369,16 +384,16 @@ def genplaylist(files, out)
   playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
   xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
 
-  puts Mood.happy { "Creating Directory #{out.dirname}" } unless Args.pretend || out.dirname.exist?
+  puts(Mood.happy { "Creating Directory #{out.dirname}" }) unless Args.pretend || out.dirname.exist?
   out.dirname.mkpath unless Args.pretend
 
   unless Args.pretend
     File.open(out.to_s, 'w') do |f|
-      puts Mood.happy { "Writing playlist to #{out}" }
+      puts(Mood.happy { "Writing playlist to #{out}" })
       f.write(xspf.to_xml)
     end
   end
-  puts Mood.neutral { 'Playlist XML Content:' }
+  puts(Mood.neutral { 'Playlist XML Content:' })
   puts xspf.to_xml if Args.pretend
 end
 
@@ -431,13 +446,13 @@ def genplfilelist(filelist)
   filelist.keep_if do |file|
     whitelist.include?(magic.file(file.to_s))
   end
-  puts Mood.neutral { 'No files to add to the playlist' } if filelist.empty?
-  puts Mood.neutral { 'Playlist file list:' } if Args.pretend
+  puts(Mood.neutral { 'No files to add to the playlist' }) if filelist.empty?
+  puts(Mood.neutral { 'Playlist file list:' }) if Args.pretend
   puts filelist.inspect if Args.pretend
-  puts Mood.neutral { 'Playlist output path:' } if Args.pretend
+  puts(Mood.neutral { 'Playlist output path:' }) if Args.pretend
   puts outpath.inspect if Args.pretend
   out = [filelist, outpath]
-  puts Mood.neutral { 'Output array:' } if Args.pretend
+  puts(Mood.neutral { 'Output array:' }) if Args.pretend
   puts out.inspect if Args.pretend
   out
 end
