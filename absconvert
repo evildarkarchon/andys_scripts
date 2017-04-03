@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+
 require 'ostruct'
 require 'optparse'
 require 'pathname'
@@ -124,11 +125,28 @@ class Options
     options
   end
 end
-ARGV.cleanup!
-Args = Options.parse(ARGV)
-Args.files = Args.sort ? Util.sort(ARGV) : ARGV
-Args.files.keep_if { |i| File.file?(i) } if Args.files.respond_to?(:keep_if)
-Args.freeze
+
+args = lambda do
+  arg = ARGV.dup.cleanup!
+  outargs = Options.parse(arg)
+  outfiles = Args.sort ? Util.sort(arg) : arg
+  outfiles.keep_if { |i| File.file?(i) } if respond_to?(:keep_if)
+  [outargs, outfiles]
+end
+
+Args, Files = args.call.freeze
+
+# ARGV.cleanup!
+# Args = Options.parse(ARGV)
+
+# files = lambda do
+#   out = ARGV.dup
+#   Util.sort(out) if Args.sort
+#   out.keep_if { |i| File.file?(i) } if respond_to?(:keep_if)
+#   out
+# end
+
+# Files = files.call.freeze
 
 DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
 DataMapper::Logger.new($stdout, :debug) if Args.verbose
@@ -163,7 +181,7 @@ def backup(sourcefile, backupdir)
 
   backup.mkpath unless backuppath.exist?
   raise 'Backup directory is a file.' if backuppath.exist? && backuppath.file?
-  puts Mood.happy { "Moving #{sourcefile} to #{backupdir}" }
+  puts Mood.happy { "Moving #{sourcefile} to #{backupdir}" } # rubocop:disable Lint/AmbiguousBlockAssociation
   sourcepath.rename(dest) if dest
 end
 
@@ -171,7 +189,7 @@ class Metadata
   attr_reader :bitrates, :frame_rate
   def initialize(filename)
     path = File.basename(filename).freeze
-    @query = VideoInfo::Database::Videoinfo.all(filename: path, fields: [:bitrate_0_raw, :type_0, :bitrate_1_raw, :type_1, :frame_rate])
+    @query = VideoInfo::Database::Videoinfo.all(filename: path, fields: %i(bitrate_0_raw type_0 bitrate_1_raw type_1 frame_rate))
     @frame_rate = nil
     @bitrates = {}
     @bitrates[:video] = nil
