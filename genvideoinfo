@@ -44,10 +44,10 @@ args = lambda do
   outargs = Options.parse(arg)
   outfiles = arg.nil? || arg.empty? ? [] : arg.dup
   outfiles.keep_if { |f| File.file?(f) } unless nil? || empty?
-  [outargs, outfiles]
+  [outargs.freeze, outfiles.freeze]
 end
 
-Args, Files = args.call.freeze
+Args, Files = args.call
 
 # Args = Options.parse(ARGV)
 
