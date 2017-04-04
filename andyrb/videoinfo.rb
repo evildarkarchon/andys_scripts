@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require_relative 'videoinfo/probe'
 require_relative 'videoinfo/filelist'
 require_relative 'videoinfo/genhash'

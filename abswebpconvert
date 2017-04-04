@@ -87,17 +87,17 @@ class Command
     magic = FileMagic.new(:mime_type)
     @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s.freeze
 
-    lossless_mime = %w(image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop)
+    lossless_mime = %w[image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop]
     lossless_mime.cleanup!(unique: false)
     lossless_mime.freeze
 
-    raw = %w(.3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw)
-    raw += %w(.nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f)
+    raw = %w[.3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw]
+    raw += %w[.nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f]
     raw.cleanup!(unique: false)
     raw.freeze
 
     # lossless = ['-define', 'webp:lossless=true']
-    lossless = %w(-define webp:lossless=true).freeze
+    lossless = %w[-define webp:lossless=true].freeze
     # lossymode = Args.lossy
     # losslessmode = Args.lossless
     outmode = Args.mode
@@ -107,10 +107,10 @@ class Command
 
     Util::FindApp.which('convert') do |c|
       raise 'convert not found or is not executable.' unless c && File.executable?(c)
-      @list = %W(#{c} #{filepath})
-      @list << %W(-quality #{Args.quality})
+      @list = %W[#{c} #{filepath}]
+      @list << %W[-quality #{Args.quality}]
       @list << lossless if outmode == 'lossless'
-      @list << %w(-define webp:thread-level=1)
+      @list << %w[-define webp:thread-level=1]
       @list << '-verbose' if Args.verbose
       @list << @outpath.to_s
       @list.cleanup!(unique: false)
@@ -138,7 +138,7 @@ def backuparchive
     Util::FindApp.which('7za') do |z|
       z.freeze
       raise '7za not found or is not executable.' if (Args.backuparchive && !z) || (Args.backuparchive && z && !File.executable?(z))
-      Util::Program.runprogram(%W(#{z} a #{Args.backuparchive} #{paths.join(' ')}))
+      Util::Program.runprogram(%W[#{z} a #{Args.backuparchive} #{paths.join(' ')}])
     end
   rescue Subprocess::NonZeroExit => e
     puts e.message
@@ -168,7 +168,7 @@ def archive
   puts Mood.happy("Adding files to #{archivepath}")
   begin
     # Util::Program.runprogram([SevenZ, 'a', Args.archive, paths.join(' ')])
-    Util::FindApp.which('7za') { |z| Util::Program.runprogram(%W(#{z} a #{Args.archive} paths.join(' '))) }
+    Util::FindApp.which('7za') { |z| Util::Program.runprogram(%W[#{z} a #{Args.archive} paths.join(' ')]) }
   rescue Subprocess::NonZeroExit, Interrupt => e
     puts e.message.freeze
     raise e

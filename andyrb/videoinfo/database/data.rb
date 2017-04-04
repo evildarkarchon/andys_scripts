@@ -24,7 +24,7 @@ module VideoInfo
       end
 
       def existing
-        out = Videoinfo.count >= 1 ? Videoinfo.all(fields: %i(filename filehash)) : nil
+        out = Videoinfo.count >= 1 ? Videoinfo.all(fields: %i[filename filehash]) : nil
         out
       end
 

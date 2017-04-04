@@ -48,7 +48,7 @@ def touchgcfile
 
   case
   when use_sudo
-    Util::Program.runprogram(%W(touch #{cachepath}), use_sudo: true)
+    Util::Program.runprogram(%W[touch #{cachepath}], use_sudo: true)
   else
     FileUtils.touch(cachepath.to_s)
   end
@@ -78,14 +78,14 @@ when wdpath.exist? && !repopath.exist?
   case
   when Args.replace
     puts(Mood.neutral { "No git repository located in the target directory, renaming it to #{wdpath}.old" })
-    Util::Program.runprogram(%W(mv #{wdpath} #{wdpath}.old), use_sudo: true, sudo_user: 'nginx')
+    Util::Program.runprogram(%W[mv #{wdpath} #{wdpath}.old], use_sudo: true, sudo_user: 'nginx')
     TTrss.clone(giturl)
   else
     raise 'No git repository located in the target directory.'
   end
 when wdpath.file?
   puts Mood.neutral('Target location is a file, renaming and cloning repository.')
-  Util::Program.runprogram(%W(mv #{wdpath} #{wdpath}.bad), use_sudo: true, sudo_user: 'nginx')
+  Util::Program.runprogram(%W[mv #{wdpath} #{wdpath}.bad], use_sudo: true, sudo_user: 'nginx')
   TTrss.clone(giturl)
 else
   puts Mood.neutral('Target location does not exist, cloning repository')
@@ -94,4 +94,4 @@ end
 
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
 
-Util::Program.runprogram(%w(systemctl restart ttrssd)) if Args.restart
+Util::Program.runprogram(%w[systemctl restart ttrssd]) if Args.restart

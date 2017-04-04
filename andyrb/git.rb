@@ -43,25 +43,25 @@ class Git
   def clean_lock
     case
     when @use_sudo && @wdlock.exist?
-      Util::Program.runprogram(%W(rm #{@wdlock}), use_sudo: true, sudo_user: @sudo_user)
+      Util::Program.runprogram(%W[rm #{@wdlock}], use_sudo: true, sudo_user: @sudo_user)
     when !@use_sudo && @wdlock.exist?
       @wdlock.delete
     end
   end
 
   def clone(url)
-    Util::Program.runprogram(%W(#{@git} clone #{url} #{@wd}), use_sudo: @use_sudo, sudo_user: @sudo_user)
+    Util::Program.runprogram(%W[#{@git} clone #{url} #{@wd}], use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 
   def gc(aggressive: false)
     aggressive.freeze
-    gccmd = %W(#{@git} gc)
+    gccmd = %W[#{@git} gc]
     gccmd << '--aggressive' if aggressive
     gccmd.freeze
     Util::Program.runprogram(gccmd, use_sudo: @use_sudo, sudo_user: @sudo_user)
   end
 
   def pull
-    Util::Program.runprogram(%W(#{@git} pull), use_sudo: @use_sudo, sudo_user: @sudo_user, workdir: @wd)
+    Util::Program.runprogram(%W[#{@git} pull], use_sudo: @use_sudo, sudo_user: @sudo_user, workdir: @wd)
   end
 end

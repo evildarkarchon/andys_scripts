@@ -36,7 +36,7 @@ args = lambda do
   out = nil
   out = ARGV.dup.cleanup! unless ARGV.nil? || ARGV.empty?
   out = Options.parse(out)
-  outdir = out.nil? || out.empty? ? %w(/data/Private) : out
+  outdir = out.nil? || out.empty? ? %w[/data/Private] : out
   outdir.keep_if { |d| File.directory?(d) } if outdir.respond_to?(:keep_if)
   [out.freeze, outdir.freeze]
 end

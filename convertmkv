@@ -206,7 +206,7 @@ class Convenience
   end
 
   def self.mkvmergeconcat
-    basecommand = %W(#{MkvMerge} -o #{Args.output}).freeze
+    basecommand = %W[#{MkvMerge} -o #{Args.output}].freeze
 
     filelist = Files.join(' + ')
     filelist = filelist.split.freeze
@@ -258,11 +258,11 @@ else
 
     puts Mood.happy("Muxing #{file} to a matroska file.")
     if Args.ffmpeg
-      ffcmd = %W(#{FFMPEG} -i #{filepath.realpath} -c copy -f matroska -hide_banner -y #{fileoutpath})
+      ffcmd = %W[#{FFMPEG} -i #{filepath.realpath} -c copy -f matroska -hide_banner -y #{fileoutpath}]
       ffcmd.cleanup!(unique: false)
       ffcmd.freeze
 
-      mpecmd = %W(#{MkvPropEdit} --add-track-statistics-tags #{fileoutpath})
+      mpecmd = %W[#{MkvPropEdit} --add-track-statistics-tags #{fileoutpath}]
       mpecmd.cleanup!(unique: false)
       mpecmd.freeze
 
@@ -272,7 +272,7 @@ else
         Util::Program.runprogram(mpecmd)
       end
     else
-      command = %W(#{MkvMerge} #{Config[:mkvmerge]} -o #{fileoutpath} = #{file})
+      command = %W[#{MkvMerge} #{Config[:mkvmerge]} -o #{fileoutpath} = #{file}]
       command.cleanup!(unique: false)
       command.freeze
       Util::Program.runprogram(command) unless Args.debug

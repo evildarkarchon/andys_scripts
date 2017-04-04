@@ -14,8 +14,8 @@ module Util
       raise 'Program variable is not an array or convertable into an array' unless program.is_a?(Array) || program.respond_to?(:to_a)
       program = program.to_a unless program.is_a?(Array)
       program.freeze
-      cmdline << %W(sudo -u #{sudo_user}) if use_sudo && sudo_user
-      cmdline << %w(sudo) if use_sudo && !sudo_user
+      cmdline << %W[sudo -u #{sudo_user}] if use_sudo && sudo_user
+      cmdline << %w[sudo] if use_sudo && !sudo_user
       cmdline << program
       cmdline.cleanup!(unique: false)
       cmdline.freeze

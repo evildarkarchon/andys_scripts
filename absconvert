@@ -21,8 +21,8 @@ class Options
   def self.parse(args)
     options = OpenStruct.new
     options.videocodec = 'libvpx-vp9'
-    options.videocodecopts = options.videocodec == 'libvpx-vp9' ? %w(-threads 4 -tile-columns 6 -frame-parallel 1 -speed 1) : nil
-    options.videocodecopts = options.videocodec == 'libvpx' ? %w(-threads 4 -speed 1) : nil
+    options.videocodecopts = options.videocodec == 'libvpx-vp9' ? %w[-threads 4 -tile-columns 6 -frame-parallel 1 -speed 1] : nil
+    options.videocodecopts = options.videocodec == 'libvpx' ? %w[-threads 4 -speed 1] : nil
     options.videobitrate = nil
     options.framerate = nil
     options.passes = 2
@@ -189,7 +189,7 @@ class Metadata
   attr_reader :bitrates, :frame_rate
   def initialize(filename)
     path = File.basename(filename).freeze
-    @query = VideoInfo::Database::Videoinfo.all(filename: path, fields: %i(bitrate_0_raw type_0 bitrate_1_raw type_1 frame_rate))
+    @query = VideoInfo::Database::Videoinfo.all(filename: path, fields: %i[bitrate_0_raw type_0 bitrate_1_raw type_1 frame_rate])
     @frame_rate = nil
     @bitrates = {}
     @bitrates[:video] = nil
@@ -250,16 +250,16 @@ def cmdline(filename, passnum: 1, passmax: 2)
     when Args.novideo || bitrates[:video].nil?
       '-vn'
     when Config[:defaults][:video]
-      %W(-c:v #{Config[:defaults][:video]})
+      %W[-c:v #{Config[:defaults][:video]}]
     when Args.videocodec
-      %W(-c:v #{Args.videocodec})
+      %W[-c:v #{Args.videocodec}]
     end
   vcodec.freeze
 
   vbitrate =
     case
     when !Args.novideo && bitrates[:video]
-      %W(-b:v #{bitrates[:video]})
+      %W[-b:v #{bitrates[:video]}]
     end
   vbitrate.freeze
 
@@ -277,11 +277,11 @@ def cmdline(filename, passnum: 1, passmax: 2)
     when passnum == 1 || Args.noaudio || bitrates[:audio].nil?
       '-an'
     when Args.audiocodec
-      %W(-c:a #{Args.audiocodec})
+      %W[-c:a #{Args.audiocodec}]
     when Config[:defaults][:audio]
       Config[:defaults][:audio]
     else
-      %w(-c:a libopus)
+      %w[-c:a libopus]
     end
   acodec.freeze
 
@@ -297,16 +297,16 @@ def cmdline(filename, passnum: 1, passmax: 2)
   abitrate =
     case
     when !Args.noaudio && bitrates[:audio]
-      %W(-b:a #{bitrates[:audio]})
+      %W[-b:a #{bitrates[:audio]}]
     end
   abitrate.freeze
 
   afilter =
     case
     when !Args.noaudio && Config[:defaults][:audiofilter]
-      %W(-af #{Config[:defaults][:audiofilter]})
+      %W[-af #{Config[:defaults][:audiofilter]}]
     when !Args.noaudio && Args.audiofilter
-      %W(-af #{Args.audiofilter})
+      %W[-af #{Args.audiofilter}]
     end
   afilter.freeze
 
@@ -321,22 +321,22 @@ def cmdline(filename, passnum: 1, passmax: 2)
     end
   outcon.freeze
 
-  out = %W(#{FFmpeg} -i #{filename})
+  out = %W[#{FFmpeg} -i #{filename}]
   out << vcodec
   out << vbitrate if vbitrate
-  out << %W(-pass #{passnum} -passlogfile #{filepath.sub_ext('')}) if passmax == 2
+  out << %W[-pass #{passnum} -passlogfile #{filepath.sub_ext('')}] if passmax == 2
   out << vcodecopts if vcodecopts
-  out << %W(-filter:v fps=#{framerate}) if framerate
+  out << %W[-filter:v fps=#{framerate}] if framerate
   out << acodec
   out << abitrate if abitrate
   out << acodecopts if acodecopts
   out << afilter if afilter
-  out << %w(-hide_banner -y)
+  out << %w[-hide_banner -y]
   out <<
     case
     when passnum == 1 && passmax == 2
       # ['-f', 'matroska', '/dev/null']
-      %w(-f matroska /dev/null)
+      %w[-f matroska /dev/null]
     when passnum == 2 && passmax == 2, passmax == 1
       # Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
       (Args.outputdir + filepath.basename.sub_ext(outcon)).to_s
@@ -389,7 +389,7 @@ Args.files.each do |file|
     outpath.delete if outpath.exist?
     raise e
   else
-    Util::Program.runprogram(%W(#{MkvPropEdit} --add-track-statistics-tags #{outpath})) if Args.stats && outpath.exist? && !Args.debug
+    Util::Program.runprogram(%W[#{MkvPropEdit} --add-track-statistics-tags #{outpath}]) if Args.stats && outpath.exist? && !Args.debug
     case
     when !Args.converttest && !Args.debug
       del = VideoInfo::Database::Videoinfo.all(filename: filepath.basename.to_s)

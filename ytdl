@@ -99,7 +99,7 @@ args = lambda do
   outarg = Options.parse(arg)
   outurl = arg.dup
   outurl.keep_if { |url| url.is_a?(String) }
-  outurl.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
+  outurl.keep_if { |url| url =~ /\A#{URI.regexp(%w[http https])}\z/ }
   [outarg.freeze, outurl.freeze]
 end
 
@@ -153,7 +153,7 @@ filenames = lambda do
   print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
   Util::FindApp.which('youtube-dl') do |yt|
     Urls.each do |url|
-      files << Util::Program.runprogram(%W(#{yt} --get-filename #{url}), parse_output: true)
+      files << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true)
     end
   end
   puts 'done.'
@@ -208,11 +208,11 @@ Util::FindApp.which('youtube-dl') do |yt|
   archive.freeze
 
   puts(Mood.neutral { archive }) if Args.pretend
-  ytdl = %W(#{yt})
-  ytdl << %W(--download-archive #{archive}) unless Args.force
-  ytdl << %w(--merge-output-format webm) if Args.webm
+  ytdl = %W[#{yt}]
+  ytdl << %W[--download-archive #{archive}] unless Args.force
+  ytdl << %w[--merge-output-format webm] if Args.webm
   ytdl << '-k' if Args.keep_split
-  ytdl << %w(--external-downloader ffmpeg --external-downloader-args -hide_banner --hls-prefer-ffmpeg) if Args.ffmpegdl
+  ytdl << %w[--external-downloader ffmpeg --external-downloader-args -hide_banner --hls-prefer-ffmpeg] if Args.ffmpegdl
   ytdl << Urls
   ytdl.cleanup!(unique: false)
   ytdl.freeze
@@ -238,7 +238,7 @@ puts(Mood.neutral { "Is Files Frozen? #{Files.frozen?}" }) if Args.pretend
 exit if Files.nil? || Files.empty?
 
 def genstatsfl(mkv)
-  whitelist = %w(video/webm video/x-matroska audio/x-matroska).freeze
+  whitelist = %w[video/webm video/x-matroska audio/x-matroska].freeze
   mkv.keep_if do |file|
     file.freeze
     magic = FileMagic.new(:mime_type)
@@ -269,7 +269,7 @@ def genstats(filelist)
     if filelist.respond_to?(:each) && filelist.respond_to?(:empty?) && !filelist.empty?
       filelist.each do |file|
         puts(Mood.happy { "Adding statistic tags to #{file}" })
-        cmd = %W(#{mpe} --add-track-statistics-tags #{file}).freeze
+        cmd = %W[#{mpe} --add-track-statistics-tags #{file}].freeze
         begin
           Util::Program.runprogram(cmd) unless Args.pretend
           # print "#{cmd}\n" if Args.pretend
@@ -287,10 +287,10 @@ genstats(genstatsfl(Files.dup)) if Args.stats
 
 def genmuxfl(muxfiles)
   magic = FileMagic.new(:mime_type)
-  whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
-  whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
+  whitelist = %w[video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav]
+  whitelist += %w[audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio]
   whitelist.freeze
-  blacklist = %w(video/webm video/x-matroska audio/x-matroska).freeze
+  blacklist = %w[video/webm video/x-matroska audio/x-matroska].freeze
   muxfiles.delete_if do |file|
     blacklist.include?(magic.file(file.to_s))
   end
@@ -332,7 +332,7 @@ def muxfiles(filelist)
       filelist.each do |file|
         file.freeze
         out = Directory + file.basename.sub_ext('.mkv')
-        cmd = config[:mkvmerge] ? %W(#{mkvm} #{config[:mkvmerge]} -o #{out} = #{file}) : %W(#{Util::FindApp.which(mkvmerge)} -o #{out} = #{file})
+        cmd = config[:mkvmerge] ? %W[#{mkvm} #{config[:mkvmerge]} -o #{out} = #{file}] : %W[#{Util::FindApp.which(mkvmerge)} -o #{out} = #{file}]
         cmd.cleanup!(unique: false)
         cmd.freeze
         # print "#{cmd}\n" if Args.pretend
@@ -420,9 +420,9 @@ def genplfilelist(filelist)
       Pathname.new("#{Directory}/Playlists/#{Args.date}.xspf")
     end
 
-  whitelist = %w(video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav)
-  whitelist += %w(audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio)
-  whitelist += %w(video/webm video/x-matroska audio/x-matroska)
+  whitelist = %w[video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav]
+  whitelist += %w[audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio]
+  whitelist += %w[video/webm video/x-matroska audio/x-matroska]
   whitelist.freeze
   magic = FileMagic.new(:mime_type)
 

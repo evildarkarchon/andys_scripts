@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 class Array
   def cleanup!(unique: true)
     flatten!
