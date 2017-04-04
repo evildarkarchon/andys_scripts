@@ -150,15 +150,17 @@ end
 
 filenames = lambda do
   files = []
-  puts(Mood.happy { 'Retrieving filenames for videos to be downloaded.' })
+  print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
   Util::FindApp.which('youtube-dl') do |yt|
     Urls.each do |url|
       files << Util::Program.runprogram(%W(#{yt} --get-filename #{url}), parse_output: true)
     end
   end
+  puts 'done.'
   files.cleanup!
   files.map! { |i| Directory.join(i).to_s }
   files.map!(&:strip)
+  files = Util.sort(files) if Args.sort
   files
 end
 FileNames = filenames.call.freeze
@@ -168,7 +170,6 @@ puts FileNames.inspect if Args.pretend
 
 unless Args.playlist || Args.no_blacklist
   filenames = FileNames.dup
-  filenames = Util.sort(filenames) if Args.sort
   n = Directory + 'no-playlist.txt'
   o = n.exist? ? File.readlines(n.to_s) : nil
 
