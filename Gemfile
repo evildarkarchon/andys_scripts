@@ -26,6 +26,7 @@ end
 
 group :ytdl do
   gem 'addressable'
+  gem 'nokogiri'
   gem 'xspf'
 end
 
