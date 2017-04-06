@@ -9,6 +9,7 @@ require 'uri'
 require 'json'
 require 'cgi'
 require 'addressable'
+require 'nokogiri'
 
 begin
   rv = Gem::Version.new(RUBY_VERSION.to_s.freeze)
@@ -17,14 +18,7 @@ begin
 rescue LoadError => e
   raise e if rv < rvm
 end
-
-begin
-  require 'xspf'
-rescue LoadError
-  XSPF_Exists = false
-else
-  XSPF_Exists = true
-end
+require 'xspf'
 
 require_relative 'andyrb/videoinfo/probe'
 require_relative 'andyrb/mood'
@@ -206,19 +200,24 @@ Util::FindApp.which('youtube-dl') do |yt|
       Directory + 'downloaded.txt'
     end
   archive.freeze
-
   puts(Mood.neutral { archive }) if Args.pretend
-  ytdl = %W[#{yt}]
-  ytdl << %W[--download-archive #{archive}] unless Args.force
-  ytdl << %w[--merge-output-format webm] if Args.webm
-  ytdl << '-k' if Args.keep_split
-  ytdl << %w[--external-downloader ffmpeg --external-downloader-args -hide_banner --hls-prefer-ffmpeg] if Args.ffmpegdl
-  ytdl << Urls
-  ytdl.cleanup!(unique: false)
-  ytdl.freeze
 
-  Util::Program.runprogram(ytdl, workdir: outdir) unless Args.pretend || Args.no_download
-  puts ytdl.inspect if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.no_download
+  cmd = lambda do
+    ytdl = %W[#{yt}]
+    ytdl << %W[--download-archive #{archive}] unless Args.force
+    ytdl << %w[--merge-output-format webm] if Args.webm
+    ytdl << '-k' if Args.keep_split
+    ytdl << %w[--external-downloader ffmpeg --external-downloader-args -hide_banner --hls-prefer-ffmpeg] if Args.ffmpegdl
+    ytdl << Urls
+    ytdl.cleanup!(unique: false)
+    ytdl.freeze
+    ytdl
+  end
+
+  cmdline = cmd.call
+
+  Util::Program.runprogram(cmdline, workdir: outdir) unless Args.pretend || Args.no_download
+  puts cmdline.inspect if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.no_download
 end
 
 files = lambda do
@@ -396,15 +395,16 @@ def genplaylist(files, out)
 
   puts(Mood.happy { "Creating Directory #{out.dirname}" }) unless Args.pretend || out.dirname.exist?
   out.dirname.mkpath unless Args.pretend || out.dirname.exist?
+  ng = Nokogiri.XML(xspf.to_xml)
 
   unless Args.pretend
     File.open(out.to_s, 'w') do |f|
       puts(Mood.happy { "Writing playlist to #{out}" })
-      f.write(xspf.to_xml)
+      f.write(ng.to_s)
     end
   end
   puts(Mood.neutral { 'Playlist XML Content:' }) if Args.pretend
-  puts xspf.to_xml if Args.pretend
+  puts ng if Args.pretend
 end
 
 def genplfilelist(filelist)
@@ -450,7 +450,7 @@ def genplfilelist(filelist)
       b
     end
   end
-  unless (blacklist && blacklist.respond_to?(:empty?) && blacklist.empty?) || Args.resetplaylist
+  unless !defined?(blacklist) || (blacklist && blacklist.respond_to?(:empty?) && blacklist.empty?) || Args.resetplaylist || Args.no_blacklist
     filelist.delete_if { |i| blacklist.to_s.include?(i.to_s) }
   end
   filelist.keep_if do |file|
@@ -467,7 +467,7 @@ def genplfilelist(filelist)
   out
 end
 
-if XSPF_Exists && Args.playlist
+if Args.playlist
   filelist, outpath = genplfilelist(Files.dup)
   genplaylist(filelist, outpath) unless filelist.empty?
 end
