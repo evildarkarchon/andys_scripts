@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'nokogiri'
+
+files = ARGV
+files.keep_if { |f| File.exist?(f) }
+files.keep_if { |f| File.file?(f) }
+
+files.each do |f|
+  i = Nokogiri::XML(File.read(f))
+  File.open(f, 'w') do |x|
+    x.write(i)
+  end
+end
