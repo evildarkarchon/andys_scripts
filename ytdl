@@ -7,10 +7,10 @@ require 'pathname'
 require 'filemagic'
 require 'uri'
 require 'json'
-require 'cgi'
 require 'addressable'
 require 'nokogiri'
 require 'fileutils'
+require 'htmlentities'
 
 begin
   rv = Gem::Version.new(RUBY_VERSION.to_s.freeze)
@@ -28,6 +28,11 @@ require_relative 'andyrb/util/program'
 require_relative 'andyrb/util/findapp'
 require_relative 'andyrb/util/recursive_symbolize_keys'
 require_relative 'andyrb/util/sort'
+
+Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+
+raise 'Cleanup code not loaded' unless [].respond_to?(:cleanup!)
 
 class Options
   def self.parse(args)
@@ -79,7 +84,7 @@ class Options
       opts.on('--reset-playlist', 'Do not modify an existing playlist (if it exists)') { options.resetplaylist = true }
       opts.on('--no-blacklist', 'Do not put downloaded files in the playlist blacklist if playlist creation (or modification) is disabled.') { options.no_blacklist = true }
       opts.on('--no-sort', 'Do not run any sorting operations.') { options.sort = false }
-      opts.on('--drive-letter', 'Drive letter to use for the xspf playlist (not used if directory is set to default)') { |i| options.drive_letter = i }
+      opts.on('--drive-letter [LETTER]', 'Drive letter to use for the xspf playlist (not used if directory is set to default)') { |i| options.drive_letter = i }
     end
     optparse.parse!(args)
     options
@@ -194,7 +199,7 @@ Util::FindApp.which('youtube-dl') do |yt|
     ytdl << %W[--download-archive #{archive}] unless Args.force
     ytdl << %w[--merge-output-format webm] if Args.webm
     ytdl << '-k' if Args.keep_split
-    ytdl << %w[--external-downloader ffmpeg --external-downloader-args -hide_banner --hls-prefer-ffmpeg] if Args.ffmpegdl
+    ytdl << %w[--hls-prefer-ffmpeg --external-downloader ffmpeg --external-downloader-args -hide_banner] if Args.ffmpegdl
     ytdl << Urls
     ytdl.cleanup!(unique: false)
     ytdl.freeze
@@ -341,12 +346,14 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   jsondata = VideoInfo.probe(filename)
   filepath = Pathname.new(filename)
   rootpath = Pathname.new(rootdir)
+  coder = HTMLEntities.new
 
   out = { location: Addressable::URI.convert_path("z:/#{filepath.realpath.relative_path_from(rootpath)}").to_s.gsub("'", "\\\\'") }
 
   if jsondata.dig(:format, :tags)
     out[:title] = jsondata[:format][:tags][:title].gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :title)
-    out[:annotation] = CGI.escapeHTML(jsondata[:format][:tags][:DESCRIPTION]).gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :DESCRIPTION)
+    # out[:annotation] = coder.escape(jsondata[:format][:tags][:DESCRIPTION]).gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :DESCRIPTION)
+    out[:annotation] = coder.escape(jsondata[:format][:tags][:DESCRIPTION]) if jsondata.dig(:format, :tags, :DESCRIPTION)
     out[:creator] = jsondata[:format][:tags][:ARTIST].gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :ARTIST)
     out[:duration] = jsondata[:format][:duration].to_f.round.to_s if jsondata.dig(:format, :duration)
   end
@@ -430,7 +437,7 @@ def genplfilelist(filelist)
     filelist.delete_if do |i|
       url = Directory.to_s.include?('/data/Videos') ? Addressable::URI.convert_path("z:/#{i.relative_path_from(Pathname.new('/data/Videos'))}").to_s : Addressable::URI.convert_path("#{Args.drive_letter[0]}:/#{i.relative_path_from(Directory)}")
       uris = existing.map { |x| Addressable::URI.parse(x).to_s }
-      true if uris.any? { |y| url.include? y }
+      uris.any? { |y| url.include? y }
     end
   end
   unless !defined?(blacklist) || (blacklist && blacklist.respond_to?(:empty?) && blacklist.empty?) || Args.resetplaylist || Args.no_blacklist
