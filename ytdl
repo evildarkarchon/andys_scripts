@@ -86,10 +86,6 @@ class Options
   end
 end
 
-# Args = Options.parse(ARGV.dup)
-# puts Args if Args.pretend
-# Args.freeze
-
 args = lambda do
   arg = ARGV.dup
   arg.cleanup!
@@ -102,14 +98,6 @@ end
 
 Args, Urls = args.call
 
-# urls = lambda do
-#   out = ARGV.dup
-#   out.cleanup!
-#   out.keep_if { |url| url.is_a?(String) }
-#   out.keep_if { |url| url =~ /\A#{URI.regexp(%w(http https))}\z/ }
-#   out
-# end
-# Urls = urls.call.freeze
 puts Args.inspect if Args.pretend
 puts Urls.inspect if Args.pretend
 
@@ -127,13 +115,9 @@ end
 
 Directory = subdir.call.freeze
 
-# Args.directory &&= Args.directory + Args.date if outdir == '/data/Videos/Youtube' && Args.datesubdir
-# Args.directory &&= Args.directory + Args.subdirectory if Args.subdirectory && Args.subdirectory.is_a?(String) && outdir.include?('/data/Videos/Youtube')
-
 puts(Mood.neutral { "Is Args frozen? #{Args.frozen?}" }) if Args.pretend
 puts(Mood.neutral { "Is Urls frozen? #{Urls.frozen?}" }) if Args.pretend
-# puts Args.frozen? if Args.pretend
-# Args.directory.freeze unless Args.directory.frozen?
+
 puts(Mood.neutral { "Is Directory frozen? #{Directory.frozen?}" }) if Args.pretend
 puts(Mood.neutral { Directory }) if Args.pretend
 
@@ -226,7 +210,7 @@ end
 files = lambda do
   out = Directory.find.to_a
   puts Mood.neutral('Step 1:') if Args.pretend
-  # print "#{out}\n" if Args.pretend
+
   out.keep_if(&:file?) if respond_to?(:keep_if)
   outtemp = Util.sort(out.map(&:to_s))
   out = outtemp.map { |i| Pathname.new(i) }
@@ -247,7 +231,7 @@ def genstatsfl(mkv)
     whitelist.include?(magic.file(file.to_s))
   end
   puts Mood.neutral('Step 2 (stats):') if Args.pretend
-  # print "#{mkv}\n" if Args.pretend
+
   puts mkv.inspect if Args.pretend
   mkv.delete_if do |file|
     file.freeze
@@ -257,7 +241,7 @@ def genstatsfl(mkv)
   end
   mkv.freeze
   puts Mood.neutral('Step 3 (stats):') if Args.pretend
-  # print "#{mkv}\n" if Args.pretend
+
   puts mkv.inspect if Args.pretend
   puts Mood.neutral('No matroska files to calculate statistics for.') if mkv.nil? || mkv.empty?
   mkv
@@ -274,7 +258,7 @@ def genstats(filelist)
         cmd = %W[#{mpe} --add-track-statistics-tags #{file}].freeze
         begin
           Util::Program.runprogram(cmd) unless Args.pretend
-          # print "#{cmd}\n" if Args.pretend
+
           puts cmd.inspect if Args.pretend
         rescue Subprocess::NonZeroExit => e
           puts e.message
@@ -297,7 +281,7 @@ def genmuxfl(muxfiles)
     blacklist.include?(magic.file(file.to_s))
   end
   puts Mood.neutral('Step 2 (mux):') if Args.pretend
-  # print "#{muxfiles}\n" if Args.pretend
+
   puts muxfiles.inspect if Args.pretend
 
   muxfiles.keep_if do |file|
@@ -306,7 +290,7 @@ def genmuxfl(muxfiles)
   muxfiles.freeze
 
   puts Mood.neutral('Step 3 (mux):') if Args.pretend
-  # print "#{muxfiles}\n" if Args.pretend
+
   puts muxfiles.inspect if Args.pretend
   muxfiles
 end
@@ -324,7 +308,6 @@ def muxfiles(filelist)
         confighash = JSON.parse(configfile.read)
         confighash = Util.recursive_symbolize_keys(confighash)
         configfile.close
-        # print "#{confighash}\n" if Args.pretend && confighash
         puts confighash.inspect if Args.pretend && confighash
         confighash
       end
@@ -337,7 +320,6 @@ def muxfiles(filelist)
         cmd = config[:mkvmerge] ? %W[#{mkvm} #{config[:mkvmerge]} -o #{out} = #{file}] : %W[#{Util::FindApp.which(mkvmerge)} -o #{out} = #{file}]
         cmd.cleanup!(unique: false)
         cmd.freeze
-        # print "#{cmd}\n" if Args.pretend
         puts cmd.inspect if Args.pretend
 
         begin
@@ -360,7 +342,6 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   filepath = Pathname.new(filename)
   rootpath = Pathname.new(rootdir)
 
-  # out = { location: URI.escape('file:///z:/'.dup + filepath.realpath.relative_path_from(rootpath).to_s).gsub("'", "\\\\'") }
   out = { location: Addressable::URI.convert_path("z:/#{filepath.realpath.relative_path_from(rootpath)}").to_s.gsub("'", "\\\\'") }
 
   if jsondata.dig(:format, :tags)
@@ -400,8 +381,6 @@ def genplaylist(files, out)
   out.dirname.mkpath unless Args.pretend || out.dirname.exist?
   ng = Nokogiri.XML(xspf.to_xml)
 
-  # FileUtils.rm(out.to_s) if File.exist?(out.to_s)
-
   unless Args.pretend
     File.open(out.to_s, 'w') do |f|
       puts(Mood.happy { "Writing playlist to #{out}" })
@@ -440,24 +419,17 @@ def genplfilelist(filelist)
     tracklist = playlist.tracklist
     existing = tracklist.tracks
     existing.map!(&:location) if existing.respond_to?(:map!) && !existing.empty?
-    # puts existing
     o.close
   end
 
-  # tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
-  # filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
   filelist.keep_if { |i| i.dirname.to_s == Directory.to_s }
   uris = existing.map { |x| Addressable::URI.parse(x).to_s }
   puts(Mood.neutral { 'Existing URIs:' }) if Args.pretend
   puts uris.inspect if Args.pretend
   unless existing.empty? || Args.resetplaylist
     filelist.delete_if do |i|
-      # url = Addressable::URI.convert_path("z:/#{i.relative_path_from(Pathname.new('/data/Videos'))}").to_s if Directory.to_s.include?('/data/Videos')
-      # url = Addressable::URI.convert_path("#{Args.drive_letter}:/#{i.relative_path_from(Directory)}") unless Directory.to_s.include?('/data/Videos')
-      url = Directory.to_s.include?('/data/Videos') ? Addressable::URI.convert_path("z:/#{i.relative_path_from(Pathname.new('/data/Videos'))}").to_s : Addressable::URI.convert_path("#{Args.drive_letter}:/#{i.relative_path_from(Directory)}")
-      # puts url if Args.pretend
+      url = Directory.to_s.include?('/data/Videos') ? Addressable::URI.convert_path("z:/#{i.relative_path_from(Pathname.new('/data/Videos'))}").to_s : Addressable::URI.convert_path("#{Args.drive_letter[0]}:/#{i.relative_path_from(Directory)}")
       uris = existing.map { |x| Addressable::URI.parse(x).to_s }
-      # puts 'found existing' if uris.any? { |y| url.include? y }
       true if uris.any? { |y| url.include? y }
     end
   end
