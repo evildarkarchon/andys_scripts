@@ -1,18 +1,17 @@
-#!/usr/bin/env python3
-# pylint: disable=line-too-long
-import pathlib
-from datetime import datetime
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
-from andy.util import Mood, Util
+require 'pathname'
 
-now = datetime.now()
+require 'andyrb/util/datediff'
+require 'andyrb/mood'
 
-files = Util.sortentries(pathlib.Path("/data/ttrssbackup").rglob("feeds*.tar.xz"))
-# print(sortentries(files))
+files = Pathname.new('/data/ttrssbackup').find.to_a
+files.keep_if { |i| i.extname.to_s.include?('.xz') }
+files.freeze
 
-for filepath in files:
-    then = datetime.fromtimestamp(filepath.stat().st_mtime)
-    filetime = now - then
-    if filetime.days > 14:
-        print("{} Removing {} from backup directory.".format(Mood.neutral(), filepath.name))
-        filepath.unlink()
+files.each do |file|
+  diff = Util.datediff(file.mtime)
+  puts(Mood.happy { "Deleting #{file}" }) if diff > 14
+  file.delete if diff > 14
+end
