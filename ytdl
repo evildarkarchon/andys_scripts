@@ -110,15 +110,15 @@ Args, Urls = args.call
 puts Args.inspect if Args.pretend
 puts Urls.inspect if Args.pretend
 
-raise 'No URLs specified (or code is bugged)' if [[Urls.nil?, Urls.empty?].any?, !Args.pretend, !Args.no_download].all?
+raise 'No URLs specified (or code is bugged)' if (Urls.nil? || Urls.empty?) && !Args.pretend && !Args.no_download
 
-raise 'Args.directory is not set properly (somehow)' unless [Args.directory, Args.directory.is_a?(Pathname)].all?
+raise 'Args.directory is not set properly (somehow)' unless Args.directory && Args.directory.is_a?(Pathname)
 
 subdir = lambda do
   indir = Args.directory.to_s
   outdir = Args.directory
-  outdir += Args.date if [outdir, indir, indir == '/data/Videos/Youtube', Args.datesubdir].all?
-  outdir += Args.subdirectory if [outdir, indir, Args.subdirectory, Args.subdirectory.is_a?(String), indir.include?('/data/Videos/Youtube')].all?
+  outdir += Args.date if outdir && indir && indir == '/data/Videos/Youtube' && Args.datesubdir
+  outdir += Args.subdirectory if outdir && indir && Args.subdirectory && Args.subdirectory.is_a?(String) && indir.include?('/data/Videos/Youtube')
   outdir
 end
 
@@ -135,7 +135,7 @@ puts(Mood.neutral { "Is Directory frozen? #{Directory.frozen?}" }) if Args.prete
 puts(Mood.neutral { Directory }) if Args.pretend
 
 case
-when [Directory.exist?, !Directory.directory?].all?
+when Directory.exist? && !Directory.directory?
   raise "#{Directory} exists but is not a directory."
 when !Directory.exist?
   puts(Mood.happy { "Creating Directory #{Directory}" })
@@ -162,15 +162,15 @@ puts(Mood.neutral { 'Filenames for downloaded videos:' }) if Args.pretend
 # print "#{FileNames}\n" if Args.pretend
 puts FileNames.inspect if Args.pretend
 
-unless [Args.playlist, Args.no_blacklist].any?
+unless Args.playlist || Args.no_blacklist
   filenames = FileNames.dup
   n = Directory + 'no-playlist.txt'
   o = n.exist? ? File.readlines(n.to_s) : nil
 
   n.open('a') do |x|
     filenames.each do |i|
-      puts(Mood.happy { "Writing #{i} to #{n}" }) unless [Args.pretend, [o, o.include?(i)].all?].any?
-      x.write(i) unless [Args.pretend, [o, o.include?(i)].all?].any?
+      puts(Mood.happy { "Writing #{i} to #{n}" }) unless Args.pretend || (o && o.include?(i))
+      x.write(i) unless Args.pretend || (o && o.include?(i))
     end
   end
   puts(Mood.neutral { 'File names to put on the playlist blacklist:' }) if Args.pretend
@@ -180,20 +180,19 @@ end
 Util::FindApp.which('youtube-dl') do |yt|
   yt.freeze
   raise "Couldn't find youtube-dl" unless yt
-  raise 'youtube-dl is not executable' unless [yt, File.executable?(yt)].all?
+  raise 'youtube-dl is not executable' unless yt && File.executable?(yt)
   outdir = Directory.to_s.freeze
-  # archdir = Directory.parent.parent.freeze if Args.subdirectory && outdir.include?('/data/Videos/Youtube') && Args.datesubdir
-  archdir = [Args.subdirectory, outdir.include?('/data/Videos/Youtube'), Args.datesubdir].all? ? Directory.parent.parent.freeze : nil
+  archdir = Directory.parent.parent.freeze if Args.subdirectory && outdir.include?('/data/Videos/Youtube') && Args.datesubdir
 
   archive =
     case
     when Args.archive
       puts(Mood.neutral { 'Archive from command line' }) if Args.pretend
       Args.archive + 'downloaded.txt'
-    when [Args.datesubdir, archdir].all?
+    when Args.datesubdir && archdir
       puts(Mood.neutral { 'Archive in subdirectory parent' }) if Args.pretend
       archdir + 'downloaded.txt'
-    when [Args.datesubdir, outdir.include?('/data/Videos/Youtube')].all?
+    when Args.datesubdir && outdir.include?('/data/Videos/Youtube')
       puts(Mood.neutral { 'Archive in parent directory' }) if Args.pretend
       Directory.parent + 'downloaded.txt'
     else
@@ -217,8 +216,8 @@ Util::FindApp.which('youtube-dl') do |yt|
 
   cmdline = cmd.call
 
-  Util::Program.runprogram(cmdline, workdir: outdir) unless [Args.pretend, Args.no_download].any?
-  puts cmdline.inspect if [Args.pretend, !Urls.nil?, !Urls.empty?, !Args.no_download].all?
+  Util::Program.runprogram(cmdline, workdir: outdir) unless Args.pretend || Args.no_download
+  puts cmdline.inspect if Args.pretend && !Urls.nil? && !Urls.empty? && !Args.no_download
 end
 
 files = lambda do
@@ -229,13 +228,13 @@ files = lambda do
   outtemp = Util.sort(out.map(&:to_s))
   out = outtemp.map { |i| Pathname.new(i) }
   puts out.inspect if Args.pretend
-  puts Mood.neutral('No files found in this directory, will not do any statistics calculation, muxing, or playlist creation/modification.') if [out.nil?, out.empty?].any?
+  puts Mood.neutral('No files found in this directory, will not do any statistics calculation, muxing, or playlist creation/modification.') if out.nil? || out.empty?
   out
 end
 
 Files = files.call.freeze
 puts(Mood.neutral { "Is Files Frozen? #{Files.frozen?}" }) if Args.pretend
-exit if [Files.nil?, Files.empty?].any?
+exit if Files.nil? || Files.empty?
 
 def genstatsfl(mkv)
   whitelist = %w[video/webm video/x-matroska audio/x-matroska].freeze
@@ -257,7 +256,7 @@ def genstatsfl(mkv)
   puts Mood.neutral('Step 3 (stats):') if Args.pretend
   # print "#{mkv}\n" if Args.pretend
   puts mkv.inspect if Args.pretend
-  puts Mood.neutral('No matroska files to calculate statistics for.') if [mkv.nil?, mkv.empty?].any?
+  puts Mood.neutral('No matroska files to calculate statistics for.') if mkv.nil? || mkv.empty?
   mkv
 end
 
@@ -265,8 +264,8 @@ def genstats(filelist)
   Util::FindApp.which('mkvpropedit') do |mpe|
     mpe.freeze
     raise "Couldn't find mkvpropedit" unless mpe
-    raise 'mkvpropedit is not executable' unless [mpe, File.executable?(mpe)].all?
-    if [filelist.respond_to?(:each), filelist.respond_to?(:empty?), !filelist.empty?].all?
+    raise 'mkvpropedit is not executable' unless mpe && File.executable?(mpe)
+    if filelist.respond_to?(:each) && filelist.respond_to?(:empty?) && !filelist.empty?
       filelist.each do |file|
         puts(Mood.happy { "Adding statistic tags to #{file}" })
         cmd = %W[#{mpe} --add-track-statistics-tags #{file}].freeze
@@ -313,7 +312,7 @@ def muxfiles(filelist)
   Util::FindApp.which('mkvmerge') do |mkvm|
     mkvm.freeze
     raise "Couldn't find mkvmerge" unless mkvm
-    raise 'mkvmerge is not executable' unless [mkvm, File.executable?(mkvm)].all?
+    raise 'mkvmerge is not executable' unless mkvm && File.executable?(mkvm)
 
     config =
       case
@@ -323,12 +322,12 @@ def muxfiles(filelist)
         confighash = Util.recursive_symbolize_keys(confighash)
         configfile.close
         # print "#{confighash}\n" if Args.pretend && confighash
-        puts confighash.inspect if [Args.pretend, confighash].all?
+        puts confighash.inspect if Args.pretend && confighash
         confighash
       end
     config.freeze
 
-    if [filelist.respond_to?(:each), filelist.respond_to?(:empty?), !filelist.empty?].all?
+    if filelist.respond_to?(:each) && filelist.respond_to?(:empty?) && !filelist.empty?
       filelist.each do |file|
         file.freeze
         out = Directory + file.basename.sub_ext('.mkv')
@@ -344,7 +343,7 @@ def muxfiles(filelist)
           puts e.message
           next
         else
-          file.delete unless [Args.pretend, Args.keep_original].any?
+          file.delete unless Args.pretend || Args.keep_original
         end
       end
     end
@@ -377,7 +376,7 @@ def genplaylist(files, out)
 
   tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
 
-  if [out.respond_to?(:exist?), out.exist?, !Args.resetplaylist].all?
+  if out.respond_to?(:exist?) && out.exist? && !Args.resetplaylist
     o = File.new(out.to_s)
     xspf = XSPF.new(o)
     playlist = xspf.playlist
@@ -394,8 +393,8 @@ def genplaylist(files, out)
   playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
   xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
 
-  puts(Mood.happy { "Creating Directory #{out.dirname}" }) unless [Args.pretend, out.dirname.exist?].any?
-  out.dirname.mkpath unless [Args.pretend, out.dirname.exist?].any?
+  puts(Mood.happy { "Creating Directory #{out.dirname}" }) unless Args.pretend || out.dirname.exist?
+  out.dirname.mkpath unless Args.pretend || out.dirname.exist?
   ng = Nokogiri.XML(xspf.to_xml)
 
   unless Args.pretend
@@ -413,9 +412,9 @@ def genplfilelist(filelist)
     case
     when Args.playlistpath
       Args.playlistpath
-    when [Directory.to_s.include?('/data/Videos/Youtube'), Args.subdirectory].all?
+    when Directory.to_s.include?('/data/Videos/Youtube') && Args.subdirectory
       Pathname.new("/data/Videos/Youtube/Playlists/#{Args.subdirectory}/#{Args.date}.xspf")
-    when [Directory.to_s.include?('/data/Videos/Youtube'), !Args.subdirectory].all?
+    when Directory.to_s.include?('/data/Videos/Youtube') && !Args.subdirectory
       Pathname.new("/data/Videos/Youtube/Playlists/#{Args.date}.xspf")
     else
       Pathname.new("#{Directory}/Playlists/#{Args.date}.xspf")
@@ -429,13 +428,13 @@ def genplfilelist(filelist)
 
   existing = []
   blacklist = Directory.join('no-playlist.txt').readlines if Directory.join('no-playlist.txt').file?
-  if [outpath.exist?, !Args.resetplaylist].all?
+  if outpath.exist? && !Args.resetplaylist
     o = File.new(outpath.to_s)
     xspf = XSPF.new(o)
     playlist = xspf.playlist
     tracklist = playlist.tracklist
     existing = tracklist.tracks
-    existing.map!(&:location) if [existing.respond_to?(:map!), !existing.empty?].all?
+    existing.map!(&:location) if existing.respond_to?(:map!) && !existing.empty?
     # puts existing
     o.close
   end
@@ -443,7 +442,7 @@ def genplfilelist(filelist)
   # tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   # filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
   filelist.keep_if { |i| i.dirname.to_s == Directory.to_s }
-  unless [existing.empty?, Args.resetplaylist].any?
+  unless existing.empty? || Args.resetplaylist
     filelist.delete_if do |i|
       b = existing.to_s.include?(URI.escape(i.relative_path_from(Pathname.new('/data/Videos')).to_s)) if Directory.to_s.include?('/data/Videos')
       b = existing.to_s.include?(URI.escape(i.relative_path_from(Directory).to_s)) unless Directory.to_s.include?('/data/Videos')
@@ -451,14 +450,12 @@ def genplfilelist(filelist)
       b
     end
   end
-
-  blcond = [!defined?(blacklist), [blacklist, blacklist.respond_to?(:empty?), blacklist.empty?].all?, Args.resetplaylist, Args.no_blacklist].any?
-  filelist.delete_if { |i| blacklist.to_s.include?(i.to_s) } unless blcond
-
+  unless !defined?(blacklist) || (blacklist && blacklist.respond_to?(:empty?) && blacklist.empty?) || Args.resetplaylist || Args.no_blacklist
+    filelist.delete_if { |i| blacklist.to_s.include?(i.to_s) }
+  end
   filelist.keep_if do |file|
     whitelist.include?(magic.file(file.to_s))
   end
-
   puts(Mood.neutral { 'No files to add to the playlist' }) if filelist.empty?
   puts(Mood.neutral { 'Playlist file list:' }) if Args.pretend
   puts filelist.inspect if Args.pretend
