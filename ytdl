@@ -10,6 +10,7 @@ require 'json'
 require 'cgi'
 require 'addressable'
 require 'nokogiri'
+require 'fileutils'
 
 begin
   rv = Gem::Version.new(RUBY_VERSION.to_s.freeze)
@@ -53,6 +54,7 @@ class Options
     options.resetplaylist = false
     options.no_blacklist = false
     options.sort = true
+    options.drive_letter = nil
 
     optparse = OptionParser.new do |opts|
       opts.on('-d', '--directory [DIRECTORY]', 'Name of the directory to download to') { |dir| options.directory = Pathname.new(dir) }
@@ -77,6 +79,7 @@ class Options
       opts.on('--reset-playlist', 'Do not modify an existing playlist (if it exists)') { options.resetplaylist = true }
       opts.on('--no-blacklist', 'Do not put downloaded files in the playlist blacklist if playlist creation (or modification) is disabled.') { options.no_blacklist = true }
       opts.on('--no-sort', 'Do not run any sorting operations.') { options.sort = false }
+      opts.on('--drive-letter', 'Drive letter to use for the xspf playlist (not used if directory is set to default)') { |i| options.drive_letter = i }
     end
     optparse.parse!(args)
     options
@@ -157,10 +160,10 @@ filenames = lambda do
   files = Util.sort(files) if Args.sort
   files
 end
-FileNames = filenames.call.freeze
+FileNames = filenames.call.freeze unless Args.no_download
 puts(Mood.neutral { 'Filenames for downloaded videos:' }) if Args.pretend
 # print "#{FileNames}\n" if Args.pretend
-puts FileNames.inspect if Args.pretend
+puts FileNames.inspect if defined?(FileNames) && Args.pretend && !Args.no_download
 
 unless Args.playlist || Args.no_blacklist
   filenames = FileNames.dup
@@ -397,6 +400,8 @@ def genplaylist(files, out)
   out.dirname.mkpath unless Args.pretend || out.dirname.exist?
   ng = Nokogiri.XML(xspf.to_xml)
 
+  # FileUtils.rm(out.to_s) if File.exist?(out.to_s)
+
   unless Args.pretend
     File.open(out.to_s, 'w') do |f|
       puts(Mood.happy { "Writing playlist to #{out}" })
@@ -442,12 +447,18 @@ def genplfilelist(filelist)
   # tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
   # filelist.keep_if { |i| i.to_s.include?(Args.subdirectory) } if Args.subdirectory
   filelist.keep_if { |i| i.dirname.to_s == Directory.to_s }
+  uris = existing.map { |x| Addressable::URI.parse(x).to_s }
+  puts(Mood.neutral { 'Existing URIs:' }) if Args.pretend
+  puts uris.inspect if Args.pretend
   unless existing.empty? || Args.resetplaylist
     filelist.delete_if do |i|
-      b = existing.to_s.include?(URI.escape(i.relative_path_from(Pathname.new('/data/Videos')).to_s)) if Directory.to_s.include?('/data/Videos')
-      b = existing.to_s.include?(URI.escape(i.relative_path_from(Directory).to_s)) unless Directory.to_s.include?('/data/Videos')
-      # puts Mood.neutral { "Removing #{i} from file list" } if b
-      b
+      # url = Addressable::URI.convert_path("z:/#{i.relative_path_from(Pathname.new('/data/Videos'))}").to_s if Directory.to_s.include?('/data/Videos')
+      # url = Addressable::URI.convert_path("#{Args.drive_letter}:/#{i.relative_path_from(Directory)}") unless Directory.to_s.include?('/data/Videos')
+      url = Directory.to_s.include?('/data/Videos') ? Addressable::URI.convert_path("z:/#{i.relative_path_from(Pathname.new('/data/Videos'))}").to_s : Addressable::URI.convert_path("#{Args.drive_letter}:/#{i.relative_path_from(Directory)}")
+      # puts url if Args.pretend
+      uris = existing.map { |x| Addressable::URI.parse(x).to_s }
+      # puts 'found existing' if uris.any? { |y| url.include? y }
+      true if uris.any? { |y| url.include? y }
     end
   end
   unless !defined?(blacklist) || (blacklist && blacklist.respond_to?(:empty?) && blacklist.empty?) || Args.resetplaylist || Args.no_blacklist
