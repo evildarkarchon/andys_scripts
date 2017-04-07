@@ -14,6 +14,9 @@ require_relative 'andyrb/videoinfo/database'
 require_relative 'andyrb/videoinfo/filelist'
 require_relative 'andyrb/videoinfo/genhash'
 
+Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+
 class Options
   def self.parse(args)
     options = OpenStruct.new
@@ -79,7 +82,7 @@ if directories.respond_to?(:each)
     DataMapper.finalize
     # puts "Bad #{dbpath}" unless dbpath.join('videoinfo.sqlite').exist?
     VideoInfo::Database::Videoinfo.auto_migrate! unless Args.reset_json
-    VideoInfo::Database::Videojson.auto_migrate! if Args.reset_json || Args.reset_all
+    VideoInfo::Database::Videojson.auto_migrate! if [Args.reset_json, Args.reset_all].any?
 
     initlist << dbpath.find.to_a
     # puts 'directories 2m:'

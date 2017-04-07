@@ -6,6 +6,10 @@ require 'openssl'
 require 'date'
 
 require_relative 'andyrb/core/cleanup'
+
+Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+
 # These are placeholders just to map out what data is going to be needed for this script.
 CaPrivate = OpenSSL::PKey::EC.new File.read '/home/evildarkarchon/certificates/andyECC.key'
 CaPublic = OpenSSL::PKey::EC.new File.read '/home/evildarkarchon/certificates/andyECC2.crt'
