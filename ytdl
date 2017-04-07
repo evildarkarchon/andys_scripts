@@ -30,6 +30,7 @@ require_relative 'andyrb/util/recursive_symbolize_keys'
 require_relative 'andyrb/util/sort'
 
 Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+puts 'include is private' if Array.private_method_defined? :include
 Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
 
 raise 'Cleanup code not loaded' unless [].respond_to?(:cleanup!)
@@ -151,7 +152,6 @@ filenames = lambda do
 end
 FileNames = filenames.call.freeze unless Args.no_download
 puts(Mood.neutral { 'Filenames for downloaded videos:' }) if Args.pretend
-# print "#{FileNames}\n" if Args.pretend
 puts FileNames.inspect if defined?(FileNames) && Args.pretend && !Args.no_download
 
 unless Args.playlist || Args.no_blacklist
