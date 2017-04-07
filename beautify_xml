@@ -4,10 +4,18 @@
 require 'nokogiri'
 
 files = ARGV
-files.keep_if { |f| File.exist?(f) }
-files.keep_if { |f| File.file?(f) }
+files.keep_if { |f| File.exist?(f) } if ARGV.respond_to?(:keep_if)
+files.keep_if { |f| File.file?(f) } if ARGV.respond_to?(:keep_if)
+exit if !files.respond_to?(:keep_if) && files.is_a?(String) && !File.file?(files)
+print 'This script will overwrite the existing file(s) without any verification or backup, is this ok? '
+confirm = gets
+confirm.strip!
+affirmative = %w[yes y ok]
+puts 'input value not "yes, y, or ok", exiting.' unless affirmative.any? { |i| confirm == i }
+exit unless affirmative.any? { |i| confirm.include? i }
 
 files.each do |f|
+  puts "Beautifying #{f}"
   i = Nokogiri::XML(File.read(f))
   File.open(f, 'w') do |x|
     x.write(i)
