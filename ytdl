@@ -353,7 +353,7 @@ def genplaylisthash(filename, rootdir = '/data/Videos')
   if jsondata.dig(:format, :tags)
     out[:title] = jsondata[:format][:tags][:title].gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :title)
     # out[:annotation] = coder.escape(jsondata[:format][:tags][:DESCRIPTION]).gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :DESCRIPTION)
-    out[:annotation] = coder.escape(jsondata[:format][:tags][:DESCRIPTION]) if jsondata.dig(:format, :tags, :DESCRIPTION)
+    out[:annotation] = coder.encode(jsondata[:format][:tags][:DESCRIPTION]) if jsondata.dig(:format, :tags, :DESCRIPTION)
     out[:creator] = jsondata[:format][:tags][:ARTIST].gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :ARTIST)
     out[:duration] = jsondata[:format][:duration].to_f.round.to_s if jsondata.dig(:format, :duration)
   end
