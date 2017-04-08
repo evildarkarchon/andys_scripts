@@ -15,14 +15,18 @@ require_relative 'andyrb/util/program'
 require_relative 'andyrb/util/sort'
 require_relative 'andyrb/util/recursive_symbolize_keys'
 require_relative 'andyrb/videoinfo/database'
+require_relative 'andyrb/core/cleanup'
+
+Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+puts 'include is private' if Array.private_method_defined? :include
+Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
 
 # rubocop:disable Style/CaseIndentation, Lint/EndAlignment, Lint/UnneededDisable
 class Options
   def self.parse(args)
     options = OpenStruct.new
     options.videocodec = 'libvpx-vp9'
-    options.videocodecopts = options.videocodec == 'libvpx-vp9' ? %w[-threads 4 -tile-columns 6 -frame-parallel 1 -speed 1] : nil
-    options.videocodecopts = options.videocodec == 'libvpx' ? %w[-threads 4 -speed 1] : nil
+    options.videocodecopts = nil
     options.videobitrate = nil
     options.framerate = nil
     options.passes = 2
@@ -121,7 +125,14 @@ class Options
       opts.on('--verbose', '-v', 'Make the script a bit more chatty.') { options.verbose = true }
       opts.on('--convert-test', "Don't delete any database entries.") { options.converttest = true }
     end
+
     optparse.parse!(args)
+
+    vp9default = %w[-threads 4 -tile-columns 2 -frame-parallel 1 -speed 1]
+    vp8default = %w[-threads 4 -speed 1]
+    options.videocodecopts = [options.videocodec == 'libvpx-vp9', !options.videocodecopts].all? ? vp9default : options.videocodecopts # rubocop:disable Lint/RequireParentheses
+    options.videocodecopts = [options.videocodec == 'libvpx', !options.videocodecopts].all? ? vp8default : options.videocodecopts # rubocop:disable Lint/RequireParentheses
+
     options
   end
 end
@@ -129,7 +140,7 @@ end
 args = lambda do
   arg = ARGV.dup.cleanup!
   outargs = Options.parse(arg)
-  outfiles = Args.sort ? Util.sort(arg) : arg
+  outfiles = outargs.sort ? Util.sort(arg) : arg
   outfiles.keep_if { |i| File.file?(i) } if respond_to?(:keep_if)
   [outargs, outfiles]
 end
@@ -157,9 +168,9 @@ FFmpeg = Util::FindApp.which('ffmpeg')
 FFmpeg.freeze unless frozen?
 
 raise 'ffmpeg not found.' if FFmpeg.nil?
-raise 'mkvpropedit not found' if (MkvPropEdit.nil? || MkvPropEdit.empty?) && Args.stats
+raise 'mkvpropedit not found' if [[MkvPropEdit.nil?, MkvPropEdit.empty?].any?, Args.stats].all?
 raise 'ffmpeg is not executable' unless FFmpeg && File.executable?(FFmpeg)
-raise 'mkvpropedit is not executable' unless (MkvPropEdit && File.executable?(MkvPropEdit) && Args.stats) || !Args.stats
+raise 'mkvpropedit is not executable' unless [[MkvPropEdit && File.executable?(MkvPropEdit), Args.stats].all?, !Args.stats].any?
 
 Config =
   case # rubocop:disable Style/ConstantName
@@ -179,9 +190,9 @@ def backup(sourcefile, backupdir)
   sourcepath = Pathname.new(sourcefile).freeze
   dest = backuppath + sourcepath.basename if sourcepath.exist?
 
-  backup.mkpath unless backuppath.exist?
-  raise 'Backup directory is a file.' if backuppath.exist? && backuppath.file?
-  puts Mood.happy { "Moving #{sourcefile} to #{backupdir}" } # rubocop:disable Lint/AmbiguousBlockAssociation
+  backuppath.mkpath unless backuppath.exist?
+  raise 'Backup directory is a file.' if [backuppath.exist?, backuppath.file?].all?
+  puts(Mood.happy { "Moving #{sourcefile} to #{backupdir}" })
   sourcepath.rename(dest) if dest
 end
 
@@ -247,7 +258,7 @@ def cmdline(filename, passnum: 1, passmax: 2)
 
   vcodec =
     case
-    when Args.novideo || bitrates[:video].nil?
+    when [Args.novideo, bitrates[:video].nil?].any?
       '-vn'
     when Config[:defaults][:video]
       %W[-c:v #{Config[:defaults][:video]}]
@@ -258,7 +269,7 @@ def cmdline(filename, passnum: 1, passmax: 2)
 
   vbitrate =
     case
-    when !Args.novideo && bitrates[:video]
+    when [!Args.novideo, bitrates[:video]].all?
       %W[-b:v #{bitrates[:video]}]
     end
   vbitrate.freeze
@@ -267,19 +278,19 @@ def cmdline(filename, passnum: 1, passmax: 2)
     case
     when !Args.novideo && Args.videocodecopts
       Args.videocodecopts
-    when !Args.novideo && Args.videocodec.respond_to?(:to_sym) && Config[:defaults][Args.videocodec.to_sym]
+    when [!Args.novideo, Args.videocodec.respond_to?(:to_sym) && Config[:defaults][Args.videocodec.to_sym]].all?
       Config[:codecs][Args.videocodec.to_sym]
     end
   vcodecopts.freeze
 
   acodec =
     case
-    when passnum == 1 || Args.noaudio || bitrates[:audio].nil?
+    when [passnum == 1, Args.noaudio, bitrates[:audio].nil?].any?
       '-an'
     when Args.audiocodec
       %W[-c:a #{Args.audiocodec}]
     when Config[:defaults][:audio]
-      Config[:defaults][:audio]
+      %W[-c:a #{Config[:defaults][:audio]}]
     else
       %w[-c:a libopus]
     end
@@ -287,25 +298,25 @@ def cmdline(filename, passnum: 1, passmax: 2)
 
   acodecopts =
     case
-    when !Args.noaudio && Args.audiocodecopts
+    when [!Args.noaudio, Args.audiocodecopts].all?
       Args.audiocodecopts
-    when !Args.noaudio && Config[:codecs][Args.audiocodec.to_sym]
+    when [!Args.noaudio, Args.audiocodec.respond_to?(:to_sym) && Config[:codecs][Args.audiocodec.to_sym]].all?
       Config[:codecs][Args.audiocodec.to_sym]
     end
   acodecopts.freeze
 
   abitrate =
     case
-    when !Args.noaudio && bitrates[:audio]
+    when [!Args.noaudio, bitrates[:audio]].all?
       %W[-b:a #{bitrates[:audio]}]
     end
   abitrate.freeze
 
   afilter =
     case
-    when !Args.noaudio && Config[:defaults][:audiofilter]
+    when [!Args.noaudio, Config[:defaults][:audiofilter]].all?
       %W[-af #{Config[:defaults][:audiofilter]}]
-    when !Args.noaudio && Args.audiofilter
+    when [!Args.noaudio, Args.audiofilter].all?
       %W[-af #{Args.audiofilter}]
     end
   afilter.freeze
@@ -378,10 +389,10 @@ Args.files.each do |file|
   end
   begin
     case
-    when Args.passes == 2 && !Args.debug
+    when [Args.passes == 2, !Args.debug].all?
       Util::Program.runprogram(cmdpass1)
       Util::Program.runprogram(cmdpass2)
-    when Args.passes == 1 && !Args.debug
+    when [Args.passes == 1, !Args.debug].all?
       Util::Program.runprogram(cmd1pass)
     end
   rescue Subprocess::NonZeroExit, Interrupt => e
@@ -389,9 +400,9 @@ Args.files.each do |file|
     outpath.delete if outpath.exist?
     raise e
   else
-    Util::Program.runprogram(%W[#{MkvPropEdit} --add-track-statistics-tags #{outpath}]) if Args.stats && outpath.exist? && !Args.debug
+    Util::Program.runprogram(%W[#{MkvPropEdit} --add-track-statistics-tags #{outpath}]) if [Args.stats, outpath.exist?, !Args.debug].all?
     case
-    when !Args.converttest && !Args.debug
+    when [!Args.converttest, !Args.debug].all?
       del = VideoInfo::Database::Videoinfo.all(filename: filepath.basename.to_s)
       deljson = VideoInfo::Database::Videojson.all(filename: filepath.basename.to_s)
       del.destroy
@@ -400,7 +411,7 @@ Args.files.each do |file|
       puts Mood.happy('In convert testing mode, not deleting database entry')
     end
   ensure
-    logpath.delete if Args.passes == 2 && logpath && logpath.exist? && !Args.debug
+    logpath.delete if [Args.passes == 2, logpath && logpath.exist?, !Args.debug].all?
   end
 
   backup(file, Args.backup.to_s) if Args.backup
