@@ -45,8 +45,7 @@ end
 def touchgcfile
   cachepath = Pathname.new('/var/cache/ttrssgc').freeze
 
-  use_sudo = false
-  use_sudo = true unless cachepath.parent.writable?
+  use_sudo = cachepath.parent.writable? ? false : true
   use_sudo.freeze
 
   case
@@ -62,11 +61,11 @@ touchgcfile unless File.exist?('/var/cache/ttrssgc')
 def ttrssgc(thendate)
   diff = Util.datediff(thendate).freeze
   begin
-    TTrss.gc(aggressive: Args.aggressive) if diff >= 30 || Args.gc
+    TTrss.gc(aggressive: Args.aggressive) if [diff >= 30, Args.gc].any?
   rescue Interrupt => e
     raise e
   else
-    touchgcfile if diff >= 30 || Args.gc
+    touchgcfile if [diff >= 30, Args.gc].any?
   end
 end
 
@@ -77,7 +76,7 @@ case
 when repopath.directory?
   TTrss.clean_lock
   TTrss.pull
-when wdpath.exist? && !repopath.exist?
+when [wdpath.exist?, !repopath.exist?].all?
   case
   when Args.replace
     puts(Mood.neutral { "No git repository located in the target directory, renaming it to #{wdpath}.old" })
