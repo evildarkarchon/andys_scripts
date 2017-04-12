@@ -83,7 +83,7 @@ class Options
       opts.on('--no-playlist', "Don't create a playlist") { options.playlist = false }
       opts.on('--playlist-path [FILE]', 'Location to save the playlist') { |i| options.playlistpath = Pathname.new(i) }
       opts.on('--reset-playlist', 'Do not modify an existing playlist (if it exists)') { options.resetplaylist = true }
-      opts.on('--no-blacklist', 'Do not put downloaded files in the playlist blacklist if playlist creation (or modification) is disabled.') { options.no_blacklist = true }
+      opts.on('--no-blacklist', 'Do not put downloaded files in the playlist blacklist.') { options.no_blacklist = true }
       opts.on('--no-sort', 'Do not run any sorting operations.') { options.sort = false }
       opts.on('--drive-letter [LETTER]', 'Drive letter to use for the xspf playlist (not used if directory is set to default)') { |i| options.drive_letter = i }
     end
@@ -154,20 +154,26 @@ FileNames = filenames.call.freeze unless Args.no_download
 puts(Mood.neutral { 'Filenames for downloaded videos:' }) if Args.pretend
 puts FileNames.inspect if [defined?(FileNames), Args.pretend, !Args.no_download].all?
 
-unless Args.playlist || Args.no_blacklist
+def blacklist(pretend = false)
   filenames = FileNames.dup
-  n = Directory + 'no-playlist.txt'
+  filenames.map! { |i| "#{i}\n" }
+  n = Directory + '.noplaylist'
   o = n.exist? ? File.readlines(n.to_s) : nil
+  q = Directory + 'no-playlist.txt'
+  q.rename n.to_s if q.exist?
 
   n.open('a') do |x|
     filenames.each do |i|
-      puts(Mood.happy { "Writing #{i} to #{n}" }) unless [Args.pretend, o && o.include?(i)].any?
+      puts(Mood.happy { "Writing #{File.basename(i.to_s.strip)} to #{n}" }) unless [pretend, o && o.include?(i)].any?
       x.write(i) unless [Args.pretend, o && o.include?(i)].any?
     end
   end
-  puts(Mood.neutral { 'File names to put on the playlist blacklist:' }) if Args.pretend
-  filenames.each { |i| puts i } if Args.pretend
+  puts(Mood.neutral { 'File names to put on the playlist blacklist:' }) if pretend
+  filenames.each { |i| puts i } if pretend
+  true
 end
+
+BlackListRun = [Args.playlist, Args.no_blacklist].any? ? false : blacklist(Args.pretend)
 
 Util::FindApp.which('youtube-dl') do |yt|
   yt.freeze
@@ -376,7 +382,7 @@ def genplaylist(files, out)
   end
 
   files.each do |file|
-    puts(Mood.happy { "Adding #{file} to playlist" })
+    puts(Mood.happy { "Adding #{File.basename(file.to_s)} to playlist" })
     track = file.to_s.include?('/data/Videos') ? XSPF::Track.new(genplaylisthash(file)) : XSPF::Track.new(genplaylisthash(file, Directory.to_s))
     tracklist << track
   end
@@ -396,6 +402,7 @@ def genplaylist(files, out)
   end
   puts(Mood.neutral { 'Playlist XML Content:' }) if Args.pretend
   puts ng if Args.pretend
+  blacklist(Args.pretend) unless [Args.no_blacklist, defined?(BlackListRun) && BlackListRun].any?
 end
 
 def genplfilelist(filelist)
@@ -418,7 +425,7 @@ def genplfilelist(filelist)
   magic = FileMagic.new(:mime_type)
 
   existing = []
-  blacklist = Directory.join('no-playlist.txt').readlines if Directory.join('no-playlist.txt').file?
+  blacklist = Directory.join('.noplaylist').readlines if Directory.join('.noplaylist').file?
   if [outpath.exist?, !Args.resetplaylist].all?
     o = File.new(outpath.to_s)
     xspf = XSPF.new(o)
@@ -433,7 +440,7 @@ def genplfilelist(filelist)
   uris = existing.map { |x| Addressable::URI.parse(x).to_s }
   puts(Mood.neutral { 'Existing URIs:' }) if Args.pretend
   puts uris.inspect if Args.pretend
-  unless existing.empty? || Args.resetplaylist
+  unless [existing.respond_to?(:empty?) && existing.empty?, Args.resetplaylist].any?
     filelist.delete_if do |i|
       url = Directory.to_s.include?('/data/Videos') ? Addressable::URI.convert_path("z:/#{i.relative_path_from(Pathname.new('/data/Videos'))}").to_s : Addressable::URI.convert_path("#{Args.drive_letter[0]}:/#{i.relative_path_from(Directory)}")
       uris = existing.map { |x| Addressable::URI.parse(x).to_s }
