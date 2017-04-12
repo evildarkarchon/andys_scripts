@@ -40,12 +40,19 @@ class Options
     options.force = false
     options.sort = true
     options.mode = 'lossy'
+    options.explicit = false
 
     optparse = OptionParser.new do |opts|
       opts.on('--quality [n]', '-q [n]', 'Quality factor (0-100), 80 is default.') { |q| options.quality = q.to_s }
       opts.on('--verbose', '-v', 'Make convert more chatty.') { options.verbose = true }
-      opts.on('--lossy', 'Produce lossy images.') { options.mode = 'lossy' }
-      opts.on('--lossless', 'Produce lossless images.') { options.mode = 'lossless' }
+      opts.on('--lossy', 'Produce lossy images.') do
+        options.mode = 'lossy' unless options.explicit
+        options.explicit = true unless options.explicit
+      end
+      opts.on('--lossless', 'Produce lossless images.') do
+        options.mode = 'lossless' unless options.explicit
+        options.explicit = true unless options.explicit
+      end
       opts.on('--output-dir [DIRECTORY]', '-o [DIRECTORY]', 'Directory to output resulting images (default is current directory)') { |dir| options.outputdir = Pathname.new(dir.to_s) }
       opts.on('--backup-dir [DIRECTORY]', '-b [DIRECTORY]', 'Directory to move source images to.') { |dir| options.backup = Pathname.new(dir.to_s) }
       opts.on('--no-backup', 'Disable Backup.') { options.nobackup = true }
@@ -62,24 +69,34 @@ class Options
   end
 end
 
-Args = Options.parse(ARGV)
-ARGV.cleanup!(unique: false)
+Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+puts 'include is private' if Array.private_method_defined? :include
+Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
 
-Files = Args.sort ? Util.sort(ARGV) : ARGV
+# Args = Options.parse(ARGV)
+# ARGV.cleanup!(unique: false)
 
-Args.nobackup = true if Args.removeoriginal && Args.backuparchive
-Args.lossy = true if !Args.lossy && !Args.lossless
-raise "Can't have both Lossy and Lossless modes active" if Args.lossy && Args.lossless
+# Files = Args.sort ? Util.sort(ARGV.dup) : ARGV.dup
+args = lambda do
+  arg = ARGV.dup
+  arg.cleanup!
+  outarg = options.parse(arg)
+  outfiles = Args.sort ? Util.sort(arg.dup) : arg.dup
+  [outarg.freeze, outfiles.freeze]
+end
+
+Args, Files = args.call
+NoBackup = true if [[Args.removeoriginal, Args.backuparchive, !Args.nobackup].all?, Args.nobackup].any?
 Args.freeze
 
-Args.outputdir.mkpath unless Args.outputdir.exist? && Args.outputdir.directory? && !Args.outputdir.file?
+Args.outputdir.mkpath unless [Args.outputdir.exist?, Args.outputdir.directory?, !Args.outputdir.file?].all?
 raise "#{Args.outputdir} is not a directory." unless Args.outputdir.directory?
 
 case
 when Args.backup && Args.backup.respond_to?(:directory?)
-  Args.backup.mkpath unless Args.backup.directory? || Args.nobackup
-  raise "#{Args.backup} is not a directory." unless Args.backup.directory? || Args.nobackup
-  Args.backup = Args.backup.realpath unless Args.nobackup
+  Args.backup.mkpath unless Args.backup.directory? || NoBackup
+  raise "#{Args.backup} is not a directory." unless [Args.backup.directory?, NoBackup].any?
+  Args.backup = Args.backup.realpath unless NoBackup
 end
 
 class Command
@@ -90,21 +107,19 @@ class Command
     magic = FileMagic.new(:mime_type)
     @outpath = Pathname.new(Args.outputdir).realpath + Pathname.new(filepath.basename.to_s).sub_ext('.webp').to_s.freeze
 
-    lossless_mime = %w[image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop]
-    lossless_mime.cleanup!(unique: false)
-    lossless_mime.freeze
+    lossless_mime = %w[image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop].cleanup!(unique: false).freeze
 
     raw = %w[.3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw]
     raw += %w[.nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f]
-    raw.cleanup!(unique: false)
-    raw.freeze
+    raw.cleanup!(unique: false).freeze
 
     # lossless = ['-define', 'webp:lossless=true']
     lossless = %w[-define webp:lossless=true].freeze
     # lossymode = Args.lossy
     # losslessmode = Args.lossless
     outmode = Args.mode
-    if (lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)) && !outmode == 'lossy'
+    # if (lossless_mime.include?(magic.file(@filepath.to_s)) || raw.include?(ext)) && !outmode == 'lossy'
+    if [[lossless_mime.include?(magic.file(@filepath.to_s)), raw.include?(ext)].any?, !Args.explicit].all?
       outmode = 'lossless'
     end
 
@@ -125,7 +140,7 @@ end
 def backuparchive
   backuparchivepath = Pathname.new(Args.backuparchive).freeze
   case
-  when backarchivepath.parent.exist? && !backuparchive.parent.directory?
+  when [backarchivepath.parent.exist?, !backuparchive.parent.directory?].all?
     raise "#{backuparchivepath.parent} is not a directory."
   when !backuparchivepath.parent.directory?
     puts Mood.happy("Creating directory #{backuparchivepath.parent}")
@@ -140,7 +155,7 @@ def backuparchive
   begin
     Util::FindApp.which('7za') do |z|
       z.freeze
-      raise '7za not found or is not executable.' if (Args.backuparchive && !z) || (Args.backuparchive && z && !File.executable?(z))
+      raise '7za not found or is not executable.' if [[Args.backuparchive, !z].all?, [Args.backuparchive, z, !File.executable?(z)].all?].any?
       Util::Program.runprogram(%W[#{z} a #{Args.backuparchive} #{paths.join(' ')}])
     end
   rescue Subprocess::NonZeroExit => e
@@ -190,10 +205,10 @@ Files.each do |file|
   file.freeze
   cmdline = Command.new(file)
   outname = cmdline.outpath.to_s.freeze
-  if cmdline.outpath.exist? && !Args.force
+  if [cmdline.outpath.exist?, !Args.force].all?
     puts(Mood.neutral { "#{cmdline.outpath} already exists, skipping." })
     next
-  elsif cmdline.outpath.exist? && Args.force
+  elsif [cmdline.outpath.exist?, Args.force].all?
     puts(Mood.neutral { "Force mode active, deleting #{cmdline.outpath}" })
     FileUtils.rm(outname)
   end
@@ -211,7 +226,7 @@ Files.each do |file|
     raise e
   end
 
-  next if Args.nobackup
+  next if NoBackup
   next unless Args.backup.respond_to?(:exist?)
   puts Mood.happy("Moving #{cmdline.filepath.basename} to #{Args.backup}")
   FileUtils.mv(file, Args.backup.to_s)
