@@ -88,7 +88,7 @@ end
 FileUtils.touch(Args.db.basename.to_s) unless Args.db.file?
 DataMapper::Model.raise_on_save_failure = true
 DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
-DataMapper::Logger.new($stdout, :debug) if Args.debug || Args.verbose
+DataMapper::Logger.new($stdout, :debug) if [Args.debug, Args.verbose].any?
 db = DataMapper.repository(:default).adapter
 gvi = VideoInfo::Database::Data.new(Args.db.realpath, Args.verbose)
 DataMapper.finalize
@@ -112,7 +112,7 @@ if Args.regen && !Args.reset_all
   db.execute('vacuum')
 end
 
-if Args.reset_json && !Args.reset_all
+if [Args.reset_json, !Args.reset_all].all?
   puts Mood.neutral('Resetting JSON Cache')
   VideoInfo::Database::Videojson.all.destroy
   # db.execute('drop table if exists videojson')
@@ -133,7 +133,7 @@ end
 
 initlist = []
 
-if Files && Files.is_a?(Array) && !Files.empty?
+if defined?(Files) && Files && Files.is_a?(Array) && !Files.empty?
   initlist = Files.map do |i|
     path = Pathname.new(i).freeze
     dir = nil
@@ -147,8 +147,7 @@ if Files && Files.is_a?(Array) && !Files.empty?
   end
 end
 
-initlist.cleanup!
-initlist.freeze
+initlist.cleanup!.freeze
 
 existing = gvi.existing
 existing.map!(&:filename) if existing.is_a?(Array)
@@ -162,11 +161,14 @@ filelist.freeze unless frozen?
 case
 when Args.debug
   puts 'Initial list:'
-  print "#{initlist}\n"
+  # print "#{initlist}\n"
+  puts initlist.inspect
   puts 'Existing hash list:'
-  print "#{existing}\n"
+  # print "#{existing}\n"
+  puts existing.inspect
   puts 'File list:'
-  print "#{filelist}\n"
+  # print "#{filelist}\n"
+  puts filelist.inspect
   exit
 end
 
