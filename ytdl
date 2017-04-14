@@ -138,11 +138,7 @@ end
 filenames = lambda do
   files = []
   print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
-  Util::FindApp.which('youtube-dl') do |yt|
-    Urls.each do |url|
-      files << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true)
-    end
-  end
+  Util::FindApp.which('youtube-dl') { |yt| Urls.each { |url| files << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true) } }
   puts 'done.'
   files.cleanup!
   files.map! { |i| Directory.join(i).to_s }
