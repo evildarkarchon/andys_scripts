@@ -97,5 +97,6 @@ stats.genstatsfl!
 stats.genstats
 
 pl = YTDL::Playlist.new(ytdl.filenames, playlistpath, ytdl.directory, root, reset_playlist: Args.resetplaylist, pretend: Args.pretend, noblacklist: Args.no_blacklist)
+pl.blackist unless Args.playlist
 pl.genplfilelist! if Args.playlist
 pl.genplaylist if Args.playlist
