@@ -5,7 +5,7 @@ require 'pathname'
 require_relative '../util/sort'
 require_relative '../mood'
 module YTDL
-  def findfiles(directory, sort: true, pretend: false)
+  def self.findfiles(directory, sort: true, pretend: false)
     out = directory.find.to_a
     puts Mood.neutral('Step 1:') if pretend
 

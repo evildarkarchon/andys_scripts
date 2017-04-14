@@ -14,16 +14,17 @@ Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? 
 module YTDL
   class Fetch
     attr_reader :filenames, :date, :directory, :subdirectory
-    def initialize(directory, urls, sort: true, pretend: false, subdirectory: nil, date: true)
+    def initialize(directory, urls, sort: true, pretend: false, subdirectory: nil, datesubdir: true)
       @date = Time.now.strftime('%Y%m%d').freeze
-      @datesubdir = date
+      @datesubdir = datesubdir
       @subdirectory = subdirectory.to_s
       @directory = directory.instance_of?(Pathname) ? directory : Pathname.new(directory)
-      @directory += @date if date
+      @directory += @date if datesubdir
       @directory += @subdirectory if @subdirectory
       @urls = urls
       @sort = sort
       @pretend = pretend
+      @archive = nil
     end
 
     def fetch_filenames!
@@ -39,7 +40,7 @@ module YTDL
       @filenames = Util.sort(files) if @sort
     end
 
-    def archive(archivedir = nil)
+    def setarchive!(archivedir = nil)
       archdir = @directory.parent.parent.freeze if [@subdirectory, @directory.to_s.include?('/data/Videos/Youtube'), @datesubdir].all?
 
       archive =
@@ -59,13 +60,13 @@ module YTDL
         end
       archive.freeze
       puts(Mood.neutral { archive }) if Args.pretend
-      archive
+      @archive = archive
     end
 
     def fetch_videos(webmout: false, force: false, keep_split: false, ffmpegdl: false)
       Util::FindApp.which('youtube-dl') do |yt|
         ytdl = %W[#{yt}]
-        ytdl << %W[--download-archive #{archive}] unless force
+        ytdl << %W[--download-archive #{@archive}] unless force
         ytdl << %w[--merge-output-format webm] if webmout
         ytdl << '-k' if keep_split
         ytdl << %w[--hls-prefer-ffmpeg --external-downloader ffmpeg --external-downloader-args -hide_banner] if ffmpegdl

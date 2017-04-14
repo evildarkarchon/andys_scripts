@@ -20,7 +20,7 @@ require_relative '../videoinfo/probe'
 module YTDL
   class Playlist
     def initialize(filelist, outname, videodir, rootdir = '/data/Videos', resetplaylist: false, pretend: false, noblacklist: false)
-      @filelist = filelist
+      @filelist = filelist.dup
       @rootdir = rootdir
       @rootpath = Pathname.new(rootdir)
       @outname = outname
@@ -35,6 +35,7 @@ module YTDL
     end
 
     def blacklist
+      return if @blacklistrun
       filenames = @filelist.dup
       filenames.map! { |i| "#{i}\n" }
       n = @outdir + '.noplaylist'
@@ -56,7 +57,7 @@ module YTDL
       filenames.each { |i| puts i } if @pretend
     end
 
-    def genplaylisthash(filename)
+    private def genplaylisthash(filename)
       jsondata = VideoInfo.probe(filename)
       filepath = Pathname.new(filename)
       coder = HTMLEntities.new
@@ -88,7 +89,7 @@ module YTDL
         o.close
       end
 
-      files.each do |file|
+      @filelist.each do |file|
         puts(Mood.happy { "Adding #{File.basename(file.to_s)} to playlist" })
         track = XSPF::Track.new(genplaylisthash(file))
         tracklist << track
@@ -109,10 +110,10 @@ module YTDL
       end
       puts(Mood.neutral { 'Playlist XML Content:' }) if @pretend
       puts ng if @pretend
-      blacklist(@pretend) unless [@no_blacklist, @blacklistrun].any?
+      blacklist(@pretend) unless @no_blacklist
     end
 
-    def genplfilelist(driveletter = 'z')
+    def genplfilelist!(driveletter = 'z')
       whitelist = %w[video/x-flv video/mp4 audio/x-m4a video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/3gpp2 audio/x-wav]
       whitelist += %w[audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio]
       whitelist += %w[video/webm video/x-matroska audio/x-matroska]
@@ -149,7 +150,7 @@ module YTDL
         @filelist.delete_if { |i| blacklist.to_s.include?(i.to_s) }
       end
 
-      filelist.keep_if { |file| whitelist.include?(magic.file(file.to_s)) }
+      @filelist.keep_if { |file| whitelist.include?(magic.file(file.to_s)) }
 
       puts(Mood.neutral { 'No files to add to the playlist' }) if @filelist.empty?
       puts(Mood.neutral { 'Playlist file list:' }) if @pretend

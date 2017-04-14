@@ -20,7 +20,7 @@ module YTDL
   class Stats
     def initialize(filelist, pretend: false)
       @pretend = pretend
-      @filelist = filelist
+      @filelist = filelist.dup
     end
 
     def genstatsfl!
