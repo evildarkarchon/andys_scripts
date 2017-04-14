@@ -11,8 +11,9 @@ print 'This script will overwrite the existing file(s) without any further verif
 confirm = gets
 confirm.strip!
 affirmative = %w[yes y ok]
-puts 'input value not "yes, y, or ok", exiting.' unless affirmative.any? { |i| confirm == i }
-exit unless affirmative.any? { |i| confirm.include? i }
+answer = affirmative.any? { |i| confirm == i }
+puts 'input value not "yes, y, or ok", exiting.' unless answer
+exit unless answer
 
 files.each do |f|
   puts "Beautifying #{f}"
