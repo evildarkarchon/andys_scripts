@@ -21,6 +21,8 @@ module YTDL
       @directory = directory.instance_of?(Pathname) ? directory : Pathname.new(directory)
       @directory += @date if datesubdir
       @directory += @subdirectory if @subdirectory
+      puts(Mood.happy { "Creating Directory #{@directory}" }) unless @directory.exist?
+      @directory.mkpath unless @directory.exist?
       @urls = urls
       @sort = sort
       @pretend = pretend
@@ -36,8 +38,8 @@ module YTDL
       end
       puts 'done.'
       @filenames.cleanup!
-      @filenames.map! { |i| @directory.join(i).to_s }
       @filenames.map!(&:strip)
+      @filenames.map! { |i| @directory.join(i).to_s }
       @filenames = Util.sort(@filenames) if @sort
     end
 
