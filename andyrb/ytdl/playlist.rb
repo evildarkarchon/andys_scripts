@@ -89,12 +89,14 @@ module YTDL
       puts blacklist.inspect if @pretend
 
       if [@outpath.exist?, !@resetplaylist].all?
-        o = File.new(@outname)
-        xspf = XSPF.new(o)
-        playlist = xspf.playlist
-        tracklist = playlist.tracklist
-        existing = tracklist.tracks
-        existing.map!(&:location) if [existing.respond_to?(:map!), existing.respond_to?(:empty?) && !existing.empty?].all?
+        o = File.open(@outname)
+        unless o.readlines.empty?
+          xspf = XSPF.new(o)
+          playlist = xspf.playlist
+          tracklist = playlist.tracklist
+          existing = tracklist.tracks
+          existing.map!(&:location) if [existing.respond_to?(:map!), existing.respond_to?(:empty?) && !existing.empty?].all?
+        end
         o.close
       end
 
@@ -132,10 +134,12 @@ module YTDL
       tracklist = XSPF::Tracklist.new unless tracklist.instance_of?(XSPF::Tracklist)
 
       if [@outpath.respond_to?(:exist?) && @outpath.exist?, !@resetplaylist].all?
-        o = File.new(out.to_s)
-        xspf = XSPF.new(o)
-        playlist = xspf.playlist
-        tracklist = playlist.tracklist
+        o = File.new(@outname.to_s)
+        unless o.readlines.empty?
+          xspf = XSPF.new(o)
+          playlist = xspf.playlist
+          tracklist = playlist.tracklist
+        end
         o.close
       end
 
@@ -154,7 +158,7 @@ module YTDL
 
       unless @pretend
         File.open(@outname, 'w') do |f|
-          puts(Mood.happy { "Writing playlist to #{out}" })
+          puts(Mood.happy { "Writing playlist to #{@outname}" })
           f.write(ng.to_s)
         end
       end
