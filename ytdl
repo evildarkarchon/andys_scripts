@@ -4,6 +4,7 @@
 require 'optparse'
 require 'pathname'
 require 'uri'
+require 'fileutils'
 
 require_relative 'andyrb/ytdl'
 
@@ -56,6 +57,12 @@ class Options
       opts.on('--no-blacklist', 'Do not put downloaded files in the playlist blacklist.') { options.no_blacklist = true }
       opts.on('--no-sort', 'Do not run any sorting operations.') { options.sort = false }
       opts.on('--drive-letter [LETTER]', 'Drive letter to use for the xspf playlist (not used if directory is set to default)') { |i| options.drive_letter = i }
+      opts.on('--test-download', 'Test the download function, remove any downloaded files imediatley after download') do
+        options.test_download = true
+        options.playlist = false
+        options.no_blacklist = true
+        options.force = true
+      end
     end
     optparse.parse!(args)
     options
@@ -80,6 +87,13 @@ ytdl.fetch_videos(webmout: args.webm, force: args.force, keep_split: args.keep_s
 
 files = YTDL.findfiles(ytdl.directory, sort: args.sort, pretend: args.pretend)
 
+if args.test_download
+  ytdl.filenames.each do |i|
+    puts Mood.neutral("Removing #{i}") if File.exist?(i)
+    FileUtils.rm(i) if File.exist?(i)
+  end
+end
+
 playlistpath =
   case
   when args.playlistpath
@@ -100,7 +114,7 @@ stats.genstatsfl!
 stats.genstats
 
 pl = YTDL::Playlist.new(ytdl.filenames, playlistpath.to_s, ytdl.directory, root, resetplaylist: args.resetplaylist, pretend: args.pretend, noblacklist: args.no_blacklist)
-pl.blackist unless args.playlist
+pl.blacklist unless args.playlist
 pl.genplfilelist! if args.playlist
 
 begin
