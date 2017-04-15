@@ -45,8 +45,8 @@ module YTDL
         q.rename n.to_s unless q.nil? || !q.exist?
         n.open('a') do |x|
           filenames.each do |i|
-            puts(Mood.happy { "Writing #{File.basename(i.to_s.strip)} to #{n}" }) unless [pretend, o && o.include?(i)].any?
-            x.write(i) unless [@pretend, o && o.include?(i)].any?
+            puts(Mood.happy { "Writing #{File.basename(i.to_s.strip)} to #{n}" }) unless [pretend, @noblacklist, o && o.include?(i)].any?
+            x.write(i) unless [@pretend, @noblacklist, o && o.include?(i)].any?
           end
         end
       rescue Interrupt => e
@@ -54,8 +54,8 @@ module YTDL
       else
         @blacklistrun = true
       end
-      puts(Mood.neutral { 'File names to put on the playlist blacklist:' }) if @pretend
-      filenames.each { |i| puts i } if @pretend
+      puts(Mood.neutral { 'File names to put on the playlist blacklist:' }) if [@pretend, !@noblacklist].all?
+      filenames.each { |i| puts i } if [@pretend, !@noblacklist].all?
     end
 
     private def genplaylisthash(filename)
