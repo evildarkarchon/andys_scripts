@@ -32,7 +32,7 @@ module YTDL
       end
       puts Mood.neutral('Step 2 (stats):') if @pretend
 
-      puts @filelist.inspect if Args.pretend
+      puts @filelist.inspect if @pretend
       @filelist.delete_if do |file|
         file.freeze
         jsondata = VideoInfo.probe(file)
@@ -56,9 +56,9 @@ module YTDL
             puts(Mood.happy { "Adding statistic tags to #{file}" })
             cmd = %W[#{mpe} --add-track-statistics-tags #{file}].freeze
             begin
-              Util::Program.runprogram(cmd) unless Args.pretend
+              Util::Program.runprogram(cmd) unless @pretend
 
-              puts cmd.inspect if Args.pretend
+              puts cmd.inspect if @pretend
             rescue Subprocess::NonZeroExit => e
               puts e.message
               next
