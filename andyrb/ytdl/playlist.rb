@@ -85,6 +85,7 @@ module YTDL
       existing = []
       blacklist = @videopath.join('.noplaylist').readlines if @videopath.join('.noplaylist').file?
       puts Mood.neutral('Blacklist Content:')
+      blacklist.map!(&:strip) if @pretend
       puts blacklist.inspect if @pretend
 
       if [@outpath.exist?, !@resetplaylist].all?
