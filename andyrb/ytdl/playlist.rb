@@ -45,7 +45,7 @@ module YTDL
         q.rename n.to_s unless q.nil? || !q.exist?
         n.open('a') do |x|
           filenames.each do |i|
-            puts(Mood.happy { "Writing #{File.basename(i.to_s.strip)} to #{n}" }) unless [pretend, @noblacklist, o && o.include?(i)].any?
+            puts(Mood.happy { "Writing #{File.basename(i.to_s.strip)} to #{n}" }) unless [@pretend, @noblacklist, o && o.include?(i)].any?
             x.write(i) unless [@pretend, @noblacklist, o && o.include?(i)].any?
           end
         end
