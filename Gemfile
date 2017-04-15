@@ -5,7 +5,9 @@ source 'https://rubygems.org'
 # gem "rails"
 
 gem 'json'
-gem 'ruby_dig'
+group :compat do
+  gem 'ruby_dig', platforms: [:ruby_20, :ruby_21, :ruby_22]
+end
 
 group :util do
   gem 'naturalsorter'
