@@ -42,7 +42,7 @@ module YTDL
       @filenames.map!(&:strip)
       @filenames.map! { |i| @directory.join(i).to_s }
       @filenames = Util.sort(@filenames) if @sort
-      @filepaths = @filenames.map { |i| Pathname.new(i) }
+      @filepaths = @filenames.map { |i| Pathname.new(i) } unless @filenames.empty?
     end
 
     def setarchive!(archivedir = nil)
