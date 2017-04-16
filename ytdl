@@ -113,7 +113,9 @@ stats = YTDL::Stats.new(files, pretend: args.pretend)
 stats.genstatsfl!
 stats.genstats
 
-pl = YTDL::Playlist.new(ytdl.filenames, playlistpath.to_s, ytdl.directory, root, resetplaylist: args.resetplaylist, pretend: args.pretend, noblacklist: args.no_blacklist)
+plfilenames = ytdl.filenames.empty? ? files : ytdl.filepaths
+
+pl = YTDL::Playlist.new(plfilenames, playlistpath.to_s, ytdl.directory, root, resetplaylist: args.resetplaylist, pretend: args.pretend, noblacklist: args.no_blacklist)
 pl.blacklist unless args.playlist
 pl.genplfilelist! if args.playlist
 

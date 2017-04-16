@@ -13,7 +13,7 @@ Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? 
 
 module YTDL
   class Fetch
-    attr_reader :filenames, :date, :directory, :subdirectory
+    attr_reader :filenames, :date, :directory, :subdirectory, :filepaths
     def initialize(directory, urls, sort: true, pretend: false, subdirectory: nil, datesubdir: true, nodownload: false)
       @date = Time.now.strftime('%Y%m%d').freeze
       @datesubdir = datesubdir
@@ -28,6 +28,7 @@ module YTDL
       @pretend = pretend
       @archive = nil
       @nodownload = nodownload
+      @filepaths = []
     end
 
     def fetch_filenames!
@@ -41,6 +42,7 @@ module YTDL
       @filenames.map!(&:strip)
       @filenames.map! { |i| @directory.join(i).to_s }
       @filenames = Util.sort(@filenames) if @sort
+      @filepaths = @filenames.map { |i| Pathname.new(i) }
     end
 
     def setarchive!(archivedir = nil)

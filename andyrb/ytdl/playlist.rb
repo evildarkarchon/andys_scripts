@@ -84,30 +84,33 @@ module YTDL
 
       existing = []
       blacklist = @videopath.join('.noplaylist').readlines if @videopath.join('.noplaylist').file?
-      puts Mood.neutral('Blacklist Content:')
-      blacklist.map!(&:strip) if @pretend
+      puts Mood.neutral('Blacklist Content:') if @pretend
+      blacklist.map!(&:strip) if [@pretend, blacklist.respond_to?(:map)].all?
       puts blacklist.inspect if @pretend
 
       if [@outpath.exist?, !@resetplaylist].all?
         o = File.open(@outname)
-        unless o.readlines.empty?
+        begin
           xspf = XSPF.new(o)
           playlist = xspf.playlist
           tracklist = playlist.tracklist
           existing = tracklist.tracks
           existing.map!(&:location) if [existing.respond_to?(:map!), existing.respond_to?(:empty?) && !existing.empty?].all?
+        rescue NoMethodError
+          nil
         end
         o.close
       end
 
-      @filelist.keep_if { |i| File.dirname(i.to_s) == @outdir.to_s }
+      @filelist.keep_if { |i| File.dirname(i.to_s) == @videodir.to_s }
+
       uris = existing.map { |x| Addressable::URI.parse(x).to_s } if [@pretend, !existing.empty?].all?
       puts(Mood.neutral { 'Existing URIs:' }) if [@pretend, uris].all?
       puts uris.inspect if [@pretend, uris].all?
 
       unless [existing.respond_to?(:empty?) && existing.empty?, @resetplaylist, @pretend].any?
         @filelist.delete_if do |i|
-          url = Addressable::URI.convert_path("#{driveletter[0]}:/#{i.relative_path_from(@rootpath)}")
+          url = Addressable::URI.convert_path("#{driveletter[0]}:/#{i.relative_path_from(@rootpath)}").to_s
           uris = existing.map { |x| Addressable::URI.parse(x).to_s }
           uris.any? { |y| url.include? y }
         end
@@ -135,10 +138,12 @@ module YTDL
 
       if [@outpath.respond_to?(:exist?) && @outpath.exist?, !@resetplaylist].all?
         o = File.new(@outname.to_s)
-        unless o.readlines.empty?
+        begin
           xspf = XSPF.new(o)
           playlist = xspf.playlist
           tracklist = playlist.tracklist
+        rescue NoMethodError
+          nil
         end
         o.close
       end
