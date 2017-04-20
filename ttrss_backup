@@ -46,7 +46,7 @@ Tempfile.open('ttrss_') do |f|
   tmppath = Pathname.new(f.path).freeze
   xzpath = tmppath.sub_ext('.xz').freeze
 
-  Subprocess.check_call(%W[#{PgDump} -C -c --if-exists -d feeds -U postgres], stdout: Subprocess::PIPE) do |p|
+  Subprocess.check_call(%W[#{PgDump} -C -c --if-exists -d feeds -U postgres -h 192.168.0.104], stdout: Subprocess::PIPE) do |p|
     puts(Mood.happy { "Dumping database to #{tmppath}" }) unless Log.respond_to?(:info)
     Log.info { "Dumping database to #{tmppath}" } if Log.respond_to?(:info)
     f.write p.communicate[0]
