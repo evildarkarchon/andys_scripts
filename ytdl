@@ -158,7 +158,7 @@ opts.parse_args!
 opts.parse_urls!
 args = opts.options
 
-ytdl = YTDL::Fetch.new(args[:directory], opts.urls, sort: args[:sort], pretend: args[:pretend], subdirectory: args[:subdirectory], datesubdir: args[:datesubdir])
+ytdl = YTDL::Fetch.new(args[:directory], opts.urls, sort: args[:sort], pretend: args[:pretend], subdirectory: args[:subdirectory], datesubdir: args[:datesubdir], nodownload: args[:no_download])
 ytdl.fetch_filenames! unless args[:no_download]
 ytdl.setarchive!(args.archive) unless args[:no_download]
 ytdl.fetch_videos(webmout: args[:webm], force: args[:force], keep_split: args[:keep_split], ffmpegdl: args[:ffmpegdl])

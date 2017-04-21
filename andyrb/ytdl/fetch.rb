@@ -82,7 +82,7 @@ module YTDL
     def fetch_videos(webmout: false, force: false, keep_split: false, ffmpegdl: false)
       Util::FindApp.which('youtube-dl') do |yt|
         ytdl = %W[#{yt}]
-        ytdl << %W[--download-archive #{@archive}] unless force
+        ytdl << %W[--download-archive #{@archive}] unless force || @nodownload
         ytdl << %w[--merge-output-format webm] if webmout
         ytdl << '-k' if keep_split
         ytdl << %w[--hls-prefer-ffmpeg --external-downloader ffmpeg --external-downloader-args -hide_banner] if ffmpegdl
@@ -91,7 +91,7 @@ module YTDL
         ytdl.freeze
 
         Util::Program.runprogram(ytdl, workdir: @directory) unless [@pretend, @nodownload].any?
-        puts ytdl.inspect if [@pretend, !@nodownload].all?
+        puts ytdl.inspect if @pretend && !@nodownload
       end
     end
   end
