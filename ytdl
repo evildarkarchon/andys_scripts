@@ -161,11 +161,11 @@ args = opts.options
 ytdl = YTDL::Fetch.new(args[:directory], opts.urls, sort: args[:sort], pretend: args[:pretend], subdirectory: args[:subdirectory], datesubdir: args[:datesubdir])
 ytdl.fetch_filenames! unless args[:no_download]
 ytdl.setarchive!(args.archive) unless args[:no_download]
-ytdl.fetch_videos(webmout: args[:webm], force: args[:force], keep_split: args[:keep_split], ffmpegdl: args[:ffmpegdl], nodownload: args[:no_download])
+ytdl.fetch_videos(webmout: args[:webm], force: args[:force], keep_split: args[:keep_split], ffmpegdl: args[:ffmpegdl])
 
 files = YTDL.findfiles(ytdl.directory, sort: args[:sort], pretend: args[:pretend])
 
-if args.test_download
+if args[:test_download]
   ytdl.filenames.each do |i|
     puts Mood.neutral("Removing #{i}") if File.exist?(i)
     FileUtils.rm(i) if File.exist?(i)
@@ -174,8 +174,8 @@ end
 
 playlistpath =
   case
-  when args.playlistpath
-    args.playlistpath
+  when args[:playlistpath]
+    args[:playlistpath]
   when [ytdl.directory.to_s.include?('/data/Videos/Youtube'), args[:subdirectory]].all?
     Pathname.new("/data/Videos/Youtube/Playlists/#{args[:subdirectory]}/#{ytdl.date}.xspf")
   when [ytdl.directory.to_s.include?('/data/Videos/Youtube'), !args[:subdirectory]].all?
@@ -191,7 +191,7 @@ stats = YTDL::Stats.new(files, pretend: args[:pretend])
 stats.genstatsfl!
 stats.genstats
 
-plfilenames = ytdl.filenames.empty? ? files : ytdl.filepaths
+plfilenames = ytdl.filenames.respond_to?(:empty?) && ytdl.filenames.empty? && !args[:no_download] ? files : ytdl.filepaths
 
 pl = YTDL::Playlist.new(plfilenames, playlistpath.to_s, ytdl.directory, root, resetplaylist: args[:resetplaylist], pretend: args[:pretend], noblacklist: args[:no_blacklist])
 pl.blacklist unless args[:playlist]

@@ -4,12 +4,14 @@ require 'pathname'
 
 require_relative '../util/program'
 require_relative '../util/findapp'
-require_relative '../util/sort'
+require_relative '../core/sort'
 require_relative '../mood'
 require_relative '../core/cleanup'
 
-Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
 
 module YTDL
   class Fetch
@@ -35,14 +37,23 @@ module YTDL
       @filenames = []
       print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
       Util::FindApp.which('youtube-dl') do |yt|
-        @urls.each { |url| @filenames << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true) }
+        @urls.each { |url| @filenames << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true).split("\n") }
       end
+      # puts @filenames.inspect
       puts 'done.'
+      # puts 'deleting is not necessary' unless @filenames.to_s.include?("\n")
       @filenames.cleanup!
+      # splitfilenames = @filenames.map { |e| e.split("\n") if !e.nil? && e.include?("\n") }
+      # splitfilenames.cleanup!(unique: false)
+      # @filenames += splitfilenames unless splitfilenames.empty?
+      # @filenames.delete_if { |i| i.include?("\n") }
       @filenames.map!(&:strip)
       @filenames.map! { |i| @directory.join(i).to_s }
-      @filenames = Util.sort(@filenames) if @sort
+      @filenames.natsort! if @sort
       @filepaths = @filenames.map { |i| Pathname.new(i) } unless @filenames.empty?
+      puts Mood.neutral('Derived Filenames:') if @pretend
+      puts @filenames.inspect if @pretend
+      puts @filepaths.inspect if @pretend
     end
 
     def setarchive!(archivedir = nil)
@@ -64,11 +75,11 @@ module YTDL
           @directory + 'downloaded.txt'
         end
       archive.freeze
-      puts(Mood.neutral { archive }) if @pretend
+      puts(Mood.neutral { archive }) if [@pretend, !@nodownload].all?
       @archive = archive
     end
 
-    def fetch_videos(webmout: false, force: false, keep_split: false, ffmpegdl: false, nodownload: false)
+    def fetch_videos(webmout: false, force: false, keep_split: false, ffmpegdl: false)
       Util::FindApp.which('youtube-dl') do |yt|
         ytdl = %W[#{yt}]
         ytdl << %W[--download-archive #{@archive}] unless force
@@ -79,8 +90,8 @@ module YTDL
         ytdl.cleanup!(unique: false)
         ytdl.freeze
 
-        Util::Program.runprogram(ytdl, workdir: @directory) unless [@pretend, nodownload].any?
-        puts ytdl.inspect if @pretend
+        Util::Program.runprogram(ytdl, workdir: @directory) unless [@pretend, @nodownload].any?
+        puts ytdl.inspect if [@pretend, !@nodownload].all?
       end
     end
   end
