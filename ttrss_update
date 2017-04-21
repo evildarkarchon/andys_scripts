@@ -96,4 +96,4 @@ end
 
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
 
-Util::Program.runprogram(%w[systemctl restart ttrssd]) if Args.restart
+Util::Program.runprogram(%w[systemctl -M web restart ttrssd], use_sudo: true) if Args.restart
