@@ -8,14 +8,16 @@ require 'find'
 
 # require_relative 'andyrb/mood'
 require_relative 'andyrb/util/hashfile'
-require_relative 'andyrb/util/sort'
+require_relative 'andyrb/core/sort'
 require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/videoinfo/database'
 require_relative 'andyrb/videoinfo/filelist'
 require_relative 'andyrb/videoinfo/genhash'
 
-Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
 
 class Options
   def self.parse(args)
@@ -92,7 +94,7 @@ if directories.respond_to?(:each)
     initlist.keep_if { |i| File.file?(i) }
     initlist.map!(&:to_s)
 
-    filelist = Util.sort(VideoInfo.genfilelist(initlist))
+    filelist = VideoInfo.genfilelist(initlist).natsort
     # puts 'directories 3m:'
     # print "#{filelist}\n"
     # puts
@@ -135,7 +137,7 @@ else
   # print "#{initlist}\n"
   # puts
 
-  filelist = Util.sort(VideoInfo.genfilelist(initlist))
+  filelist = VideoInfo.genfilelist(initlist).natsort
   filelist.freeze unless frozen?
   # puts 'directories 3s:'
   # print "#{filelist}\n"

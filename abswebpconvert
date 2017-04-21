@@ -13,10 +13,12 @@ require_relative 'andyrb/mood'
 require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/util/findapp'
 require_relative 'andyrb/util/program'
-require_relative 'andyrb/util/sort'
+require_relative 'andyrb/core/sort'
 
-Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
 
 class Options
   def self.parse(args)
@@ -81,7 +83,7 @@ args = lambda do
   arg = ARGV.dup
   arg.cleanup!
   outarg = options.parse(arg)
-  outfiles = Args.sort ? Util.sort(arg.dup) : arg.dup
+  outfiles = Args.sort ? arg.dup.natsort : arg.dup
   [outarg.freeze, outfiles.freeze]
 end
 

@@ -12,15 +12,18 @@ require 'shellwords'
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util/program'
-require_relative 'andyrb/util/sort'
+# require_relative 'andyrb/util/sort'
+require_relative 'andyrb/core/sort'
 require_relative 'andyrb/util/recursive_symbolize_keys'
 require_relative 'andyrb/absconvert/metadata'
 require_relative 'andyrb/videoinfo/database'
 require_relative 'andyrb/core/cleanup'
 
-Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-puts 'include is private' if Array.private_method_defined? :include
-Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
+# puts 'include is private' if Array.private_method_defined? :include
+# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
 
 # rubocop:disable Style/CaseIndentation, Lint/EndAlignment, Lint/UnneededDisable
 class Options
@@ -141,7 +144,7 @@ end
 args = lambda do
   arg = ARGV.dup.cleanup!
   outargs = Options.parse(arg)
-  outfiles = outargs.sort ? Util.sort(arg) : arg
+  outfiles = outargs.sort ? arg.natsort : arg
   outfiles.keep_if { |i| File.file?(i) } if respond_to?(:keep_if)
   [outargs, outfiles]
 end
@@ -182,9 +185,8 @@ Config =
     end
     config = Util.recursive_symbolize_keys(config)
     print "#{config}\n" if Args.debug && config
-    config
+    config.freeze
   end
-Config.freeze unless frozen?
 
 def backup(sourcefile, backupdir)
   backuppath = Pathname.new(backupdir).freeze
@@ -199,7 +201,7 @@ end
 
 def cmdline(filename, passnum: 1, passmax: 2)
   filepath = Pathname.new(filename)
-  md = Metadata.new(filename)
+  md = ABSConvert::Metadata.new(filename)
   md.bitrate!
   md.framerate! unless Args.novideo
 
