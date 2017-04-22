@@ -1,56 +1,48 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require 'ostruct'
-require 'optparse'
 require 'pathname'
+require 'optparse'
 require 'json'
-require 'filemagic'
+require 'shellwords'
 require 'subprocess'
 require 'data_mapper'
-require 'shellwords'
 
-require_relative 'andyrb/mood'
-require_relative 'andyrb/util/program'
-# require_relative 'andyrb/util/sort'
-require_relative 'andyrb/core/sort'
-require_relative 'andyrb/util/recursive_symbolize_keys'
-require_relative 'andyrb/absconvert/metadata'
-require_relative 'andyrb/videoinfo/database'
 require_relative 'andyrb/core/cleanup'
+require_relative 'andyrb/core/sort'
+require_relative 'andyrb/util/program'
+require_relative 'andyrb/util/recursive_symbolize_keys'
+require_relative 'andyrb/absconvert'
+require_relative 'andyrb/videoinfo/database'
 
-# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-# puts 'include is private' if Array.private_method_defined? :include
-# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
 Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
 Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
 
-# rubocop:disable Style/CaseIndentation, Lint/EndAlignment, Lint/UnneededDisable
 class Options
-  def self.parse(args)
-    options = OpenStruct.new
-    options.videocodec = 'libvpx-vp9'
-    options.videocodecopts = nil
-    options.videobitrate = nil
-    options.framerate = nil
-    options.passes = 2
+  attr_reader :files, :options, :config, :paths
 
-    options.audiocodec = 'libopus'
-    options.audiocodecopts = nil
-    options.audiobitrate = nil
-    options.audiofilter = nil
-
-    options.db = Pathname.getwd + 'videoinfo.sqlite'
-    options.converttest = true
-    options.config = Pathname.new(Dir.home) + '.config/absconvert.json'
-    options.container = nil
-    options.sort = true
-    options.debug = false
-
-    options.backup = nil
-    options.converttest = false
-    options.stats = true
-    options.outputdir =
+  def initialize(args)
+    @options = {}
+    @options[:novideo] = false
+    @options[:noaudio] = false
+    @options[:videocodec] = 'libvpx-vp9'
+    @options[:audiocodec] = 'libopus'
+    @options[:videocodecopts] = nil
+    @options[:audiocodecopts] = nil
+    @options[:videobitrate] = nil
+    @options[:audiobitrate] = nil
+    @options[:db] = Pathname.getwd.join('videoinfo.sqlite')
+    @options[:audiofilter] = nil
+    @options[:passes] = 2
+    @options[:converttest] = false
+    @options[:debug] = false
+    @options[:config] = Pathname.new(Dir.home).join('.config/absconvert.json')
+    @options[:sort] = true
+    @options[:stats] = true
+    @options[:container] = nil
+    @options[:backup] = nil
+    @options[:framerate] = nil
+    @options[:outputdir] =
       case
       when Dir.pwd.include?('videoutiltest')
         Pathname.getwd
@@ -59,315 +51,147 @@ class Options
       else
         Pathname.getwd.parent
       end
-    options.verbose = false
+    @options[:verbose] = false
+    @args = args
+  end
 
+  def parse_args!
     optparse = OptionParser.new do |opts|
-      opts.on('--video-codec [codec]', 'Video codec for the output video.') do |vcodec|
-        options.videocodec =
-          case
-          when vcodec == 'none'
-            options.novideo = true
-            nil
-          else
-            vcodec
-          end
+      opts.on('--no-video', "Don't encode video stream") do
+        @options[:novideo] = true
+        @options[:videocodec] = nil
+      end
+      opts.on('--video-codec [codec]', 'Video codec to use to encode the video stream') do |i|
+        novideo = %w[none None].any? { |a| a == i }
+        @options[:novideo] = true if novideo
+        @options[:videocodec] = !novideo ? i : nil
+      end
+      opts.on('--frame-rate [framerate]', '-f', 'Frame rate for the video stream') { |i| @options[:framerate] = i }
+      opts.on('--video-bitrate [bitrate]', 'Bitrate for the video stream') { |i| @options[:videobitrate] = i }
+      opts.on('--video-codec-opts [opts]', 'Options for the video codec') { |i| options[:videocodecopts] = i.shellsplit }
+      opts.on('--passes [passes]', 'Number of passes for the video encoding') do |i|
+        valid = [1, 2].any? { |a| a == i.to_i }
+        @options[:passes] = i.to_i if valid
+        @options[:passes] = 2 if i.to_i > 2
+        @options[:passes] = 1 if i.to_i < 1
       end
 
-      opts.on('--video-bitrate [bitrate]', 'Video bitrate for the output video.') { |vbitrate| options.videobitrate = vbitrate }
-
-      opts.on('--passes [pass]', '-p [pass]', 'Number of video encoding passes.') do |passes|
-        case
-        when !passes.respond_to?(:to_i)
-          raise 'Argument passed is not an integer or convertible to an integer.'
-        when !passes.to_i.between?(1, 2)
-          options.passes = 1 if passes <= 0
-          puts Mood.neutral('Passes argument is less than or equal to 0, setting passes to 1') if passes <= 0
-          options.passes = 2 if passes >= 3
-          puts Mood.neutral('Passes argument is greater than or equal to 3, setting to 2') if passes >= 3
-        else
-          options.passes = passes.to_i
-        end
+      opts.on('--no-audio', "Don't encode audio stream") do
+        @options[:noaudio] = true
+        @options[:audiocodec] = nil
       end
-
-      opts.on('--video-codec-opts [opts]', 'Options to pass to the video codec') { |vco| options.videocodecopts = vco.shellsplit }
-      opts.on('--frame-rate [rate]', '-f [rate]', 'Manually specify the frame rate (e.g. useful for MPEG2-PS files)') { |fr| options.framerate = fr.to_f if fr.respond_to?(:to_f) }
-
-      opts.on('--no-video', 'Disable video channel') do
-        options.videocodec = nil
-        options.novideo = true
+      opts.on('--audio-codec [codec]', 'Audio codec to use to encode the audio stream') do |i|
+        noaudio = %w[none None].any? { |a| a == i }
+        @options[:audiocodec] = nil if noaudio
+        @options[:noaudio] = true if noaudio
+        @options[:audiocodec] = i unless noaudio
       end
+      opts.on('--audio-bitrate [bitrate]', 'Bitrate for the audio stream') { |i| @options[:audiobitrate] = i }
+      opts.on('--audio-codec-opts [opts]', 'Options for the audio codec') { |i| @options[:audiocodecopts] = i.shellsplit }
+      opts.on('--audio-filter [filter]', 'Filter to be used on the output audio') { |i| @options[:audiofilter] = i }
 
-      opts.on('--audio-bitrate [bitrate]', 'Bitrate of the output audio.') { |abitrate| options.audiobitrate = abitrate }
-
-      opts.on('--audio-codec [codec]', 'Codec of the output audio.') do |acodec|
-        options.audiocodec =
-          case
-          when acodec == 'none'
-            options.noaudio = true
-            nil
-          else
-            acodec
-          end
+      opts.on('--database [location]', 'Location of the videoinfo database') { |i| @options[:db] = i }
+      opts.on('--convert-test', "Don't delete any videoinfo entries") { @options[:converttest] = true }
+      opts.on('--config [path]', '-c [path]', 'Location of the configuration json file.') { |i| @options[:config] = Pathname.new(i) }
+      opts.on('--container [ext]', 'Container to be used on the output file (do not include the dot).') { |i| @options[:container] = ".#{i}" }
+      opts.on('--no-sort', "Don't sort the file list") { @options[:sort] = false }
+      opts.on('--no-stats', "Don't calculate statistics tags for the output file.") { @options[:stats] = false }
+      opts.on('--backup [dir]', '-b [dir]', 'Location of the backup directory (if any)') { |i| options[:backup] = Pathname.new(i) }
+      opts.on('--output [dir]', '-o [dir]', 'Location of the output directory.') { |i| options[:outputdir] = i }
+      opts.on('--verbose', '-v', 'Make the script a bit more chatty.') { @options[:verbose] = true }
+      opts.on('--debug', '-d', 'Print variables and method states and exit') do
+        @options[:debug] = true
+        @options[:verbose] = true
       end
-
-      opts.on('--audio-filter [filter]', 'Filter to be used for the output audio.') { |afilter| options.audiofilter = afilter }
-      opts.on('--audio-codec-opts [opts]', 'Options to pass to the audio codec.') { |aco| options.audiocodecopts = aco.shellsplit }
-      opts.on('--no-audio', 'Disable audio channel') do
-        options.audiocodec = nil
-        options.noaudio = true
-      end
-
-      opts.on('--database [location]', 'Location of the videoinfo database') { |db| optons.db = Pathname.new(db) }
-      opts.on('--convert-test', "Don't delete any videoinfo entries.") { options.converttest = true }
-      opts.on('--config [path]', '-c [path]', 'Location of the configuration json file') { |config| options.config = Pathname.new(config) }
-      opts.on('--container [extension]', 'Container to be used for the output file (the dot must be included).') { |ext| options.container = ext }
-      opts.on('--no-sort', "Don't sort the file list.") { options.sort = false }
-      opts.on('--no-stats', "Don't add statistics tags to the output file(s)") { options.stats = false }
-      opts.on('--debug', '-d', 'Print variables and exit.') { options.debug = true }
-      opts.on('--backup [dir]', '-b [dir]', 'Location of the backup directory (if any)') { |backup| options.backup = Pathname.new(backup) }
-      opts.on('--output [dir]', '-o [dir]', 'Location of the output directory') { |output| options.outputdir = Pathname.new(output) }
-      opts.on('--verbose', '-v', 'Make the script a bit more chatty.') { options.verbose = true }
-      opts.on('--convert-test', "Don't delete any database entries.") { options.converttest = true }
     end
 
-    optparse.parse!(args)
+    optparse.parse!(@args)
 
     vp9default = %w[-threads 4 -tile-columns 2 -frame-parallel 1 -speed 1]
     vp8default = %w[-threads 4 -speed 1]
-    options.videocodecopts = [options.videocodec == 'libvpx-vp9', !options.videocodecopts].all? ? vp9default : options.videocodecopts # rubocop:disable Lint/RequireParentheses
-    options.videocodecopts = [options.videocodec == 'libvpx', !options.videocodecopts].all? ? vp8default : options.videocodecopts # rubocop:disable Lint/RequireParentheses
+    @options[:videocodecopts] = [@options[:videocodec] == 'libvpx-vp9', !@options[:videocodecopts]].all? ? vp9default : @options[:videocodecopts]
+    @options[:videocodecopts] = [@options[:videocodec] == 'libvpx', !@options[:videocodecopts]].all? ? vp8default : @options[:videocodecopts]
+  end
 
-    options
+  def parse_files!
+    @files = @args.dup
+    @files.keep_if { |i| File.file?(i) } if @files.respond_to?(:keep_if)
+    @paths = @files.map { |i| Pathname.new(i) }
+  end
+
+  def parse_config!
+    @config = nil
+    if options[:config].exist? # rubocop:disable Style/GuardClause
+      options[:config].open do |cf|
+        @config = JSON.parse(cf.read)
+      end
+      @config = Util.recursive_symbolize_keys(@config)
+      puts config.inspect if @options[:debug] && @config
+      @config.freeze
+    end
   end
 end
 
-args = lambda do
-  arg = ARGV.dup.cleanup!
-  outargs = Options.parse(arg)
-  outfiles = outargs.sort ? arg.natsort : arg
-  outfiles.keep_if { |i| File.file?(i) } if respond_to?(:keep_if)
-  [outargs, outfiles]
-end
+opts = Options.new(ARGV.dup)
+opts.parse_args!
+opts.parse_files!
+opts.parse_config!
+args = opts.options
+ffmpeg = Util::FindApp.which('ffmpeg')
+mkvpropedit = Util::FindApp.which('mkvpropedit')
 
-Args, Files = args.call.freeze
+DataMapper.setup(:default, "sqlite:#{args[:db].realpath}")
+DataMapper::Logger.new($stdout, :debug) if [args[:verbose], args[:debug]].any?
 
-# ARGV.cleanup!
-# Args = Options.parse(ARGV)
-
-# files = lambda do
-#   out = ARGV.dup
-#   Util.sort(out) if Args.sort
-#   out.keep_if { |i| File.file?(i) } if respond_to?(:keep_if)
-#   out
-# end
-
-# Files = files.call.freeze
-
-DataMapper.setup(:default, "sqlite:#{Args.db.realpath}")
-DataMapper::Logger.new($stdout, :debug) if Args.verbose
-
-MkvPropEdit = Util::FindApp.which('mkvpropedit')
-MkvPropEdit.freeze unless frozen?
-FFmpeg = Util::FindApp.which('ffmpeg')
-FFmpeg.freeze unless frozen?
-
-raise 'ffmpeg not found.' if FFmpeg.nil?
-raise 'mkvpropedit not found' if [[MkvPropEdit.nil?, MkvPropEdit.empty?].any?, Args.stats].all?
-raise 'ffmpeg is not executable' unless FFmpeg && File.executable?(FFmpeg)
-raise 'mkvpropedit is not executable' unless [[MkvPropEdit && File.executable?(MkvPropEdit), Args.stats].all?, !Args.stats].any?
-
-Config =
-  case # rubocop:disable Style/ConstantName
-  when File.exist?(Args.config)
-    config = nil
-    File.open(Args.config) do |cf|
-      config = JSON.parse(cf.read)
-    end
-    config = Util.recursive_symbolize_keys(config)
-    print "#{config}\n" if Args.debug && config
-    config.freeze
-  end
-
-def backup(sourcefile, backupdir)
-  backuppath = Pathname.new(backupdir).freeze
-  sourcepath = Pathname.new(sourcefile).freeze
-  dest = backuppath + sourcepath.basename if sourcepath.exist?
-
-  backuppath.mkpath unless backuppath.exist?
-  raise 'Backup directory is a file.' if [backuppath.exist?, backuppath.file?].all?
-  puts(Mood.happy { "Moving #{sourcefile} to #{backupdir}" })
-  sourcepath.rename(dest) if dest
-end
-
-def cmdline(filename, passnum: 1, passmax: 2)
-  filepath = Pathname.new(filename)
-  md = ABSConvert::Metadata.new(filename)
-  md.bitrate!
-  md.framerate! unless Args.novideo
-
-  bitrates = md.bitrates
-  bitrates.freeze unless frozen?
-
-  framerate = md.frame_rate
-  framerate.freeze unless frozen?
-
-  vcodec =
-    case
-    when [Args.novideo, bitrates[:video].nil?].any?
-      '-vn'
-    when Config[:defaults][:video]
-      %W[-c:v #{Config[:defaults][:video]}]
-    when Args.videocodec
-      %W[-c:v #{Args.videocodec}]
-    end
-  vcodec.freeze
-
-  vbitrate =
-    case
-    when [!Args.novideo, bitrates[:video]].all?
-      %W[-b:v #{bitrates[:video]}]
-    end
-  vbitrate.freeze
-
-  vcodecopts =
-    case
-    when !Args.novideo && Args.videocodecopts
-      Args.videocodecopts
-    when [!Args.novideo, Args.videocodec.respond_to?(:to_sym) && Config[:defaults][Args.videocodec.to_sym]].all?
-      Config[:codecs][Args.videocodec.to_sym]
-    end
-  vcodecopts.freeze
-
-  acodec =
-    case
-    when [passnum == 1, Args.noaudio, bitrates[:audio].nil?].any?
-      '-an'
-    when Args.audiocodec
-      %W[-c:a #{Args.audiocodec}]
-    when Config[:defaults][:audio]
-      %W[-c:a #{Config[:defaults][:audio]}]
-    else
-      %w[-c:a libopus]
-    end
-  acodec.freeze
-
-  acodecopts =
-    case
-    when [!Args.noaudio, Args.audiocodecopts].all?
-      Args.audiocodecopts
-    when [!Args.noaudio, Args.audiocodec.respond_to?(:to_sym) && Config[:codecs][Args.audiocodec.to_sym]].all?
-      Config[:codecs][Args.audiocodec.to_sym]
-    end
-  acodecopts.freeze
-
-  abitrate =
-    case
-    when [!Args.noaudio, bitrates[:audio]].all?
-      %W[-b:a #{bitrates[:audio]}]
-    end
-  abitrate.freeze
-
-  afilter =
-    case
-    when [!Args.noaudio, Config[:defaults][:audiofilter]].all?
-      %W[-af #{Config[:defaults][:audiofilter]}]
-    when [!Args.noaudio, Args.audiofilter].all?
-      %W[-af #{Args.audiofilter}]
-    end
-  afilter.freeze
-
+opts.files.each do |i|
+  metadata = ABSConvert::Metadata.new(i, args[:db], verbose: args[:verbose])
+  metadata.bitrate!
+  metadata.framerate! unless args[:novideo]
+  filepath = Pathname.new(i)
+  # outpath = Pathname.new(Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
   outcon =
     case
-    when Args.container
-      ".#{Args.container}"
-    when Config[:defaults][:container]
-      ".#{Config[:defaults][:container]}"
+    when args[:container]
+      ".#{args[:container]}"
+    when opts.config[:defaults][:container]
+      ".#{opts.config[:defaults][:container]}"
     else
       '.mkv'
     end
   outcon.freeze
-
-  out = %W[#{FFmpeg} -i #{filename}]
-  out << vcodec
-  out << vbitrate if vbitrate
-  out << %W[-pass #{passnum} -passlogfile #{filepath.sub_ext('')}] if passmax == 2
-  out << vcodecopts if vcodecopts
-  out << %W[-filter:v fps=#{framerate}] if framerate
-  out << acodec
-  out << abitrate if abitrate
-  out << acodecopts if acodecopts
-  out << afilter if afilter
-  out << %w[-hide_banner -y]
-  out <<
-    case
-    when passnum == 1 && passmax == 2
-      # ['-f', 'matroska', '/dev/null']
-      %w[-f matroska /dev/null]
-    when passnum == 2 && passmax == 2, passmax == 1
-      # Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s
-      (Args.outputdir + filepath.basename.sub_ext(outcon)).to_s
-    end
-  out.cleanup!(unique: false)
-  out.freeze
-  out
-end
-
-Args.files.each do |file|
-  outcon =
-    case
-    when Args.container
-      ".#{Args.container}"
-    when Config[:defaults][:container]
-      ".#{Config[:defaults][:container]}"
-    else
-      '.mkv'
-    end
-  filepath = Pathname.new(file)
-  # outpath = Pathname.new(Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
-  outpath = (Args.outputdir + filepath.basename.sub_ext(outcon)).freeze
-  logpath = filepath.sub_ext('-0.log').freeze if Args.passes == 2
-  case Args.passes
-  when 2
-    cmdpass1 = cmdline(file, passnum: 1, passmax: 2).freeze
-    cmdpass1.freeze unless frozen?
-
-    cmdpass2 = cmdline(file, passnum: 2, passmax: 2).freeze
-    cmdpass2.freeze unless frozen?
-  when 1
-    cmd1pass = cmdline(file, passmax: 1).freeze
-    cmd1pass.freeze unless frozen?
-  end
-  if Args.debug
-    print "#{cmdpass1}\n" if cmdpass1
-    print "#{cmdpass2}\n" if cmdpass2
-    print "#{cmd1pass}\n" if cmd1pass
-  end
+  outpath = args[:outputdir].join(filepath.basename.sub_ext(outcon)).freeze
+  logpath = filepath.sub_ext('-0.log').freeze if args[:passes] == 2
   begin
-    case
-    when [Args.passes == 2, !Args.debug].all?
-      Util::Program.runprogram(cmdpass1)
-      Util::Program.runprogram(cmdpass2)
-    when [Args.passes == 1, !Args.debug].all?
-      Util::Program.runprogram(cmd1pass)
+    if args[:passes] == 2
+      pass1 = ABSConvert::CmdLine.new(i, args, opts.config, verbose: args[:verbose], passnum: 1, passmax: 2)
+      pass1.construct!(metadata.bitrates, metadata.frame_rate, ffmpeg)
+      pass2 = ABSConvert::CmdLine.new(i, args, opts.config, verbose: args[:verbose], passnum: 2, passmax: 2)
+      pass2.construct!(metadata.bitrates, metadata.frame_rate, ffmpeg)
+      Util::Program.runprogram(pass1.list)
+      Util::Program.runprogram(pass2.list)
+    elsif [args[:passes] == 1, args[:novideo]].any?
+      cmdline = ABSConvert::CmdLine.new(i, args, config, verbose: args[:verbose], passnum: 1, passmax: 1)
+      cmdline.construct!(metadata.bitrates, metadata.frame_rate, ffmpeg)
+      Util::Program.runprogram(cmdline.list)
     end
   rescue Subprocess::NonZeroExit, Interrupt => e
     puts Mood.sad('Removing unfinished output file.')
     outpath.delete if outpath.exist?
     raise e
   else
-    Util::Program.runprogram(%W[#{MkvPropEdit} --add-track-statistics-tags #{outpath}]) if [Args.stats, outpath.exist?, !Args.debug].all?
+    Util::Program.runprogram(%W[#{mkvpropedit} --add-track-statistics-tags #{outpath}]) if [args[:stats], outpath.exist?, !args[:debug]].all?
     case
-    when [!Args.converttest, !Args.debug].all?
+    when [!args[:converttest], !args[:debug]].all?
       del = VideoInfo::Database::Videoinfo.all(filename: filepath.basename.to_s)
       deljson = VideoInfo::Database::Videojson.all(filename: filepath.basename.to_s)
       del.destroy
       deljson.destroy
-    when Args.converttest
+    when args[:converttest]
       puts Mood.happy('In convert testing mode, not deleting database entry')
     end
   ensure
-    logpath.delete if [Args.passes == 2, logpath && logpath.exist?, !Args.debug].all?
+    logpath.delete if [args[:passes] == 2, logpath && logpath.exist?, !args[:debug]].all?
   end
 
-  backup(file, Args.backup.to_s) if Args.backup
+  ABSConvert.backup(file, args[:backup].to_s) if args[:backup]
 end
