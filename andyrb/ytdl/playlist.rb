@@ -38,9 +38,9 @@ module YTDL
       return if @blacklistrun
       filenames = @filelist.dup
       filenames.map! { |i| "#{i}\n" }
-      n = @outdir + '.noplaylist'
+      n = @videodir + '.noplaylist'
       o = n.exist? ? File.readlines(n.to_s) : nil
-      q = @outdir + 'no-playlist.txt' if @outdir.join('no-playlist.txt').exist?
+      q = @videodir + 'no-playlist.txt' if @videodir.join('no-playlist.txt').exist?
       begin
         q.rename n.to_s unless q.nil? || !q.exist?
         n.open('a') do |x|
