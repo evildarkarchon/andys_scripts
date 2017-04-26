@@ -25,7 +25,7 @@ opts = Options.new(ARGV.dup.cleanup!) do |defaults|
   defaults[:config] = "#{Dir.home}/.config/convertmkv.json"
 end
 def opts.files
-  out = super.source.dup
+  out = @source.dup
   out.keep_if { |f| File.file?(f) }
   out.natsort! if Args.sort
   out.freeze
