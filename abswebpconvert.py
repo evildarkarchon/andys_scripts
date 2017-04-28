@@ -26,19 +26,35 @@ parser.add_argument('--no-sort', action='store_false', dest='sort', help="Don't 
 parser.add_argument('--backup-archive', nargs='?', type=pathlib.Path, help='Location to store the archive of original images.', default=pathlib.Path(backuparchive))
 parser.add_argument('--output-dir', nargs='?', type=pathlib.Path, help='Directory to store the resulting images.', default=pathlib.Path.cwd())
 parser.add_argument('--no-archive', action='store_false', dest='archive', help='Disable backing up the source images to an archive.')
-parser.add_argument('--keep-original', action='store_true', help='Keep the original files.')
+parser.add_argument('--keep-original', action='store_false', dest='del_original', help='Keep the original files.')
 parser.add_argument('--force', action='store_true', help='Move any existing files.')
 parser.add_argument('--verbose', '-v', action='store_true', help='Make the script more chatty.')
 parser.add_argument('--debug', '-d', action='store_true', help='Print variables and exit')
 parser.add_argument('--convert-path', dest='convert', type=str, default=findexe('convert'))
+parser.add_argument('--7z-path', dest='7z', type=str, default=findexe('7za'))
 parser.add_argument('files', nargs='+', type=pathlib.Path)
 
 args = vars(parser.parse_args())
 
 explicit = bool(args['lossy'] or args['lossless'])
 
-if args['sort'] and not args['debug']:
-    args['files'] = sortentries(args['files'])
+
+def resolvepaths(path):
+    if path.exists():
+        return path.resolve()
+
+
+args['files'] = [resolvepaths(x) for x in args['files']]
+args['files'] = [x for x in args['files'] if x is not None]
+
+if args['sort']:
+    def sortfiles():
+        temp = [str(x) for x in args['files']]
+        temp = sortentries(temp)
+        return [pathlib.Path(x) for x in temp]
+    if args['debug']:
+        print(sortfiles())
+    args['files'] = sortfiles()
 
 if args['debug']:
     print(args)
@@ -60,6 +76,10 @@ if not args['debug'] and not args['output_dir'].exists():
                 pass
             else:
                 raise
+
+if not args['debug']:
+    ABSWebPConvert.backuparchive(args['backup_archive'], args['files'], exepath=args['7z'], del_original=args['del_original'])
+
 for i in args['files']:
     cmdline = ABSWebPConvert.cmdline(i, args['output_dir'], verbose=args['verbose'], quality=args['quality'], mode=outmode, explicit=explicit, exepath=args['convert'])
     if not args['debug']:

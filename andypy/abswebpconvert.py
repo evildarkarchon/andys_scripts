@@ -8,7 +8,7 @@ from .mood2 import Mood
 
 class ABSWebPConvert:
     @staticmethod
-    def cmdline(filename, outdir, verbose=False, quality=80, mode='lossy', explicit=False, exepath=findexe('convert')):
+    def cmdline(filename, outdir, verbose=False, quality=None, mode=None, explicit=False, exepath=None):
         if not isinstance(filename, pathlib.Path):
             filename = pathlib.Path(filename)
         if not isinstance(outdir, pathlib.Path):
@@ -42,12 +42,17 @@ class ABSWebPConvert:
         return cmd
 
     @staticmethod
-    def backuparchive(archive, filelist, exepath=findexe('7za')):
+    def backuparchive(archive, filelist, exepath=findexe('7za'), del_original=False):
         if not isinstance(archive, pathlib.Path):
             archive = pathlib.Path(archive)
-
-        cmd = shlex.split("{} a {}".format(exepath, archive))
-        cmd.extend(filelist)
+        if del_original:
+            cmd = shlex.split("{} -sdel a {}".format(exepath, archive))
+        else:
+            cmd = shlex.split("{} a {}".format(exepath, archive))
+        if isinstance(filelist, (list, tuple)):
+            cmd.extend(filelist)
+        elif isinstance(filelist, str):
+            cmd.append(filelist)
         print(Mood.happy("Archiving source files to {}".format(archive)))
         Program.runprogram(cmd)
 
