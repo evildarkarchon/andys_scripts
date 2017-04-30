@@ -3,7 +3,7 @@ import subprocess
 import shlex
 import pwd  # pylint: disable = e0401
 
-from mood2 import Mood
+from .mood2 import Mood
 
 
 class Program:

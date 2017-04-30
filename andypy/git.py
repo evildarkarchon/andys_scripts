@@ -3,9 +3,9 @@ import pathlib
 import os
 import shlex
 
-from program import Program
-from util.is_privileged import is_privileged
-from mood2 import Mood
+from .program import Program
+from .util.is_privileged import is_privileged
+from .mood2 import Mood
 
 
 class Git:

@@ -15,10 +15,10 @@ from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker  # relationship would go here.
 
-from mood2 import Mood
-from string_eval import NumericStringParser
-from util.hashfile import hashfile  # noqa: F401  # pylint: disable=W0611
-from videoinfo.probe import probe
+from .mood2 import Mood
+from .string_eval import NumericStringParser
+from .util.hashfile import hashfile  # noqa: F401  # pylint: disable=W0611
+from .videoinfo.probe import probe
 
 try:
     # This must be the filemagic module, the python-magic plugin (which uses the same module name) will most likely not work.
