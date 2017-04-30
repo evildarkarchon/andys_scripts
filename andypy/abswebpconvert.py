@@ -1,7 +1,9 @@
 import pathlib
 import shlex
+import os
+import shutil
 import magic  # noqa:F401 pylint: disable=e0401, W0611
-from .util.findexe import findexe
+
 from .program import Program
 from .mood2 import Mood
 
@@ -14,17 +16,6 @@ class ABSWebPConvert:
         if not isinstance(outdir, pathlib.Path):
             outdir = pathlib.Path(outdir)
 
-        try:
-            outdir.mkdir(mode=0o755, parents=True, exist_ok=True)
-        except TypeError:
-            try:
-                outdir.mkdir(mode=0o755, parents=True)
-            except FileExistsError:
-                if not outdir.is_file() and outdir.exists():  # gotta handle the weird edge cases
-                    pass
-                else:
-                    outdir.rename(outdir.with_suffix('.bak'))
-                    outdir.mkdir(mode=0o755, parents=True)
         cmd = shlex.split("{} {}".format(exepath, filename))
         cmd.extend(shlex.split("-quality {}".format(quality)))
         if not explicit:
@@ -42,13 +33,19 @@ class ABSWebPConvert:
         return cmd
 
     @staticmethod
-    def backuparchive(archive, filelist, exepath=findexe('7za'), del_original=False):
+    def backuparchive(archive, filelist, exepath=shutil.which('7za', mode=os.X_OK), del_original=False):
         if not isinstance(archive, pathlib.Path):
             archive = pathlib.Path(archive)
+        # if del_original:
+        #     cmd = shlex.split("{} -sdel a {}".format(exepath, str(archive)))
+        # else:
+        #     cmd = shlex.split("{} a {}".format(exepath, str(archive)))
+
         if del_original:
-            cmd = shlex.split("{} -sdel a {}".format(exepath, archive))
+            cmd = [exepath, '-sdel', 'a', str(archive)]
         else:
-            cmd = shlex.split("{} a {}".format(exepath, archive))
+            cmd = [exepath, 'a', str(archive)]
+
         if isinstance(filelist, (list, tuple)):
             cmd.extend(filelist)
         elif isinstance(filelist, str):
