@@ -9,6 +9,8 @@ from andypy.program import Program  # noqa: F401 pylint: disable=w0611
 from andypy.util.sortentries import sortentries  # noqa: F401 pylint: disable=w0611
 from andypy.abswebpconvert import ABSWebPConvert  # noqa: F401 pylint: disable=w0611
 from andypy.util.cleanlist import cleanlist
+from andypy.util.resolvepaths import resolvepaths
+from andypy.util.sortfiles import sortfiles
 
 
 if 'Just Downloaded' in os.getcwd():
@@ -49,13 +51,13 @@ if args['debug_cleanlist']:
     args['debug'] = True
 
 
-def resolvepaths(path):
+'''def resolvepaths(path):
     if path.exists():
-        return path.resolve()
+        return path.resolve()'''
 
-
-args['files'] = [resolvepaths(x) for x in args['files']]
+# args['files'] = [resolvepaths(x) for x in args['files']]
 # args['files'] = [x for x in args['files'] if x is not None]
+args['files'] = resolvepaths(args['files'])
 if args['debug_cleanlist']:
     args['files'] = cleanlist(args['files'], debug=True)
 elif args['quiet_cleanlist']:
@@ -64,15 +66,11 @@ else:
     args['files'] = cleanlist(args['files'])
 
 if args['sort']:
-    def sortfiles():
-        temp = [str(x) for x in args['files']]
-        temp = sortentries(temp)
-        return [pathlib.Path(x) for x in temp]
     if args['debug']:
-        print(Mood.neutral("File List:"))
-        print(sortfiles())
+        print(Mood.neutral("Sorted File List:"))
+        print(sortfiles(args['files']))
         print()
-    args['files'] = sortfiles()
+    args['files'] = sortfiles(args['files'])
 
 if args['debug']:
     print(Mood.neutral('Script Command-line Dictionary:'))
