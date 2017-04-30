@@ -4,9 +4,9 @@ import pathlib
 import os
 import shutil
 import itertools  # noqa: F401 pylint: disable=w0611
+
 from andypy.mood2 import Mood  # noqa: F401 pylint: disable=w0611
 from andypy.program import Program  # noqa: F401 pylint: disable=w0611
-from andypy.util.sortentries import sortentries  # noqa: F401 pylint: disable=w0611
 from andypy.abswebpconvert import ABSWebPConvert  # noqa: F401 pylint: disable=w0611
 from andypy.util.cleanlist import cleanlist
 from andypy.util.resolvepaths import resolvepaths
