@@ -3,9 +3,9 @@ import pathlib
 import os
 import shlex
 
-from .program import Program
-from .util.is_privileged import is_privileged
-from .mood2 import Mood
+from program import Program
+from util.is_privileged import is_privileged
+from mood2 import Mood
 
 
 class Git:
@@ -28,7 +28,7 @@ class Git:
 
         def sudocheck():
             if not isinstance(use_sudo, (bool, type(None))):
-                # print("{} use_sudo must be True, False, or None".format(Mood.sad()))
+                # print("{} use_sudo must be a bool or None".format(Mood.sad()))
                 print(Mood.sad("use_sudo must be a bool or None"))
                 raise TypeError
 

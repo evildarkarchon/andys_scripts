@@ -3,7 +3,7 @@ import subprocess
 import shlex
 import pwd  # pylint: disable = e0401
 
-from .mood import Mood
+from mood2 import Mood
 
 
 class Program:
@@ -39,11 +39,11 @@ class Program:
         elif isinstance(program, str):
             command = shlex.split(program)
         else:
-            print("{} program must be in the form of a string, tuple, list or deque".format(Mood.sad()))
+            print(Mood.sad("program must be in the form of a string, tuple, list or deque"))
             raise TypeError
 
         if use_sudo and not isinstance(user, (str, int)):
-            print("{} User must be a string or integer.".format(Mood.sad()))
+            print(Mood.sad("User must be a string or integer."))
             raise TypeError
 
         if use_sudo and isinstance(user, int):
@@ -52,7 +52,8 @@ class Program:
 
         if use_sudo:
             """command.extendleft([user, "-u", "sudo"]) #has to be backwards because each entry is prepended to the beginning of the list in the state its at when it gets to that point in the list."""  # pylint: disable=w0105
-            sudo = collections.deque(["sudo", "-u", user])
+            # sudo = collections.deque(["sudo", "-u", user])
+            sudo = shlex.split("sudo -u {}".format(user))
             command = sudo + command
         try:
             subprocess.run(command, input=stdinput, stdout=stdoutput, stderr=stderror, env=environment, check=verify, cwd=workdir)

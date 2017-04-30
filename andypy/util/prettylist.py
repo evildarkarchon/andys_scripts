@@ -1,6 +1,6 @@
 # pylint: disable=w0311
 def prettylist(text, quotes=False, sep=", "):
-    """Front-end function that takes an iterable and creates a "pretty" list from it.
+    """Front-end function that takes an iterable and creates a "pretty" list (string) from it.
 
     This function courtesy of the community at stackoverflow.com
 
