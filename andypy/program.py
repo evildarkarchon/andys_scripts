@@ -1,7 +1,7 @@
 import collections
-import subprocess
-import shlex
 import pwd  # pylint: disable = e0401
+import shlex
+import subprocess
 
 from .mood2 import Mood
 

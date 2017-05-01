@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 import argparse
-import pathlib
-import os
-import shutil
 import itertools  # noqa: F401 pylint: disable=w0611
+import os
+import pathlib
+import shutil
 
+from andypy.abswebpconvert import \
+    ABSWebPConvert  # noqa: F401 pylint: disable=w0611
 from andypy.mood2 import Mood  # noqa: F401 pylint: disable=w0611
 from andypy.program import Program  # noqa: F401 pylint: disable=w0611
-from andypy.abswebpconvert import ABSWebPConvert  # noqa: F401 pylint: disable=w0611
 from andypy.util.cleanlist import cleanlist
 from andypy.util.resolvepaths import resolvepaths
 from andypy.util.sortfiles import sortfiles
-
 
 if 'Just Downloaded' in os.getcwd():
     backuparchivedir = pathlib.Path.cwd().parent.joinpath('Original Files')

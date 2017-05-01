@@ -1,8 +1,10 @@
 # pylint: disable=W0613, r0914, w0106, r0911, w0612, w0201
 import math
 import operator
-from pyparsing import (Literal, CaselessLiteral, Word, Combine, Group, Optional,
-                       ZeroOrMore, Forward, nums, alphas, oneOf)  # noqa: I101
+
+from pyparsing import (CaselessLiteral, Combine, Forward, Group,  # noqa: I101
+                       Literal, Optional, Word, ZeroOrMore, alphas, nums,
+                       oneOf)
 
 
 class NumericStringParser(object):

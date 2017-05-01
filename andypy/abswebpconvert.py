@@ -1,11 +1,12 @@
+import os
 import pathlib
 import shlex
-import os
 import shutil
+
 import magic  # noqa:F401 pylint: disable=e0401, W0611
 
-from .program import Program
 from .mood2 import Mood
+from .program import Program
 
 
 class ABSWebPConvert:
@@ -20,8 +21,8 @@ class ABSWebPConvert:
         cmd.extend(shlex.split("-quality {}".format(quality)))
         if not explicit:
             with magic.Magic(flags=magic.MAGIC_MIME_ENCODING) as m:  # noqa: F821 pylint: disable=e0602
-                lossless = "image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop".split(' ')
-                raw = ".3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw .nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f".split(' ')
+                lossless = "image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop".split()
+                raw = ".3fr .ari .arw .srf .sr2 .bay .crw .cr2 .cap .iiq .eip .dcs .dcr .drf .k25 .kdc .dng .erf .fff .mef .mdc .mos .mrw .nef .nrw .orf .pef .ptx .pxn .r3d .raf .raw .rw2 .rwl .rwz .srw .x3f".split()
                 if m.id_filename(str(filename)) in lossless or filename.suffix in raw:
                     mode = 'lossless'
         if mode is 'lossless':

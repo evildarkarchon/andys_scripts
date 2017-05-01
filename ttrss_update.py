@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # pylint: disable=line-too-long
+import argparse
 import atexit
 import pathlib
-import argparse
 
-from andy.util import Mood, Util, Program
 from andy.git import Git
+from andy.util import Mood, Program, Util
 
 args = argparse.ArgumentParser()
 args.add_argument("--aggressive", "-a", action="store_true", help="Run garbage collection in aggressive mode")

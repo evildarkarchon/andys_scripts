@@ -1,11 +1,11 @@
 # pylint: disable=line-too-long
-import pathlib
 import os
+import pathlib
 import shlex
 
+from .mood2 import Mood
 from .program import Program
 from .util.is_privileged import is_privileged
-from .mood2 import Mood
 
 
 class Git:
