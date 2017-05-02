@@ -12,3 +12,4 @@ findvideoinfo*
 composer
 /andyrb/reference.rb
 *.old
+andypy/reference.py
