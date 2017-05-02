@@ -1,7 +1,10 @@
 import pathlib
+import sys
 import magic
 
-from ...mood2 import Mood
+sys.path.append(str(pathlib.Path.home().joinpath('bin/andypy')))
+
+from mood2 import Mood  # noqa: E402 pylint: disable=E0401, C0413
 
 
 class FindVideoInfo:  # pylint: disable=R0903
