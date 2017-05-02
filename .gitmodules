@@ -1,6 +1,6 @@
-[submodule "andypy/thirdparty/xspf"]
-	path = andypy/thirdparty/xspf
-	url = https://github.com/alastair/xspf.git
 [submodule "andypy/thirdparty/xspfparser"]
 	path = andypy/thirdparty/xspfparser
 	url = https://github.com/jwheare/xspfparser.git
+[submodule "andypy/thirdparty/xspf"]
+	path = andypy/thirdparty/xspf
+	url = https://github.com/alastair/xspf.git
