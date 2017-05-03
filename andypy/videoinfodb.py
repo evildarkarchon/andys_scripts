@@ -81,10 +81,17 @@ class VideoJSON(SQLBase):
 class VideoData:
 
     def __init__(self, db, verbose=False, regen=False, regenjson=False):
-        if not pathlib.Path(db).exists():
-            pathlib.Path(db).touch()
+        # if not pathlib.Path(db).exists():
+        #     pathlib.Path(db).touch()
+        self.dbpath = pathlib.Path(db)
 
-        self.dbpath = pathlib.Path(db).resolve()
+        try:
+            self.dbpath = self.dbpath.resolve()
+        except FileNotFoundError:
+            self.dbpath.touch()
+            self.dbpath = self.dbpath.resolve()
+
+        # self.dbpath = pathlib.Path(db).resolve()
         self.verbose = verbose
         self.dataengine = create_engine("sqlite:///{}".format(self.dbpath))
         self.inspect = Inspector.from_engine(self.dataengine)
