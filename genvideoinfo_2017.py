@@ -10,9 +10,9 @@ from sqlalchemy.orm import sessionmaker
 
 from andypy.util.cleanlist import cleanlist
 from andypy.util.sortentries import sortentries
-from andypy.videoinfo.gendict import gendict
 from andypy.videoinfo.genfilelist import genfilelist
 from andypy.videoinfo.genhashlist import genhashlist
 from andypy.videoinfo.probe import probe
-from andypy.videoinfodb import (Info, VideoData, VideoInfo, VideoJSON,
-                                sqa_session)
+from andypy.videoinfo.database.info import Info
+from andypy.videoinfo.database.schema import (VideoInfo, VideoJSON)
+from andypy.videoinfo.database.session import sqa_session
