@@ -29,6 +29,11 @@ if args['sort:']:
 
 args['files'] = resolvepaths(args['files'])
 
-programs = {'ffmpeg': shutil.which('ffmpeg', mode=os.X_OK), 'mkvmerge': shutil.which('mkvmerge', mode=os.X_OK), 'mkvpropedit': shutil.which('mkvpropedit', mode=os.X_OK)}
+# programs = {'ffmpeg': shutil.which('ffmpeg', mode=os.X_OK), 'mkvmerge': shutil.which('mkvmerge', mode=os.X_OK), 'mkvpropedit': shutil.which('mkvpropedit', mode=os.X_OK)}
+programs = {'mkvpropedit': shutil.which('mkvpropedit', mode=os.X_OK)}
+if args['ffmpeg']:
+    programs['ffmpeg'] = shutil.which('ffmpeg', mode=os.X_OK)
+else:
+    programs['mkvmerge'] = shutil.which('mkvmerge', mode=os.X_OK)
 
 convert = ConvertMKV(args['files'], verbose=args['verbose'], debug=args['debug'], progs=programs)
