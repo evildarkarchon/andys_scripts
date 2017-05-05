@@ -36,4 +36,13 @@ if args['ffmpeg']:
 else:
     programs['mkvmerge'] = shutil.which('mkvmerge', mode=os.X_OK)
 
-convert = ConvertMKV(args['files'], verbose=args['verbose'], debug=args['debug'], progs=programs)
+convert = ConvertMKV(args['files'], args['output'], verbose=args['verbose'], debug=args['debug'], progs=programs)
+
+if args['ffmpeg'] and args['combine']:
+    convert.ffmpegconcat()
+elif not args['ffmpeg'] and args['combine']:
+    convert.mkvmergeconcat()
+elif args['ffmpeg'] and not args['combine']:
+    convert.ffmpegmux()
+else:
+    convert.mkvmergemux()
