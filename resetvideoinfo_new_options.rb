@@ -137,10 +137,7 @@ else
   #   initlist << path if file
   # end
   initlist = dbpath.find.to_a
-  initlist.keep_if(&:file?)
-  initlist.map!(&:to_s)
-  initlist.cleanup!
-  initlist.freeze
+  initlist.keep_if(&:file?).map!(&:to_s).cleanup!.freeze
   # puts 'directories 2s:'
   # print "#{initlist}\n"
   # puts
