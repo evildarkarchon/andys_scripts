@@ -15,34 +15,6 @@ require_relative 'andyrb/options'
 
 Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
 Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
-=begin
-class Options
-  def self.parse(args)
-    options = OpenStruct.new
-    options.reset_json = false
-    options.reset_all = false
-    options.verbose = false
-    # options.del = false
-
-    optparse = OptionParser.new do |opts|
-      opts.on('--reset-json', 'Purges the JSON caches for all databases found.') { |j| options.reset_json = j }
-      opts.on('--reset-all', 'Resets the entire database.') { |a| options.reset_all = a }
-      opts.on('-v', '--verbose', 'Makes this script extra chatty') { |v| options.verbose = v }
-      # opts.on('--delete', 'Only drop and recreate tables.') { |del| options.del = del }
-    end
-    optparse.parse!(args)
-    options
-  end
-end
-args = lambda do
-  out = nil
-  out = ARGV.dup.cleanup! unless ARGV.nil? || ARGV.empty?
-  out = Options.parse(out)
-  outdir = out.nil? || out.empty? ? %w[/data/Private] : out
-  outdir.keep_if { |d| File.directory?(d) } if outdir.respond_to?(:keep_if)
-  [out.freeze, outdir.freeze]
-end
-=end
 
 opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:reset_json] = false
