@@ -3,19 +3,26 @@
 require 'optparse'
 
 class Options
-  attr_reader :source
-  attr_accessor :args
-  def initialize(source, opthash = nil)
+  attr_reader :source, :args
+  def initialize(sourceargs, opthash = nil)
     @args = {}
     @args = yield if block_given? && !opthash
     @args = opthash if opthash && !block_given?
     raise TypeError, '@args must be either a hash or nil' unless @args.is_a?(Hash) || @args.nil?
-    @source = source
+    @source = sourceargs
   end
 
   def construct!
     optparse = OptionParser.new
     yield optparse, @args
     optparse.parse!(@source)
+  end
+
+  def inspect
+    "Options<@source = #{@source}, @args = #{@args}>"
+  end
+
+  def to_h
+    { source: @source, args: @args }
   end
 end
