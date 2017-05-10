@@ -6,6 +6,7 @@ require 'openssl'
 require 'date'
 
 require_relative 'andyrb/core/cleanup'
+require_relative 'andyrb/options'
 
 Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
 Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
