@@ -30,7 +30,8 @@ opts.construct! do |h, i|
   h.on('--verbose', '-v', 'Make this script extra chatty.') { i[:verbose] = true }
 end
 def opts.directory
-  outdir = @source.nil? || @source.empty? ? %w[/data/Private] : @source
+  dir = @source.dup
+  outdir = dir.nil? || dir.empty? ? %w[/data/Private] : dir
   outdir.keep_if { |d| File.directory?(d) } if outdir.respond_to?(:keep_if)
   outdir
 end
