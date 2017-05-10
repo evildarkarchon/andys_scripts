@@ -9,6 +9,7 @@ class Options
     @args = yield if block_given? && !opthash
     @args = opthash if opthash && !block_given?
     raise TypeError, '@args must be either a hash or nil' unless @args.is_a?(Hash) || @args.nil?
+    raise ValueError, 'You must supply either a code block or a hash.' unless block_given? || opthash
     @source = sourceargs
   end
 
