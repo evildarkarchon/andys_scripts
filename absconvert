@@ -10,19 +10,22 @@ require 'data_mapper'
 
 require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/core/sort'
+require_relative 'andyrb/core/monkeypatch'
 require_relative 'andyrb/util/program'
 require_relative 'andyrb/util/recursive_symbolize_keys'
 require_relative 'andyrb/absconvert'
 require_relative 'andyrb/videoinfo/database'
 
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
+# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
+AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
 
-opts = Options.new(ARGV.dup)
+opts = ABSConvert::Options.new(ARGV.dup)
 opts.parse_args!
 opts.parse_files!
 opts.parse_config!
-args = opts.options
+args = opts.args
 ffmpeg = Util::FindApp.which('ffmpeg')
 mkvpropedit = Util::FindApp.which('mkvpropedit')
 
