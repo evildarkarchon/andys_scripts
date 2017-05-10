@@ -11,9 +11,9 @@ require_relative 'andyrb/util/datediff'
 require_relative 'andyrb/git'
 require_relative 'andyrb/mood'
 require_relative 'andyrb/core/cleanup'
+require_relative 'andyrb/core/monkeypatch'
 
-Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
 class Options
   def self.parse(args)
@@ -34,8 +34,7 @@ class Options
   end
 end
 
-ARGV.cleanup!
-Args = Options.parse(ARGV)
+Args = Options.parse(ARGV.cleanup!)
 Args.freeze
 TTrss = Git.new('/data/web/feeds', use_sudo: true, sudo_user: 'nginx')
 at_exit do
