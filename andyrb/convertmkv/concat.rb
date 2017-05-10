@@ -2,13 +2,10 @@
 
 require 'tempfile'
 require 'pathname'
-require 'data_mapper'
 
 require_relative '../util/program'
 require_relative '../util/findapp'
 require_relative '../core/cleanup'
-require_relative '../videoinfo/database'
-require_relative '../videoinfo/genhash'
 
 # Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
 # Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
@@ -16,46 +13,39 @@ Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Array::
 
 module ConvertMkv
   class ConCat
-    def initialize(filelist, outname, database: nil, verbose: false)
+    def initialize(filelist, outname, verbose: false, paths: nil)
       raise TypeError, 'filelist must be an array or convertable to one' unless filelist.respond_to?(:to_a)
       @filelist = filelist
-      @outname = outname
+      @outname = outname.is_a?(Pathname) ? outname : Pathname.new(outname)
       @verbose = verbose
-      @database = database ? Pathname.new(database) : nil
-      @gvi = nil
-      @vi = nil
-
-      if @database # rubocop:disable Style/GuardClause
-        DataMapper::Model.raise_on_save_failure = true
-        DataMapper.setup(:default, "sqlite:#{@database.realpath}")
-        DataMapper::Logger.new($stdout, :debug)
-        @gvi = VideoInfo::Database::Data.new(@database, @verbose)
-        @vi = VideoInfo::Database::Videoinfo.new
-      end
+      @paths = paths ? paths : { mkvmerge: Util::FindApp.which('mkvmerge'), ffmpeg: Util::FindApp.which('ffmpeg'), mkvpropedit: Util::FindApp.which('mkvpropedit') }
+      @audio = audio
     end
 
-    def ffmpeg(exepath = Util::FindApp.which('ffmpeg'))
+    def ffmpeg
       Tempfile.open('concat_') do |f|
         @filelist.each do |i|
           f.write("#{i}\n")
           f.fsync
         end
-        Util::Program.runprogram(%W[#{exepath} -f concat -safe 0 -i #{f.path} -c copy #{@outname}])
+        begin
+          Util::Program.runprogram(%W[#{@paths[:ffmpeg]} -f concat -safe 0 -i #{f.path} -c copy #{@outname}])
+        rescue Interrupt => e
+          raise e
+        else
+          Util::Program.runprogram(%W[#{@paths[:mkvpropedit]} --add-track-statistics-tags #{@outname}])
+        end
       end
     end
 
-    def mkvmerge(exepath = Util::FindApp.which('mkvmerge'), options: nil)
-      basecommand = %W[#{exepath} -o #{Args.output}].freeze
-
+    def mkvmerge(options: nil)
       filelist = @filelist.dup.join(' + ')
       filelist = filelist.split.freeze
 
-      # command = basecommand + options + filelist
-      command = basecommand.dup
+      command = %W[#{@paths[:mkvmerge]} -o #{@outname}]
       command += options if options
       command += filelist
-      command.cleanup!(unique: false)
-      command.freeze
+      command.cleanup!(unique: false).freeze
 
       Util::Program.runprogram(command)
     end
