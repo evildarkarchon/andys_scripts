@@ -67,5 +67,9 @@ module YTDL
         end
       end
     end
+
+    def inspect
+      "YTDL::Stats<@filelist = #{@filelist}, @pretend = #{@pretend}>"
+    end
   end
 end

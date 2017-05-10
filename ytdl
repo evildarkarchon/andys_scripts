@@ -7,10 +7,13 @@ require 'uri'
 require 'fileutils'
 
 require_relative 'andyrb/ytdl'
+require_relative 'andyrb/convertmkv/mux'
 require_relative 'andyrb/core/cleanup'
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Array::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+require_relative 'andyrb/core/monkeypatch'
 
-opts = Options.new(ARGV.dup)
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
+
+opts = YTDL::Options.new(ARGV.dup.cleanup!)
 opts.parse_args!
 opts.parse_urls!
 args = opts.options
@@ -44,9 +47,18 @@ puts Mood.neutral('Playlist Path:') if args[:pretend]
 puts playlistpath.inspect if args[:pretend]
 root = ytdl.directory.to_s.include?('/data/Videos') ? '/data/Videos' : ytdl.directory.parent.to_s
 
-stats = YTDL::Stats.new(files, pretend: args[:pretend])
-stats.genstatsfl!
-stats.genstats
+if args[:stats]
+  stats = YTDL::Stats.new(files, pretend: args[:pretend])
+  stats.genstatsfl!
+  stats.genstats
+end
+
+if args[:mux]
+  muxfiles = files.dup.delete_if { |i| i.extname == '.mka' || i.extname == '.mkv' }
+  mux = ConvertMkv::Mux.new(muxfiles, ytdl.directory)
+  mux.mkvmerge unless args[:ffmpegmux]
+  mux.ffmpeg if args[:ffmpegmux]
+end
 
 plfilenames = ytdl.filenames.respond_to?(:empty?) && ytdl.filenames.empty? && !args[:no_download] ? files : ytdl.filepaths
 

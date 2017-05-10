@@ -7,11 +7,12 @@ require_relative '../util/findapp'
 require_relative '../core/sort'
 require_relative '../mood'
 require_relative '../core/cleanup'
+require_relative '../core/monkeypatch'
 
-# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
+# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
+AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
 
 module YTDL
   class Fetch
@@ -93,6 +94,10 @@ module YTDL
         Util::Program.runprogram(ytdl, workdir: @directory) unless [@pretend, @nodownload].any?
         puts ytdl.inspect if @pretend && !@nodownload
       end
+    end
+
+    def inspect
+      "YTDL::Fetch<@date = #{@date}, @datesubdir = #{@datesubdir}, @subdirectory = #{@subdirectory}, @directory = #{@directory}, @urls = #{@urls}, @sort = #{@sort}, @pretend = #{@pretend}, @archive = #{@archive}, @nodownload = #{@nodownload}, @filepaths = #{@filepaths}>"
     end
   end
 end

@@ -170,5 +170,9 @@ module YTDL
       puts(Mood.neutral { 'Playlist XML Content:' }) if @pretend
       puts ng if @pretend
     end
+
+    def inspect
+      "YTDL::Playlist<@filelist = #{@filelist}, @rootdir = #{@rootdir}, @outname = #{@outname}, @outdir = #{@outdir}, @resetplaylist = #{@resetplaylist}, @pretend = #{@pretend}, @noblacklist = #{@noblacklist}, @videodir = #{@videodir}>"
+    end
   end
 end
