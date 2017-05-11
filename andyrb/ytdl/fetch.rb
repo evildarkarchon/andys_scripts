@@ -99,5 +99,14 @@ module YTDL
     def inspect
       "YTDL::Fetch<@date = #{@date}, @datesubdir = #{@datesubdir}, @subdirectory = #{@subdirectory}, @directory = #{@directory}, @urls = #{@urls}, @sort = #{@sort}, @pretend = #{@pretend}, @archive = #{@archive}, @nodownload = #{@nodownload}, @filepaths = #{@filepaths}>"
     end
+
+    def [](key)
+      hash = { directory: @directory, filenames: @filenames, urls: @urls, subdirectory: @subdirectory, filepaths: @filepaths, date: @date }
+      hash[key]
+    end
+
+    def to_h
+      { directory: @directory, filenames: @filenames, urls: @urls, subdirectory: @subdirectory, filepaths: @filepaths, date: @date }
+    end
   end
 end
