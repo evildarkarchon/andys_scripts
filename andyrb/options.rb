@@ -10,13 +10,18 @@ class Options
     @args = opthash if opthash && !block_given?
     raise TypeError, '@args must be either a hash or nil' unless @args.is_a?(Hash) || @args.nil?
     raise ValueError, 'You must supply either a code block or a hash.' unless block_given? || opthash
-    @source = sourceargs
+    @source = sourceargs.is_a?(String) ? sourceargs.to_a : sourceargs
   end
 
   def construct!
     optparse = OptionParser.new
     yield optparse, @args
     optparse.parse!(@source)
+  end
+
+  def [](key)
+    hash = { source: @source, args: @args }
+    hash[key]
   end
 
   def inspect
