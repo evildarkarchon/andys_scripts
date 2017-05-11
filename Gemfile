@@ -6,11 +6,14 @@ source 'https://rubygems.org'
 
 gem 'json'
 group :compat do
-  gem 'ruby_dig', platforms: [:ruby_20, :ruby_21, :ruby_22]
+  gem 'ruby_dig', platforms: %(ruby_20 ruby_21 ruby_22)
+end
+
+group :core do
+  gem 'naturalsorter'
 end
 
 group :util do
-  gem 'naturalsorter'
   gem 'subprocess'
 end
 
@@ -22,6 +25,7 @@ group :videoinfo do
   gem 'data_mapper'
   gem 'dentaku'
   gem 'do_sqlite3'
+  gem 'filesize'
   gem 'ruby-filemagic', require: 'filemagic'
   gem 'sqlite3'
 end
