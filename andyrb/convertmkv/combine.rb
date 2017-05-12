@@ -12,7 +12,7 @@ require_relative '../core/cleanup'
 Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Array::Cleanup) : Array.include(AndyCore::Array::Cleanup)
 
 module ConvertMkv
-  class ConCat
+  class Combine
     def initialize(filelist, outname, verbose: false, paths: nil)
       raise TypeError, 'filelist must be an array or convertable to one' unless filelist.respond_to?(:to_a)
       @filelist = filelist
