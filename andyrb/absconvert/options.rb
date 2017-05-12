@@ -120,5 +120,14 @@ module ABSConvert
         @config.freeze
       end
     end
+
+    def [](key)
+      hash = { files: @files, args: @args, config: @config, paths: @paths }
+      hash[key]
+    end
+
+    def to_h
+      { files: @files, args: @args, config: @config, paths: @paths }
+    end
   end
 end
