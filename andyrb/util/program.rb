@@ -3,13 +3,13 @@
 require 'subprocess'
 
 require_relative '../core/cleanup'
+require_relative '../core/monkeypatch'
 
-Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
 module Util
   class Program
-    def self.runprogram(program, use_sudo: false, sudo_user: nil, parse_output: false, workdir: nil)
+    def self.runprogram(program, use_sudo: false, sudo_user: nil, parse_output: false, workdir: nil, systemd: false, container: nil)
       cmdline = []
 
       Dir.chdir(workdir) if workdir
@@ -19,6 +19,10 @@ module Util
       program.freeze
       cmdline << %W[sudo -u #{sudo_user}] if use_sudo && sudo_user
       cmdline << %w[sudo] if use_sudo && !sudo_user
+      cmdline << %w[systemd-run -t] if systemd && !container && !use_sudo
+      cmdline << %w[sudo systemd-run -t] if systemd && container && !use_sudo
+      cmdline << %W[--machine=#{container}] if systemd && container && !use_sudo
+      cmdline << %W[-p User=#{sudo_user}] if systemd && container && !use_sudo && sudo_user
       cmdline << program
       cmdline.cleanup!(unique: false)
       cmdline.freeze
