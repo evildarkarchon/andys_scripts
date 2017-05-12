@@ -13,7 +13,7 @@ require_relative 'andyrb/core/monkeypatch'
 
 AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
-opts = YTDL::Options.new(ARGV.dup.cleanup!)
+opts = YTDL::Options.new(ARGV.dup.cleanup)
 opts.parse_args!
 opts.parse_urls!
 args = opts.options
