@@ -12,30 +12,23 @@ require_relative 'andyrb/git'
 require_relative 'andyrb/mood'
 require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/core/monkeypatch'
+require_relative 'andyrb/options'
 
 AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
-class Options
-  def self.parse(args)
-    options = OpenStruct.new
-    options.aggressive = false
-    options.replace = false
-    options.restart = false
-    options.gc = false
-
-    optparse = OptionParser.new do |opts|
-      opts.on('-a', '--aggressive', 'Activate git gc in aggressive mode if run.') { options.aggressive = true }
-      opts.on('-r', '--replace', 'Rename any existing directory if a repository is not found.') { options.replace = true }
-      opts.on('-g', '--garbage-collect', 'Force garbage collection to run.') { options.gc = true }
-      opts.on('--restart-ttrssd', 'Restart ttrssd.') { options.restart = true }
-    end
-    optparse.parse!(args)
-    options
-  end
+Opts = Options.new(ARGV.dup) do |defaults|
+  defaults[:aggressive] = false
+  defaults[:replace] = false
+  defaults[:gc] = false
+  defaults[:restart] = false
+end
+Opts.construct! do |h, i|
+  h.on('-a', '--aggressive', 'Activate git gc in aggressive mode if run.') { i[:aggressive] = true }
+  h.on('-r', '--replace', 'Rename any existing directory if a repository is not found.') { i[:aggressive] = true }
+  h.on('-g', '--garbage-collect', 'Force garbage collection to run.') { i[:gc] = true }
+  h.on('--restart-ttrssd', 'Restart ttrssd.') { i[:restart] = true }
 end
 
-Args = Options.parse(ARGV.cleanup!)
-Args.freeze
 TTrss = Git.new('/data/web/feeds', use_sudo: true, sudo_user: 'nginx')
 at_exit do
   TTrss.clean_lock
@@ -60,11 +53,11 @@ touchgcfile unless File.exist?('/var/cache/ttrssgc')
 def ttrssgc(thendate)
   diff = Util.datediff(thendate).freeze
   begin
-    TTrss.gc(aggressive: Args.aggressive) if [diff >= 30, Args.gc].any?
+    TTrss.gc(aggressive: Opts.args[:aggressive]) if [diff >= 30, Opts.args[:gc]].any?
   rescue Interrupt => e
     raise e
   else
-    touchgcfile if [diff >= 30, Args.gc].any?
+    touchgcfile if [diff >= 30, Opts.args[:gc]].any?
   end
 end
 
@@ -77,7 +70,7 @@ when repopath.directory?
   TTrss.pull
 when [wdpath.exist?, !repopath.exist?].all?
   case
-  when Args.replace
+  when Opts[:replace]
     puts(Mood.neutral { "No git repository located in the target directory, renaming it to #{wdpath}.old" })
     Util::Program.runprogram(%W[mv #{wdpath} #{wdpath}.old], use_sudo: true, sudo_user: 'nginx')
     TTrss.clone(giturl)
@@ -95,4 +88,4 @@ end
 
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
 
-Util::Program.runprogram(%w[systemctl -M web restart ttrssd], use_sudo: true) if Args.restart
+Util::Program.runprogram(%w[systemctl -M web restart ttrssd], use_sudo: true) if Opts.args[:restart]
