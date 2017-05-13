@@ -6,7 +6,7 @@ source 'https://rubygems.org'
 
 gem 'json'
 group :compat do
-  gem 'ruby_dig', platforms: %(ruby_20 ruby_21 ruby_22)
+  gem 'ruby_dig', platforms: %i[ruby_20 ruby_21 ruby_22]
 end
 
 group :core do
