@@ -5,6 +5,7 @@ source 'https://rubygems.org'
 # gem "rails"
 
 gem 'json'
+gem 'power_p'
 group :compat do
   gem 'ruby_dig', platforms: %i[ruby_20 ruby_21 ruby_22]
 end
