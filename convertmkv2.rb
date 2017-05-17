@@ -4,6 +4,11 @@
 require 'optparse'
 require 'pathname'
 require 'json'
+begin
+  require 'power_p'
+rescue LoadError
+  nil
+end
 
 require_relative 'andyrb/convertmkv'
 require_relative 'andyrb/options'
@@ -30,8 +35,9 @@ opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:ffmpegpath] = nil
   defaults[:mkvmergepath] = nil
   defaults[:mkvpropeditpath] = nil
+  defaults[:debug] = false
 end
-opts.construct! do |h, i|
+opts.parse_args! do |h, i|
   h.on('-f', '--ffmpeg', 'Use ffmpeg instead of mkvmerge. Note: ffmpeg hates mpeg2-ps files.') { i[:ffmpeg] = true }
   h.on('--ffmpeg-path path', 'Path to the ffmpeg executable (if not in normal search path)') { |f| i[:ffmpegpath] = f }
   h.on('--mkvmerge-path path', 'Path to the mkvmerge executable (if not in normal search path)') { |m| i[:mkvmergepath] = m }
@@ -43,11 +49,13 @@ opts.construct! do |h, i|
   h.on('-d', '--debug', "Print what would be done, but don't actually do it") { i[:debug] = true }
   h.on('--config file', 'Location of the configuration file') { |o| i[:config] = o }
   h.on('-a', '--audio', 'Input files are audio files.') { i[:audio] = true }
+  h.on('--debug', 'Print variables and exit') { i[:debug] = true }
 end
 def opts.files
   out = @source.dup
   out.keep_if { |f| File.file?(f) }
   out.natsort! if @args[:sort]
+  p out if @args[:debug]
   out.freeze
 end
 
@@ -57,13 +65,17 @@ paths[:mkvmerge] = opts[:mkvmergepath] if opts[:mkvmergepath]
 paths[:ffmpeg] = opts[:ffmpegpath] if opts[:ffmpegpath]
 paths[:mkvpropedit] = opts[:mkvpropeditpath] if opts[:mkvpropeditpath]
 paths = { ffmpeg: Util::FindApp.which('ffmpeg'), mkvmerge: Util::FindApp.which('mkvmerge'), mkvpropedit: Util::FindApp.which('mkvpropedit') } if paths.empty?
+p paths if opts[:debug]
 config = Util.recursive_symbolize_keys(JSON.parse(File.read(opts[:config])))
+p config if opts[:debug]
 
 mux = ConvertMkv::Mux.new(files, opts[:outputdir], paths: paths, audio: opts[:audio]) unless opts[:combine]
 combine = ConvertMkv::Combine.new(files, opts[:outputdir], paths: paths) if opts[:combine]
 
-mux.mkvmerge(config[:mkvmerge]) unless opts[:combine] || opts[:ffmpeg]
-mux.ffmpeg if opts[:ffmpeg] && !opts[:combine]
-combine.mkvmerge if opts[:combine] && !opts[:ffmpeg]
-combine.ffmpeg if opts[:combine] && opts[:ffmpeg]
-files.each { |i| ConvertMkv.backup(i, opts[:backup]) } if files.respond_to?(:each)
+mux.mkvmerge(config[:mkvmerge]) unless [opts[:combine] || opts[:ffmpeg], !opts[:debug]].all?
+mux.ffmpeg(config[:ffmpeg]) if [opts[:ffmpeg] && !opts[:combine], !opts[:debug]].all?
+combine.mkvmerge(config[:mkvmerge]) if [opts[:combine] && !opts[:ffmpeg], !opts[:debug]].all?
+combine.ffmpeg(config[:ffmpeg]) if [opts[:combine] && opts[:ffmpeg], !opts[:debug]].all?
+files.each { |i| ConvertMkv.backup(i, opts[:backup]) } if files.respond_to?(:each) && !opts[:debug]
+p mux if opts[:debug] && !opts[:combine]
+p combine if opts[:debug] && opts[:combine]
