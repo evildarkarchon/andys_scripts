@@ -24,7 +24,7 @@ opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:reset_all] = false
   defaults[:verbose] = false
 end
-opts.construct! do |h, i|
+opts.parse_args! do |h, i|
   h.on('--reset-json', 'Purges the JSON caches for all databases found.') { i[:reset_json] = true }
   h.on('--reset-all', 'Resets the entire database.') { i[:reset_all] = true }
   h.on('--verbose', '-v', 'Make this script extra chatty.') { i[:verbose] = true }
