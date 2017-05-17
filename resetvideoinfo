@@ -60,7 +60,7 @@ if directories.respond_to?(:each)
     DataMapper.setup(:default, "sqlite:#{dbpath.join('videoinfo.sqlite')}")
     DataMapper.finalize
     VideoInfo::Database::Videoinfo.auto_migrate! unless opts[:reset_json]
-    VideoInfo::Database::Videojson.auto_migrate! if [opts[:reset_json], opts[:reset_all]].any?
+    VideoInfo::Database::Videojson.auto_migrate! if opts[:reset_json] || opts[:reset_all]
 
     initlist << dbpath.find.to_a
     initlist.cleanup!
