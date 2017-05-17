@@ -22,8 +22,9 @@ module ABSConvert
       @passmax = passmax
     end
 
-    def construct!(bitrates = nil, framerate = nil, exepath = Util::FindApp.which('ffmpeg'))
-      raise TypeError, 'bitrates must be a Hash or nil' unless bitrates.is_a?(Hash) || bitrates.nil?
+    def generate!(bitrates = nil, framerate = nil, exepath = Util::FindApp.which('ffmpeg'))
+      raise TypeError, 'bitrates must be a Hash or nil' unless bitrates.is_a?(Hash) || bitrates.nil? || bitrates.respond_to?(:to_h)
+      bitrates.to_h unless bitrates.respond_to?(:to_h) && bitrates.is_a?(Hash)
       vcodec =
         case
         when [@options[:novideo], bitrates[:video].nil?].any?
@@ -123,6 +124,10 @@ module ABSConvert
         end
       @list.cleanup!(unique: false)
       @list.freeze
+    end
+
+    def inspect
+      "<ABSConvert::CmdLine @list = #{@list}>"
     end
   end
 end

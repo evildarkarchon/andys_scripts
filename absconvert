@@ -7,6 +7,11 @@ require 'json'
 require 'shellwords'
 require 'subprocess'
 require 'data_mapper'
+begin
+  require 'power_p'
+rescue LoadError
+  nil
+end
 
 require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/core/sort'
@@ -25,62 +30,61 @@ opts = ABSConvert::Options.new(ARGV.dup)
 opts.parse_args!
 opts.parse_files!
 opts.parse_config!
-args = opts.args
+p opts if opts[:debug]
 ffmpeg = Util::FindApp.which('ffmpeg')
 mkvpropedit = Util::FindApp.which('mkvpropedit')
 
-DataMapper.setup(:default, "sqlite:#{args[:db].realpath}")
-DataMapper::Logger.new($stdout, :debug) if [args[:verbose], args[:debug]].any?
-
+DataMapper.setup(:default, "sqlite:#{opts[:db].realpath}")
+DataMapper::Logger.new($stdout, :debug) if opts[:verbose] || opts[:debug]
+Bitrates = opts[:videobitrate] || opts[:audiobitrate] ? { videobitrate: opts[:videobitrate], audiobitrate: opts[:audiobitrate] } : nil
+Framerate = opts[:framerate] ? opts[:framerate] : nil
 opts.files.each do |i|
-  metadata = ABSConvert::Metadata.new(i, args[:db], verbose: args[:verbose])
-  metadata.bitrate!
-  metadata.framerate! unless args[:novideo]
+  metadata = ABSConvert::Metadata.new(i, opts[:db], verbose: opts[:verbose], bitrate: Bitrates, framerate: Framerate, novideo: opts[:novideo])
   filepath = Pathname.new(i)
   # outpath = Pathname.new(Args.outputdir.join(filepath.basename.sub_ext(outcon).to_s).to_s)
   outcon =
     case
-    when args[:container]
-      ".#{args[:container]}"
+    when opts[:container]
+      ".#{opts[:container]}"
     when opts.config[:defaults][:container]
       ".#{opts.config[:defaults][:container]}"
     else
       '.mkv'
     end
   outcon.freeze
-  outpath = args[:outputdir].join(filepath.basename.sub_ext(outcon)).freeze
-  logpath = filepath.sub_ext('-0.log').freeze if args[:passes] == 2
+  outpath = opts[:outputdir].join(filepath.basename.sub_ext(outcon)).freeze
+  logpath = filepath.sub_ext('-0.log').freeze if opts[:passes] == 2
   begin
-    if args[:passes] == 2
-      pass1 = ABSConvert::CmdLine.new(i, args, opts.config, verbose: args[:verbose], passnum: 1, passmax: 2)
+    if opts[:passes] == 2
+      pass1 = ABSConvert::CmdLine.new(i, args, opts.config, verbose: opts[:verbose], passnum: 1, passmax: 2)
       pass1.construct!(metadata.bitrates, metadata.frame_rate, ffmpeg)
-      pass2 = ABSConvert::CmdLine.new(i, args, opts.config, verbose: args[:verbose], passnum: 2, passmax: 2)
+      pass2 = ABSConvert::CmdLine.new(i, args, opts.config, verbose: opts[:verbose], passnum: 2, passmax: 2)
       pass2.construct!(metadata.bitrates, metadata.frame_rate, ffmpeg)
       Util::Program.runprogram(pass1.list)
       Util::Program.runprogram(pass2.list)
-    elsif [args[:passes] == 1, args[:novideo]].any?
-      cmdline = ABSConvert::CmdLine.new(i, args, config, verbose: args[:verbose], passnum: 1, passmax: 1)
+    elsif opts[:passes] == 1 && opts[:novideo]
+      cmdline = ABSConvert::CmdLine.new(i, args, config, verbose: opts[:verbose], passnum: 1, passmax: 1)
       cmdline.construct!(metadata.bitrates, metadata.frame_rate, ffmpeg)
       Util::Program.runprogram(cmdline.list)
     end
   rescue Subprocess::NonZeroExit, Interrupt => e
-    puts Mood.sad('Removing unfinished output file.')
+    puts Mood.neutral('Removing unfinished output file.')
     outpath.delete if outpath.exist?
     raise e
   else
-    Util::Program.runprogram(%W[#{mkvpropedit} --add-track-statistics-tags #{outpath}]) if [args[:stats], outpath.exist?, !args[:debug]].all?
-    case
-    when [!args[:converttest], !args[:debug]].all?
+    Util::Program.runprogram(%W[#{mkvpropedit} --add-track-statistics-tags #{outpath}]) if opts[:stats] && outpath.exist? && !opts[:debug]
+
+    if !opts[:converttest] && !opts[:debug].all?
       del = VideoInfo::Database::Videoinfo.all(filename: filepath.basename.to_s)
       deljson = VideoInfo::Database::Videojson.all(filename: filepath.basename.to_s)
       del.destroy
       deljson.destroy
-    when args[:converttest]
+    elsif opts[:converttest]
       puts Mood.happy('In convert testing mode, not deleting database entry')
     end
   ensure
-    logpath.delete if [args[:passes] == 2, logpath && logpath.exist?, !args[:debug]].all?
+    logpath.delete if [opts[:passes] == 2, logpath && logpath.exist?, !opts[:debug]].all?
   end
 
-  ABSConvert.backup(file, args[:backup].to_s) if args[:backup]
+  ABSConvert.backup(file, opts[:backup].to_s) if opts[:backup] && !opts[:debug]
 end
