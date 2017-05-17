@@ -13,10 +13,15 @@ class Options
     @source = sourceargs.is_a?(String) ? sourceargs.to_a : sourceargs
   end
 
-  def construct!
+  def parse_args!
     optparse = OptionParser.new
-    yield optparse, @args
-    optparse.parse!(@source)
+    raise 'A block must be passed to this method.' unless block_given?
+    yield optparse, @args if block_given?
+    @optparse.parse!(@source)
+  end
+
+  def construct!
+    raise 'The construct! method is obsolete, use parse_args!'
   end
 
   def [](key)
