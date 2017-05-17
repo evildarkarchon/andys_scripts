@@ -7,6 +7,11 @@ require 'pathname'
 require 'find'
 require 'fileutils'
 require 'data_mapper'
+begin
+  require 'power_p'
+rescue LoadError
+  nil
+end
 
 require_relative 'andyrb/mood'
 require_relative 'andyrb/util/hashfile'
@@ -35,7 +40,7 @@ def opts.files
   out.keep_if { |f| File.file?(f) } unless nil? || empty?
   out.freeze
 end
-opts.construct! do |h, i|
+opts.parse_args! do |h, i|
   h.on('--database [file]', String, 'Location where the database will be written') { |d| i[:db] = d }
   h.on('-d', '--debug', "Don't actually do anything, just print what would be done.") do
     i[:debug] = true
@@ -49,14 +54,14 @@ opts.construct! do |h, i|
 end
 files = opts.files
 
-puts opts.inspect if opts[:debug]
+p opts if opts[:debug]
 
 if files.nil? || files.empty?
   wdpath = Pathname.getwd.find.to_a
-  puts wdpath if opts[:debug]
+  p wdpath if opts[:debug]
   wdpath.keep_if(&:file?)
   files = wdpath.map(&:to_s)
-  puts files.inspect if opts[:debug]
+  p files if opts[:debug]
 end
 
 FileUtils.touch(opts[:db].basename.to_s) unless opts[:db].file?
