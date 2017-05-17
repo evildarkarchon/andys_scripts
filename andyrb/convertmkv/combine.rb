@@ -22,14 +22,18 @@ module ConvertMkv
       @audio = audio
     end
 
-    def ffmpeg
+    def ffmpeg(options: nil)
       Tempfile.open('concat_') do |f|
         @filelist.each do |i|
           f.write("#{i}\n")
           f.fsync
         end
         begin
-          Util::Program.runprogram(%W[#{@paths[:ffmpeg]} -f concat -safe 0 -i #{f.path} -c copy #{@outname}])
+          cmdline = %W[#{@paths[:ffmpeg]} -f concat -safe 0 -i #{f.path} -c copy]
+          cmdline += options if options && options.is_a?(Array)
+          cmdline << options if options && options.is_a?(String)
+          cmdline << @outname
+          Util::Program.runprogram(cmdline)
         rescue Interrupt => e
           raise e
         else
