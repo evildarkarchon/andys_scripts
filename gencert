@@ -6,14 +6,14 @@ require 'openssl'
 require 'date'
 
 require_relative 'andyrb/core/cleanup'
+require_relative 'andyrb/core/monkeypatch'
 require_relative 'andyrb/options'
 
-Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
+AndyCore.monkeypatch(AndyCore::Array::Cleanup)
 
 # These are placeholders just to map out what data is going to be needed for this script.
-CaPrivate = OpenSSL::PKey::EC.new File.read '/home/evildarkarchon/certificates/andyECC.key'
-CaPublic = OpenSSL::PKey::EC.new File.read '/home/evildarkarchon/certificates/andyECC2.crt'
-Enterprise_E_Private = OpenSSL::PKey::EC.new File.read '/home/evildarkarchon/certificates/enterprise-e.key'
-Enterprise_F_Private = OpenSSL::PKey::EC.new File.read '/home/evildarkarchon/certificates/enterprise-f.key'
-Expire = (Date.today >> 24).to_time.freeze
+CaPrivate = OpenSSL::PKey::EC.new(File.read('/home/evildarkarchon/certificates/andyECC.key'))
+CaPublic = OpenSSL::PKey::EC.new(File.read('/home/evildarkarchon/certificates/andyECC2.crt'))
+Enterprise_J_Private = OpenSSL::PKey::EC.new(File.read('/home/evildarkarchon/certificates/enterprise-j.key'))
+Before = Time.now
+Expire = Time.now + 730
