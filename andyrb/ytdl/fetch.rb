@@ -54,30 +54,28 @@ module YTDL
         puts Mood.neutral('Derived Filenames:') if @pretend
         puts @filenames.inspect if @pretend
         puts @filepaths.inspect if @pretend
+
+        archdir = @directory.parent.parent.freeze if [@subdirectory, @directory.to_s.include?('/data/Videos/Youtube'), @datesubdir].all?
+
+        archive =
+          case
+          when archivedir
+            puts(Mood.neutral { 'Archive from command line' }) if @pretend
+            archivedir + 'downloaded.txt'
+          when [@datesubdir, archdir].all?
+            puts(Mood.neutral { 'Archive in subdirectory parent' }) if @pretend
+            archdir + 'downloaded.txt'
+          when [@datesubdir, @directory.to_s.include?('/data/Videos/Youtube')].all?
+            puts(Mood.neutral { 'Archive in parent directory' }) if @pretend
+            @directory.parent + 'downloaded.txt'
+          else
+            puts(Mood.neutral { 'Archive in download directory' }) if @pretend
+            @directory + 'downloaded.txt'
+          end
+        archive.freeze
+        puts(Mood.neutral { archive }) if [@pretend, !@nodownload].all?
+        @archive = archive
       end
-    end
-
-    def setarchive!(archivedir = nil)
-      archdir = @directory.parent.parent.freeze if [@subdirectory, @directory.to_s.include?('/data/Videos/Youtube'), @datesubdir].all?
-
-      archive =
-        case
-        when archivedir
-          puts(Mood.neutral { 'Archive from command line' }) if @pretend
-          archivedir + 'downloaded.txt'
-        when [@datesubdir, archdir].all?
-          puts(Mood.neutral { 'Archive in subdirectory parent' }) if @pretend
-          archdir + 'downloaded.txt'
-        when [@datesubdir, @directory.to_s.include?('/data/Videos/Youtube')].all?
-          puts(Mood.neutral { 'Archive in parent directory' }) if @pretend
-          @directory.parent + 'downloaded.txt'
-        else
-          puts(Mood.neutral { 'Archive in download directory' }) if @pretend
-          @directory + 'downloaded.txt'
-        end
-      archive.freeze
-      puts(Mood.neutral { archive }) if [@pretend, !@nodownload].all?
-      @archive = archive
     end
 
     def fetch_videos(webmout: false, force: false, keep_split: false, ffmpegdl: false)

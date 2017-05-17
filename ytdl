@@ -23,7 +23,6 @@ opts.parse_args!
 opts.parse_urls!
 
 ytdl = YTDL::Fetch.new(opts[:directory], opts.urls, sort: opts[:sort], pretend: opts[:pretend], subdirectory: opts[:subdirectory], datesubdir: opts[:datesubdir], nodownload: opts[:no_download])
-ytdl.setarchive!(opts[:archive]) unless opts[:no_download]
 ytdl.fetch_videos(webmout: opts[:webm], force: opts[:force], keep_split: opts[:keep_split], ffmpegdl: opts[:ffmpegdl])
 
 files = YTDL.findfiles(ytdl.directory, sort: opts[:sort], pretend: opts[:pretend])
