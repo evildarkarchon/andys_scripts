@@ -42,7 +42,7 @@ module ABSConvert
           Pathname.getwd.parent
         end
       @args[:verbose] = false
-      @args = args
+      @sourceargs = args
     end
 
     def parse_args!
@@ -95,7 +95,7 @@ module ABSConvert
         end
       end
 
-      optparse.parse!(@args)
+      optparse.parse!(@sourceargs)
 
       vp9default = %w[-threads 4 -tile-columns 2 -frame-parallel 1 -speed 1]
       vp8default = %w[-threads 4 -speed 1]
