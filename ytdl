@@ -5,6 +5,11 @@
 require 'pathname'
 require 'uri'
 require 'fileutils'
+begin
+  require 'power_p'
+rescue LoadError
+  nil
+end
 
 require_relative 'andyrb/ytdl'
 require_relative 'andyrb/convertmkv/mux'
@@ -16,16 +21,14 @@ AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 opts = YTDL::Options.new(ARGV.dup.cleanup)
 opts.parse_args!
 opts.parse_urls!
-args = opts.options
 
-ytdl = YTDL::Fetch.new(args[:directory], opts.urls, sort: args[:sort], pretend: args[:pretend], subdirectory: args[:subdirectory], datesubdir: args[:datesubdir], nodownload: args[:no_download])
-ytdl.fetch_filenames! unless args[:no_download]
-ytdl.setarchive!(args[:archive]) unless args[:no_download]
-ytdl.fetch_videos(webmout: args[:webm], force: args[:force], keep_split: args[:keep_split], ffmpegdl: args[:ffmpegdl])
+ytdl = YTDL::Fetch.new(opts[:directory], opts.urls, sort: opts[:sort], pretend: opts[:pretend], subdirectory: opts[:subdirectory], datesubdir: opts[:datesubdir], nodownload: opts[:no_download])
+ytdl.setarchive!(opts[:archive]) unless opts[:no_download]
+ytdl.fetch_videos(webmout: opts[:webm], force: opts[:force], keep_split: opts[:keep_split], ffmpegdl: opts[:ffmpegdl])
 
-files = YTDL.findfiles(ytdl.directory, sort: args[:sort], pretend: args[:pretend])
+files = YTDL.findfiles(ytdl.directory, sort: opts[:sort], pretend: opts[:pretend])
 
-if args[:test_download]
+if opts[:test_download]
   ytdl.filenames.each do |i|
     puts Mood.neutral("Removing #{i}") if File.exist?(i)
     FileUtils.rm(i) if File.exist?(i)
@@ -34,43 +37,43 @@ end
 
 playlistpath =
   case
-  when args[:playlistpath]
-    args[:playlistpath]
-  when [ytdl.directory.to_s.include?('/data/Videos/Youtube'), args[:subdirectory]].all?
-    Pathname.new("/data/Videos/Youtube/Playlists/#{args[:subdirectory]}/#{ytdl.date}.xspf")
-  when [ytdl.directory.to_s.include?('/data/Videos/Youtube'), !args[:subdirectory]].all?
+  when opts[:playlistpath]
+    opts[:playlistpath]
+  when ytdl.directory.to_s.include?('/data/Videos/Youtube') && opts[:subdirectory]
+    Pathname.new("/data/Videos/Youtube/Playlists/#{opts[:subdirectory]}/#{ytdl.date}.xspf")
+  when ytdl.directory.to_s.include?('/data/Videos/Youtube') && !opts[:subdirectory]
     Pathname.new("/data/Videos/Youtube/Playlists/#{ytdl.date}.xspf")
   else
     Pathname.new("#{ytdl.directory}/Playlists/#{ytdl.date}.xspf")
   end
-puts Mood.neutral('Playlist Path:') if args[:pretend]
-puts playlistpath.inspect if args[:pretend]
+puts Mood.neutral('Playlist Path:') if opts[:pretend]
+p playlistpath if opts[:pretend]
 root = ytdl.directory.to_s.include?('/data/Videos') ? '/data/Videos' : ytdl.directory.parent.to_s
 
-if args[:stats]
-  stats = YTDL::Stats.new(files, pretend: args[:pretend])
+if opts[:stats]
+  stats = YTDL::Stats.new(files, pretend: opts[:pretend])
   stats.genstatsfl!
   stats.genstats
 end
 
-if args[:mux]
+if opts[:mux]
   muxfiles = files.dup.delete_if { |i| i.extname == '.mka' || i.extname == '.mkv' }
   mux = ConvertMkv::Mux.new(muxfiles, ytdl.directory)
-  mux.mkvmerge unless args[:ffmpegmux]
-  mux.ffmpeg if args[:ffmpegmux]
+  mux.mkvmerge unless opts[:ffmpegmux]
+  mux.ffmpeg if opts[:ffmpegmux]
 end
 
-plfilenames = ytdl.filenames.respond_to?(:empty?) && ytdl.filenames.empty? && !args[:no_download] ? files : ytdl.filepaths
+plfilenames = ytdl.filenames.respond_to?(:empty?) && ytdl.filenames.empty? && !opts[:no_download] ? files : ytdl.filepaths
 
-pl = YTDL::Playlist.new(plfilenames, playlistpath.to_s, ytdl.directory, root, resetplaylist: args[:resetplaylist], pretend: args[:pretend], noblacklist: args[:no_blacklist])
-pl.blacklist unless args[:playlist]
-pl.genplfilelist! if args[:playlist]
+pl = YTDL::Playlist.new(plfilenames, playlistpath.to_s, ytdl.directory, root, resetplaylist: opts[:resetplaylist], pretend: opts[:pretend], noblacklist: opts[:no_blacklist])
+pl.blacklist unless opts[:playlist]
+pl.genplfilelist! if opts[:playlist]
 
 begin
-  pl.genplaylist(args[:drive_letter]) if [args[:playlist], args[:drive_letter], !ytdl.directory.to_s.include?('/data/Videos/Youtube')].all?
-  pl.genplaylist if [args[:playlist], ytdl.directory.to_s.include?('/data/Videos/Youtube')].all?
+  pl.genplaylist(opts[:drive_letter]) if [opts[:playlist], opts[:drive_letter], !ytdl.directory.to_s.include?('/data/Videos/Youtube')].all?
+  pl.genplaylist if [opts[:playlist], ytdl.directory.to_s.include?('/data/Videos/Youtube')].all?
 rescue Interrupt => e
   raise e
 else
-  pl.blacklist if args[:playlist]
+  pl.blacklist if opts[:playlist]
 end

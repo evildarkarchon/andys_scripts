@@ -32,29 +32,29 @@ module YTDL
       @archive = nil
       @nodownload = nodownload
       @filepaths = []
-    end
 
-    def fetch_filenames!
-      @filenames = []
-      print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
-      Util::FindApp.which('youtube-dl') do |yt|
-        @urls.each { |url| @filenames << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true).split("\n") }
+      unless @nodownload # rubocop:disable Style/GuardClause
+        @filenames = []
+        print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
+        Util::FindApp.which('youtube-dl') do |yt|
+          @urls.each { |url| @filenames << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true).split("\n") }
+        end
+        # puts @filenames.inspect
+        puts 'done.'
+        # puts 'deleting is not necessary' unless @filenames.to_s.include?("\n")
+        @filenames.cleanup!
+        # splitfilenames = @filenames.map { |e| e.split("\n") if !e.nil? && e.include?("\n") }
+        # splitfilenames.cleanup!(unique: false)
+        # @filenames += splitfilenames unless splitfilenames.empty?
+        # @filenames.delete_if { |i| i.include?("\n") }
+        @filenames.map!(&:strip)
+        @filenames.map! { |i| @directory.join(i).to_s }
+        @filenames.natsort! if @sort
+        @filepaths = @filenames.map { |i| Pathname.new(i) } unless @filenames.empty?
+        puts Mood.neutral('Derived Filenames:') if @pretend
+        puts @filenames.inspect if @pretend
+        puts @filepaths.inspect if @pretend
       end
-      # puts @filenames.inspect
-      puts 'done.'
-      # puts 'deleting is not necessary' unless @filenames.to_s.include?("\n")
-      @filenames.cleanup!
-      # splitfilenames = @filenames.map { |e| e.split("\n") if !e.nil? && e.include?("\n") }
-      # splitfilenames.cleanup!(unique: false)
-      # @filenames += splitfilenames unless splitfilenames.empty?
-      # @filenames.delete_if { |i| i.include?("\n") }
-      @filenames.map!(&:strip)
-      @filenames.map! { |i| @directory.join(i).to_s }
-      @filenames.natsort! if @sort
-      @filepaths = @filenames.map { |i| Pathname.new(i) } unless @filenames.empty?
-      puts Mood.neutral('Derived Filenames:') if @pretend
-      puts @filenames.inspect if @pretend
-      puts @filepaths.inspect if @pretend
     end
 
     def setarchive!(archivedir = nil)
