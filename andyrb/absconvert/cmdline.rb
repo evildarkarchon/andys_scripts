@@ -54,7 +54,7 @@ module ABSConvert
 
       acodec =
         case
-        when [@passnum == 1, @options[:noaudio], bitrates[:audio].nil?].any?
+        when [@passnum == 1 && @passmax == 2, @options[:noaudio], bitrates[:audio].nil?].any?
           '-an'
         when @options[:audiocodec]
           %W[-c:a #{@options[:audiocodec]}]
