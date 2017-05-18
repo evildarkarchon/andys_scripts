@@ -120,7 +120,7 @@ module ABSConvert
           %w[-f matroska /dev/null]
         when @passnum == 2 && @passmax == 2, @passmax == 1
           # @options[:outputdir].join(filepath.basename.sub_ext(outcon).to_s).to_s
-          (@options[:outputdir] + @filepath.basename.sub_ext(outcon)).to_s
+          @options[:outputdir].joinpath(@filepath.basename.sub_ext(outcon)).to_s
         end
       @list.cleanup!(unique: false)
       @list.freeze
