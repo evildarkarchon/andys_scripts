@@ -17,7 +17,7 @@ class Options
     optparse = OptionParser.new
     raise 'A block must be passed to this method.' unless block_given?
     yield optparse, @args if block_given?
-    @optparse.parse!(@source)
+    optparse.parse!(@source)
   end
 
   def construct!
