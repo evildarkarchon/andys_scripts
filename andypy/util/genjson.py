@@ -17,8 +17,7 @@ def genjson(dictionary, filename=None, printdata=False, indentjson=True):
     If indentjson is True, it will insert tabs in the resulting json (this is the default mode), otherwise, it will output a sorted version of the raw json."""
 
     if not isinstance(filename, str) and printdata is False:
-        print("{} File name was not specified and printdata mode is disabled.")
-        raise TypeError
+        raise TypeError("File name was not specified and printdata mode is disabled.")
 
     jsonpath = pathlib.Path(filename)
 
@@ -26,8 +25,7 @@ def genjson(dictionary, filename=None, printdata=False, indentjson=True):
         jsonpath = jsonpath.resolve()
 
     if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
-        print(Mood.sad("{} First argument must be a dictionary."))
-        raise TypeError
+        raise TypeError("First argument must be a dictionary.")
     if printdata:
         if indentjson:
             print(json.dumps(dictionary, sort_keys=True, indent="\t"))

@@ -14,5 +14,5 @@ def hashfile(filename):
             hasher.update(afile.read())
     except TypeError:
         with open(str(filepath), 'rb', 200000000) as afile:
-            hasher.update(afile.read)
+            hasher.update(afile.read())
     return hasher.hexdigest()

@@ -9,7 +9,7 @@ def cleanlist(iterable, flatten=True, dedup=True, clean=True, debug=False, quiet
         try:
             out = [x for x in iterable if x is not None]
         except TypeError:
-            if quiet:
+            if not quiet:
                 print(Mood.neutral('Clean failed due to a type error, skipping.'))
     elif clean and debug:
         out = [x for x in iterable if x is not None]
@@ -18,7 +18,7 @@ def cleanlist(iterable, flatten=True, dedup=True, clean=True, debug=False, quiet
         try:
             out = list(dict.fromkeys(out))
         except TypeError:
-            if quiet:
+            if not quiet:
                 print(Mood.neutral('De-Dup failed due to a type error, skipping.'))
     elif clean and debug:
         out = list(dict.fromkeys(out))
@@ -27,7 +27,7 @@ def cleanlist(iterable, flatten=True, dedup=True, clean=True, debug=False, quiet
         try:
             out = list(itertools.chain.from_iterable(out))
         except TypeError:
-            if quiet:
+            if not quiet:
                 print(Mood.neutral('Flatten failed due to a type error, skipping.'))
     elif flatten and debug:
         out = list(itertools.chain.from_iterable(out))
