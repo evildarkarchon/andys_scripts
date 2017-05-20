@@ -12,12 +12,13 @@ require 'fileutils'
 
 require_relative 'andyrb/util'
 require_relative 'andyrb/mood'
+require_relative 'andyrb/options'
 require_relative 'andyrb/core/cleanup'
+require_relative 'andyrb/core/monkeypatch'
 
-# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Array::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
+=begin
 class Options
   def self.parse(args)
     options = OpenStruct.new
@@ -30,12 +31,19 @@ class Options
     options
   end
 end
-ARGV.cleanup!(unique: false)
-Args = Options.parse(ARGV)
+=end
+opts = Options.new(ARGV.dup.cleanup(unique: false)) do |defaults|
+  defaults[:cron] = false
+end
+opts.parse_args! do |h, i|
+  h.on('-c', '--cron', "Don't output pretty text and enable logging.") { i[:cron] = true }
+end
+# Args = Options.parse(ARGV.dup.cleanup(unique: false))
+
 Now = Time.now.strftime('%Y%m%d_%H%M').freeze
 
 begin
-  Log = Args.cron ? Logger.new('/var/log/ttrss/ttrss_backup.log', 'monthly') : nil
+  Log = opts[:args][:cron] ? Logger.new('/var/log/ttrss/ttrss_backup.log', 'monthly') : nil
 rescue Errno::EACCES
   Log = nil
 end
@@ -58,7 +66,7 @@ Tempfile.open('ttrss_') do |f|
   out = "/data/ttrssbackup/feeds-#{Now}.xz"
   puts(Mood.happy { "Compressing #{tmppath} to #{out}" }) unless Log.respond_to?(:info)
   Log.info { "Compressing #{tmppath} to #{out}" } if Log.respond_to?(:info)
-  Subprocess.check_call(%W[#{Xz} -k -T 0 #{tmppath}])
+  Subprocess.check_call(%W[#{Xz} -k -C sha256 -T 0 #{tmppath}])
   begin
     FileUtils.mv(xzpath.to_s, out)
     FileUtils.chown('evildarkarchon', 'evildarkarchon', out)
