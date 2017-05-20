@@ -39,15 +39,15 @@ end
 dir = opts.directory
 
 DataMapper::Model.raise_on_save_failure = true
-DataMapper::Logger.new($stdout, :debug) if opts[:verbose]
+DataMapper::Logger.new($stdout, :debug) if opts[:args][:verbose]
 
 directories = []
 if dir.respond_to?(:each)
   dir.each do |i|
-    directories = VideoInfo::Database.find(i, opts[:verbose])
+    directories = VideoInfo::Database.find(i, opts[:args][:verbose])
   end
 else
-  directories = VideoInfo::Database.find(dir, opts[:verbose])
+  directories = VideoInfo::Database.find(dir, opts[:args][:verbose])
 end
 
 filelist = []
@@ -59,8 +59,8 @@ if directories.respond_to?(:each)
     dbpath = dbpath.dirname if dbpath.file?
     DataMapper.setup(:default, "sqlite:#{dbpath.join('videoinfo.sqlite')}")
     DataMapper.finalize
-    VideoInfo::Database::Videoinfo.auto_migrate! unless opts[:reset_json]
-    VideoInfo::Database::Videojson.auto_migrate! if opts[:reset_json] || opts[:reset_all]
+    VideoInfo::Database::Videoinfo.auto_migrate! unless opts[:args][:reset_json]
+    VideoInfo::Database::Videojson.auto_migrate! if opts[:args][:reset_json] || opts[:args][:reset_all]
 
     initlist << dbpath.find.to_a
     initlist.cleanup!
@@ -77,9 +77,9 @@ else
   DataMapper.setup(:default, "sqlite:#{dbpath.join('videoinfo.sqlite')}")
   DataMapper.finalize
   case
-  when opts[:reset_json]
+  when opts[:args][:reset_json]
     VideoInfo::Database::Videojson.auto_migrate!
-  when opts[:reset_all]
+  when opts[:args][:reset_all]
     VideoInfo::Database::Videoinfo.auto_migrate!
     VideoInfo::Database::Videojson.auto_migrate!
   else
@@ -101,11 +101,11 @@ filelist.each do |file|
 
   DataMapper.setup(:default, "sqlite:#{filepath.dirname.join('videoinfo.sqlite')}") if filepath.file?
   DataMapper.setup(:default, "sqlite:#{filepath.join('videoinfo.sqlite')}") if filepath.directory?
-  gvi = VideoInfo::Database::Data.new(filepath.dirname.join('videoinfo.sqlite').to_s, opts[:verbose]) if filepath.file?
-  gvi = VideoInfo::Database::Data.new(filepath.join('videoinfo.sqlite').to_s, opts[:verbose]) if filepath.directory?
+  gvi = VideoInfo::Database::Data.new(filepath.dirname.join('videoinfo.sqlite').to_s, opts[:args][:verbose]) if filepath.file?
+  gvi = VideoInfo::Database::Data.new(filepath.join('videoinfo.sqlite').to_s, opts[:args][:verbose]) if filepath.directory?
   insert = VideoInfo::Database::Videoinfo.new
 
-  jsondata = gvi.json(file, opts[:verbose])
+  jsondata = gvi.json(file, opts[:args][:verbose])
   jsondata.freeze unless frozen
 
   VideoInfo.genhash(file, jsondata, digests) do |h|
@@ -114,7 +114,7 @@ filelist.each do |file|
       insert.attributes = h
       insert.save
     rescue DataMapper::SaveFailureError
-      insert.errors.each { |e| puts e } if opts[:verbose]
+      insert.errors.each { |e| puts e } if opts[:args][:verbose]
     end
   end
 

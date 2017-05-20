@@ -61,21 +61,21 @@ end
 
 files = opts.files
 paths = {}
-paths[:mkvmerge] = opts[:mkvmergepath] if opts[:mkvmergepath]
-paths[:ffmpeg] = opts[:ffmpegpath] if opts[:ffmpegpath]
-paths[:mkvpropedit] = opts[:mkvpropeditpath] if opts[:mkvpropeditpath]
+paths[:mkvmerge] = opts[:args][:mkvmergepath] if opts[:args][:mkvmergepath]
+paths[:ffmpeg] = opts[:args][:ffmpegpath] if opts[:args][:ffmpegpath]
+paths[:mkvpropedit] = opts[:args][:mkvpropeditpath] if opts[:args][:mkvpropeditpath]
 paths = { ffmpeg: Util::FindApp.which('ffmpeg'), mkvmerge: Util::FindApp.which('mkvmerge'), mkvpropedit: Util::FindApp.which('mkvpropedit') } if paths.empty?
-p paths if opts[:debug]
-config = Util.recursive_symbolize_keys(JSON.parse(File.read(opts[:config])))
-p config if opts[:debug]
+p paths if opts[:args][:debug]
+config = Util.recursive_symbolize_keys(JSON.parse(File.read(opts[:args][:config])))
+p config if opts[:args][:debug]
 
-mux = ConvertMkv::Mux.new(files, opts[:outputdir], paths: paths, audio: opts[:audio]) unless opts[:combine]
-combine = ConvertMkv::Combine.new(files, opts[:outputdir], paths: paths) if opts[:combine]
+mux = ConvertMkv::Mux.new(files, opts[:args][:outputdir], paths: paths, audio: opts[:args][:audio]) unless opts[:args][:combine]
+combine = ConvertMkv::Combine.new(files, opts[:args][:outputdir], paths: paths) if opts[:args][:combine]
 
-mux.mkvmerge(config[:mkvmerge]) unless [opts[:combine] || opts[:ffmpeg], !opts[:debug]].all?
-mux.ffmpeg(config[:ffmpeg]) if [opts[:ffmpeg] && !opts[:combine], !opts[:debug]].all?
-combine.mkvmerge(config[:mkvmerge]) if [opts[:combine] && !opts[:ffmpeg], !opts[:debug]].all?
-combine.ffmpeg(config[:ffmpeg]) if [opts[:combine] && opts[:ffmpeg], !opts[:debug]].all?
-files.each { |i| ConvertMkv.backup(i, opts[:backup]) } if files.respond_to?(:each) && !opts[:debug]
-p mux if opts[:debug] && !opts[:combine]
-p combine if opts[:debug] && opts[:combine]
+mux.mkvmerge(config[:mkvmerge]) unless [opts[:args][:combine] || opts[:args][:ffmpeg], !opts[:args][:debug]].all?
+mux.ffmpeg(config[:ffmpeg]) if [opts[:args][:ffmpeg] && !opts[:args][:combine], !opts[:args][:debug]].all?
+combine.mkvmerge(config[:mkvmerge]) if [opts[:args][:combine] && !opts[:args][:ffmpeg], !opts[:args][:debug]].all?
+combine.ffmpeg(config[:ffmpeg]) if [opts[:args][:combine] && opts[:args][:ffmpeg], !opts[:args][:debug]].all?
+files.each { |i| ConvertMkv.backup(i, opts[:args][:backup]) } if files.respond_to?(:each) && !opts[:args][:debug]
+p mux if opts[:args][:debug] && !opts[:args][:combine]
+p combine if opts[:args][:debug] && opts[:args][:combine]

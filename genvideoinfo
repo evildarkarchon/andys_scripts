@@ -54,34 +54,34 @@ opts.parse_args! do |h, i|
 end
 files = opts.files
 
-p opts if opts[:debug]
+p opts if opts[:args][:debug]
 
 if files.nil? || files.empty?
   wdpath = Pathname.getwd.find.to_a
-  p wdpath if opts[:debug]
+  p wdpath if opts[:args][:debug]
   wdpath.keep_if(&:file?)
   files = wdpath.map(&:to_s)
-  p files if opts[:debug]
+  p files if opts[:args][:debug]
 end
 
-FileUtils.touch(opts[:db].basename.to_s) unless opts[:db].file?
+FileUtils.touch(opts[:args][:db].basename.to_s) unless opts[:args][:db].file?
 
 DataMapper::Model.raise_on_save_failure = true
-DataMapper.setup(:default, "sqlite:#{opts[:db].realpath}")
-DataMapper::Logger.new($stdout, :debug) if [opts[:debug], opts[:verbose]].any?
+DataMapper.setup(:default, "sqlite:#{opts[:args][:db].realpath}")
+DataMapper::Logger.new($stdout, :debug) if [opts[:args][:debug], opts[:args][:verbose]].any?
 
 db = DataMapper.repository(:default).adapter
-gvi = VideoInfo::Database::Data.new(opts[:db].realpath, opts[:verbose])
+gvi = VideoInfo::Database::Data.new(opts[:args][:db].realpath, opts[:args][:verbose])
 DataMapper.finalize
 
 begin
-  DataMapper.auto_upgrade! unless opts[:reset_all]
+  DataMapper.auto_upgrade! unless opts[:args][:reset_all]
 rescue DataObjects::SyntaxError
   DataMapper.auto_migrate!
 end
-DataMapper.auto_migrate! if opts[:reset_all]
+DataMapper.auto_migrate! if opts[:args][:reset_all]
 
-if opts[:regen] && !opts[:reset_all]
+if opts[:args][:regen] && !opts[:args][:reset_all]
   puts Mood.neutral('Resetting videoinfo table')
   begin
     VideoInfo::Database::Videoinfo.auto_upgrade! # avoid not null errors
@@ -94,7 +94,7 @@ if opts[:regen] && !opts[:reset_all]
   db.execute('vacuum')
 end
 
-if [opts[:reset_json], !opts[:reset_all]].all?
+if [opts[:args][:reset_json], !opts[:args][:reset_all]].all?
   puts Mood.neutral('Resetting JSON Cache')
   VideoInfo::Database::Videojson.all.destroy
   # db.execute('drop table if exists videojson')
@@ -107,7 +107,7 @@ if [opts[:reset_json], !opts[:reset_all]].all?
   exit
 end
 
-if opts[:mantainence]
+if opts[:args][:mantainence]
   puts Mood.neutral('Vacuuming Database.')
   db.execute('vacuum')
   exit
@@ -136,11 +136,11 @@ existing.map!(&:filename) if existing.is_a?(Array)
 existing.freeze unless frozen?
 
 # print "#{existing}\n"
-filelist = VideoInfo.genfilelist(initlist, testmode: opts[:debug])
+filelist = VideoInfo.genfilelist(initlist, testmode: opts[:args][:debug])
 filelist.delete_if { |h| existing.include?(File.basename(h.to_s)) } unless existing.nil? || existing.empty?
 filelist.freeze unless frozen?
 
-if opts[:debug]
+if opts[:args][:debug]
   puts 'Initial list:'
   puts initlist.inspect
 
@@ -161,7 +161,7 @@ end
 digests = Util.hashfile(filelist).freeze
 
 case
-when opts[:debug]
+when opts[:args][:debug]
   # print "#{digests}\n"
   # print "#{filelist}\n"
   puts digests.inspect
@@ -172,20 +172,20 @@ filelist.each do |file|
   insert = VideoInfo::Database::Videoinfo.new
   jsondata = gvi.json(file).freeze
   case
-  when opts[:debug]
+  when opts[:args][:debug]
     # print "#{digests[file]}\n"
     # print "#{file}\n"
     puts "#{file.inspect}: #{digests[file].inspect}"
-  when !opts[:debug]
+  when !opts[:args][:debug]
     VideoInfo.genhash(file, jsondata, digests) do |h|
       begin
         puts(Mood.happy { "Writing metadata for #{File.basename(file)}" })
         insert.attributes = h
         insert.save
       rescue DataMapper::SaveFailureError
-        insert.errors.each { |e| puts e } if opts[:verbose]
+        insert.errors.each { |e| puts e } if opts[:args][:verbose]
       end
     end
   end
-  print "#{VideoInfo.genhash(file, jsondata, digests)}\n" if opts[:debug]
+  print "#{VideoInfo.genhash(file, jsondata, digests)}\n" if opts[:args][:debug]
 end
