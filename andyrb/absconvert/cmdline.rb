@@ -24,7 +24,7 @@ module ABSConvert
 
     def generate!(bitrates = nil, framerate = nil, exepath = Util::FindApp.which('ffmpeg'))
       raise TypeError, 'bitrates must be a Hash or nil' unless bitrates.is_a?(Hash) || bitrates.nil? || bitrates.respond_to?(:to_h)
-      bitrates.to_h unless bitrates.respond_to?(:to_h) && bitrates.is_a?(Hash)
+      bitrates.to_h unless bitrates.is_a?(Hash)
       vcodec =
         case
         when [@options[:novideo], bitrates[:video].nil?].any?
