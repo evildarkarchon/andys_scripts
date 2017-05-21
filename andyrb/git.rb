@@ -46,6 +46,10 @@ class Git
       Util::Program.runprogram(%W[rm #{@wdlock}], use_sudo: true, sudo_user: @sudo_user)
     when !@use_sudo && @wdlock.exist?
       @wdlock.delete
+    when !@use_sudo && !@wdlock.writable? && @sudo_user
+      Util::Program.runprogram(%W[rm #{@wdlock}], use_sudo: true, sudo_user: @sudo_user)
+    when !@use_sudo && !@wdlock.writable? && !@sudo_user
+      Util::Program.runprogram(%W[rm #{@wdlock}], use_sudo: true)
     end
   end
 
