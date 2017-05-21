@@ -36,4 +36,20 @@ class Options
   def to_h
     { source: @source, args: @args }
   end
+
+  def +(other)
+    raise TypeError, 'other must be convertable to an Array' unless other.respond_to?(:to_a)
+    other = other.to_a
+    @args.dup + other
+  end
+
+  def -(other)
+    raise TypeError, 'other must be convertable to an Array' unless other.respond_to?(:to_a)
+    other = other.to_a
+    @args.dup - other
+  end
+
+  def <<(obj)
+    @args.dup << obj
+  end
 end
