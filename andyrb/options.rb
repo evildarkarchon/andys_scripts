@@ -38,18 +38,14 @@ class Options
   end
 
   def +(other)
-    raise TypeError, 'other must be convertable to an Array' unless other.respond_to?(:to_a)
-    other = other.to_a
-    @args.dup + other
+    @args + other
   end
 
   def -(other)
-    raise TypeError, 'other must be convertable to an Array' unless other.respond_to?(:to_a)
-    other = other.to_a
-    @args.dup - other
+    @args - other
   end
 
   def <<(obj)
-    @args.dup << obj
+    @args << obj
   end
 end
