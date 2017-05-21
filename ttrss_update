@@ -16,7 +16,7 @@ require_relative 'andyrb/options'
 
 AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
-Opts = Options.new(ARGV.dup) do |defaults|
+Opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:aggressive] = false
   defaults[:replace] = false
   defaults[:gc] = false
