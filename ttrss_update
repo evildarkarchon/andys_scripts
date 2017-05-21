@@ -53,11 +53,11 @@ touchgcfile unless File.exist?('/var/cache/ttrssgc')
 def ttrssgc(thendate)
   diff = Util.datediff(thendate).freeze
   begin
-    TTrss.gc(aggressive: Opts.args[:aggressive]) if [diff >= 30, Opts.args[:gc]].any?
+    TTrss.gc(aggressive: Opts[:args][:aggressive]) if [diff >= 30, Opts[:args][:gc]].any?
   rescue Interrupt => e
     raise e
   else
-    touchgcfile if [diff >= 30, Opts.args[:gc]].any?
+    touchgcfile if [diff >= 30, Opts[:args][:gc]].any?
   end
 end
 
@@ -88,4 +88,4 @@ end
 
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
 
-Util::Program.runprogram(%w[systemctl -M web restart ttrssd], use_sudo: true) if Opts.args[:restart]
+Util::Program.runprogram(%w[systemctl -M web restart ttrssd], use_sudo: true) if Opts[:args][:restart]
