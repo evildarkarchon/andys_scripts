@@ -1,4 +1,3 @@
-import collections
 import pwd  # pwd doesn't exist on windows, so pylint can't import it.  # pylint: disable=import-error
 import shlex
 import subprocess
@@ -34,14 +33,14 @@ class Program:
             uid = pwd.getpwuid(user)
             user = uid.pw_name
 
-        if isinstance(program, (collections.deque, list)):
+        if isinstance(program, list):
             self.program = program
         elif isinstance(program, tuple):
             self.program = list(program)
         elif isinstance(program, str):
             self.program = shlex.split(program)
         else:
-            print(Mood.sad("program must be in the form of a string, tuple, list or deque"))
+            print(Mood.sad("program must be in the form of a string, tuple, or list (or subclass thereof)"))
             raise TypeError
         if use_sudo:
             self.program = shlex.split("sudo -u {}".format(user)) + self.program
