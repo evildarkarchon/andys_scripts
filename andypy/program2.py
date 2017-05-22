@@ -51,7 +51,7 @@ class Program:
         self.environment = environment
         self.workdir = workdir
 
-    def runprogram(self, verify=True):
+    def runprogram(self, verify=True, parse_output=False, string=True, encoding='utf-8'):
         """
         Convenience function for running programs.
 
@@ -59,21 +59,21 @@ class Program:
         """
 
         try:
-            subprocess.run(self.program, input=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, check=verify, cwd=self.workdir)
+            if parse_output:
+                if string:
+                    return subprocess.run(self.program, stdin=self.stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout.decode(encoding)
+                else:
+                    return subprocess.run(self.program, stdin=self.stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout
+            else:
+                subprocess.run(self.program, input=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, check=verify, cwd=self.workdir)
         except NameError:
-            if verify:
-                subprocess.check_call(self.program, stdin=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, cwd=self.workdir)
+            if parse_output:
+                if string:
+                    return subprocess.check_output(self.program, stdin=self.stdinput, stderr=subprocess.DEVNULL).decode(encoding)
+                else:
+                    return subprocess.check_output(self.program, stdin=self.stdinput, stderr=subprocess.DEVNULL)
             else:
-                subprocess.call(self.program, stdin=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, cwd=self.workdir)
-
-    def returninfo(self, string=True, encoding='utf-8'):
-        try:
-            if string:
-                return subprocess.run(self.program, stdin=self.stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout.decode(encoding)
-            else:
-                return subprocess.run(self.program, stdin=self.stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout
-        except NameError:
-            if string:
-                return subprocess.check_output(self.program, stdin=self.stdinput, stderr=subprocess.DEVNULL).decode(encoding)
-            else:
-                return subprocess.check_output(self.program, stdin=self.stdinput, stderr=subprocess.DEVNULL)
+                if verify:
+                    subprocess.check_call(self.program, stdin=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, cwd=self.workdir)
+                else:
+                    subprocess.call(self.program, stdin=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, cwd=self.workdir)
