@@ -7,7 +7,7 @@ from .mood2 import Mood
 
 class Program:
     """Compilation of convenience functions related to running subprocesses."""
-    def __init__(self, program, stdinput=None, stdoutput=None, stderror=None, environment=None, workdir=None, use_sudo=False, user=None):
+    def __init__(self, program, stdinput=None, stdoutput=None, stderror=None, environment=None, workdir=None, use_sudo=False, user=None, systemd=False, container=None):
         """
         program is the program to be run.
 
@@ -42,8 +42,17 @@ class Program:
         else:
             print(Mood.sad("program must be in the form of a string, tuple, or list (or subclass thereof)"))
             raise TypeError
-        if use_sudo:
+        if systemd and container:
+            if use_sudo:
+                self.program = shlex.split("sudo systemd-run -t --machine={}".format(container)) + self.program
+            else:
+                self.program = shlex.split("systemd-run -t --machine={}".format(container)) + self.program
+        elif systemd and not container:
+            self.program = shlex.split('systemd-run -t') + self.program
+
+        if use_sudo and not systemd:
             self.program = shlex.split("sudo -u {}".format(user)) + self.program
+
         self.stdinput = stdinput
         self.stdoutput = stdoutput
         self.stderror = stderror
