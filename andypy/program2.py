@@ -6,9 +6,10 @@ from .mood2 import Mood
 
 
 class Program:
-    """Compilation of convenience functions related to running subprocesses."""
     def __init__(self, program, stdinput=None, stdoutput=None, stderror=None, environment=None, workdir=None, use_sudo=False, user=None, systemd=False, container=None):
         """
+        Compilation of convenience functions related to running subprocesses.
+
         program is the program to be run.
 
         use_sudo specifies whether to run the program using sudo.
@@ -23,7 +24,8 @@ class Program:
 
         environment takes a dictionary that will be used as the environment for the running program.
 
-        workdir specifies the cwd the program will run in."""
+        workdir specifies the cwd the program will run in.
+        """
 
         if use_sudo and not isinstance(user, (str, int)):
             print(Mood.sad("User must be a string or integer."))
