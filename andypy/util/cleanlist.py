@@ -20,7 +20,7 @@ def cleanlist(iterable, flatten=True, dedup=True, clean=True, debug=False, quiet
         except TypeError:
             if not quiet:
                 print(Mood.neutral('De-Dup failed due to a type error, skipping.'))
-    elif clean and debug:
+    elif dedup and debug:
         out = list(dict.fromkeys(out))
 
     if flatten and not debug:
