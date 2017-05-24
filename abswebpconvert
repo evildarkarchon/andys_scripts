@@ -32,8 +32,8 @@ parser.add_argument('--backup-archive', nargs='?', type=pathlib.Path, help='Loca
 parser.add_argument('--backup-dir', nargs='?', type=pathlib.Path, help='Directory to put the original file (disables the backup archive feature)')
 parser.add_argument('--output-dir', nargs='?', type=pathlib.Path, help='Directory to store the resulting images.', default=pathlib.Path.cwd())
 parser.add_argument('--no-archive', action='store_false', dest='archive', help='Disable backing up the source images to an archive.')
-parser.add_argument('--no-del-original', action='store_false', dest='del_original', help='Keep the original files.')
-parser.add_argument('--force', action='store_true', help='Move any existing files.')
+parser.add_argument('--keep-original', action='store_false', dest='del_original', help='Keep the original files.')
+parser.add_argument('--force', '-f', action='store_true', help='Move any existing files.')
 parser.add_argument('--verbose', '-v', action='store_true', help='Make the script more chatty.')
 debug.add_argument('--debug', '-d', action='store_true', help='Print variables and exit')
 debug.add_argument('--debug-cleanlist', action='store_true', help='Remove the safties from the cleanlist function and activate debug mode.')
@@ -55,8 +55,6 @@ if args['debug_cleanlist']:
     if path.exists():
         return path.resolve()'''
 
-# args['files'] = [resolvepaths(x) for x in args['files']]
-# args['files'] = [x for x in args['files'] if x is not None]
 args['files'] = resolvepaths(args['files'])
 if args['debug_cleanlist']:
     args['files'] = cleanlist(args['files'], debug=True)
