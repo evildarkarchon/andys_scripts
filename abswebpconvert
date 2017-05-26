@@ -5,6 +5,8 @@ import os
 import pathlib
 import shutil
 
+import progressbar
+
 from andypy.abswebpconvert import ABSWebPConvert  # noqa: F401 pylint: disable=w0611
 from andypy.mood2 import Mood  # noqa: F401 pylint: disable=w0611
 from andypy.program import Program  # noqa: F401 pylint: disable=w0611
@@ -36,7 +38,7 @@ parser.add_argument('--force', '-f', action='store_true', help='Move any existin
 parser.add_argument('--verbose', '-v', action='store_true', help='Make the script more chatty.')
 debug.add_argument('--debug', '-d', action='store_true', help='Print variables and exit')
 debug.add_argument('--debug-cleanlist', action='store_true', help='Remove the safties from the cleanlist function and activate debug mode.')
-debug.add_argument('--quiet-cleanlist', action='store_true', help='Suppress cleanlist errors')
+debug.add_argument('--verbose-cleanlist', action='store_true', help='Shows cleanlist error messages.')
 parser.add_argument('--convert-path', dest='convert', type=str, default=shutil.which('convert', mode=os.X_OK))
 parser.add_argument('--7z-path', dest='7z', type=str, default=shutil.which('7za', mode=os.X_OK))
 
@@ -49,16 +51,13 @@ explicit = bool(args['lossy'] or args['lossless'])
 if args['debug_cleanlist']:
     args['debug'] = True
 
-
-'''def resolvepaths(path):
-    if path.exists():
-        return path.resolve()'''
-
 args['files'] = resolvepaths(args['files'])
+args['files'] = [x for x in args['files'] if x.is_file()]
+
 if args['debug_cleanlist']:
     args['files'] = cleanlist(args['files'], debug=True)
-elif args['quiet_cleanlist']:
-    args['files'] = cleanlist(args['files'], quiet=True)
+elif args['verbose_cleanlist']:
+    args['files'] = cleanlist(args['files'], quiet=False)
 else:
     args['files'] = cleanlist(args['files'])
 
@@ -87,6 +86,7 @@ def gencmdlines():
 
 
 cmdlines = dict(gencmdlines())
+
 if args['debug']:
     print(Mood.neutral('Conversion Command-line Dictionary:'))
     print(cmdlines)
@@ -102,16 +102,19 @@ if not args['debug'] and not args['output_dir'].exists():
                 pass
             else:
                 raise
-
-for i in args['files']:
-    cmdline = cmdlines.pop(str(i))
-    if not args['debug']:
-        print(Mood.happy("Converting {} to webp".format(str(i))))
-        Program.runprogram(cmdline)
-    else:
+if not args['debug']:
+    progbar = progressbar.ProgressBar(max_value=len(cmdlines.keys()), redirect_stdout=True)
+    for i in progbar(args['files']):
+        cmdline = cmdlines[str(i)]
+        if not args['debug']:
+            print("Converting {} to webp".format(str(i)))
+            Program.runprogram(cmdline)
+            progbar.update(args['files'].index(i))
+if args['debug']:
+    for i in args['files']:
         print()
         print(Mood.neutral("Command Line for {}:".format(i.name)))
-        print(cmdline)
+        print(cmdlines[str(i)])
 
 if not args['debug'] and not args['backup_dir'] and args['archive']:
     ABSWebPConvert.backuparchive(args['backup_archive'], args['files'], exepath=args['7z'], del_original=args['del_original'])
