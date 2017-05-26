@@ -3,6 +3,7 @@ import shlex
 import subprocess
 
 from .mood2 import Mood
+from .util.cleanlist import cleanlist
 
 
 class Program:
@@ -27,7 +28,7 @@ class Program:
         workdir specifies the cwd the program will run in.
         """
 
-        if use_sudo and not isinstance(user, (str, int)):
+        if use_sudo and user and not isinstance(user, (str, int)):
             print(Mood.sad("User must be a string or integer."))
             raise TypeError
 
@@ -61,13 +62,15 @@ class Program:
         self.environment = environment
         self.workdir = workdir
 
-    def runprogram(self, verify=True, parse_output=False, string=True, encoding='utf-8'):
+    def runprogram(self, verify=True, parse_output=False, string=True, encoding='utf-8', addparm=None):
         """
         Convenience function for running programs.
 
         verify specifies whether subprocess.check_call is used in python <3.5 or subprocess.run(check=True) is used in python >=3.5.
         """
-
+        if addparm:
+            self.program += addparm
+            cleanlist(self.program)
         try:
             if parse_output:
                 if string:
