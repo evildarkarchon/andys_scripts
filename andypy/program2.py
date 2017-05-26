@@ -67,26 +67,37 @@ class Program:
         Convenience function for running programs.
 
         verify specifies whether subprocess.check_call is used in python <3.5 or subprocess.run(check=True) is used in python >=3.5.
+
+        parse_output specifies whether to return the output to the caller or not
+
+        string specifies whether to decode the data with the value of the 'encoding' parameter
+
+        encoding specifies the encoding to use to decode output
+
+        addparm specifies any additional parameters to append to the parameters in self.program
         """
+
         if addparm:
-            self.program += addparm
-            cleanlist(self.program)
+            program = self.program + addparm
+            cleanlist(program)
+        else:
+            program = self.program
         try:
             if parse_output:
                 if string:
-                    return subprocess.run(self.program, stdin=self.stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout.decode(encoding)
+                    return subprocess.run(program, stdin=self.stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout.decode(encoding)
                 else:
-                    return subprocess.run(self.program, stdin=self.stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout
+                    return subprocess.run(program, stdin=self.stdinput, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True).stdout
             else:
-                subprocess.run(self.program, input=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, check=verify, cwd=self.workdir)
+                subprocess.run(program, input=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, check=verify, cwd=self.workdir)
         except NameError:
             if parse_output:
                 if string:
-                    return subprocess.check_output(self.program, stdin=self.stdinput, stderr=subprocess.DEVNULL).decode(encoding)
+                    return subprocess.check_output(program, stdin=self.stdinput, stderr=subprocess.DEVNULL).decode(encoding)
                 else:
-                    return subprocess.check_output(self.program, stdin=self.stdinput, stderr=subprocess.DEVNULL)
+                    return subprocess.check_output(program, stdin=self.stdinput, stderr=subprocess.DEVNULL)
             else:
                 if verify:
-                    subprocess.check_call(self.program, stdin=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, cwd=self.workdir)
+                    subprocess.check_call(program, stdin=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, cwd=self.workdir)
                 else:
-                    subprocess.call(self.program, stdin=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, cwd=self.workdir)
+                    subprocess.call(program, stdin=self.stdinput, stdout=self.stdoutput, stderr=self.stderror, env=self.environment, cwd=self.workdir)
