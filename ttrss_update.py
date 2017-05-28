@@ -10,7 +10,7 @@ from andypy.git import Git
 from andypy.mood2 import Mood
 from andypy.program import Program
 from andypy.util.datediff import datediff
-from andypy.util.is_privileged import is_privileged
+from andypy.util.touchfile import touchfile
 
 args = argparse.ArgumentParser()
 args.add_argument("--aggressive", "-a", action="store_true", help="Run garbage collection in aggressive mode")
@@ -24,23 +24,23 @@ atexit.register(ttrss.clean_lock)
 if options["restart"]:
     atexit.register(Program.runprogram, shlex.split("systemctl restart ttrssd"), use_sudo=True)
 
-
+'''
 def ttrssgcfile():
     if not is_privileged():
         Program.runprogram(["touch", "/var/cache/ttrssgc"], use_sudo=True, user="root")
     else:
         pathlib.Path("/var/cache/ttrssgc").touch()
-
+'''
 
 if not pathlib.Path("/var/cache/ttrssgc").is_file():
-    ttrssgcfile()
+    touchfile('/var/cache/ttrssgc')
 
 
 def ttrssgc(then):
     diff = datediff(then)
     if diff.days > 30:
         ttrss.gc(aggressive=options["aggressive"])
-        ttrssgcfile()
+        touchfile('/var/cache/ttrssgc')
 
 
 if pathlib.Path("/data/web/feeds/.git").is_dir():
