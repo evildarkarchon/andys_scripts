@@ -51,7 +51,7 @@ explicit = bool(args['lossy'] or args['lossless'])
 if args['debug_cleanlist']:
     args['debug'] = True
 
-args['files'] = resolvepaths(args['files'])
+args['files'] = list(resolvepaths(args['files']))
 args['files'] = [x for x in args['files'] if x.is_file()]
 
 if args['debug_cleanlist']:
