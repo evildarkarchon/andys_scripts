@@ -20,7 +20,7 @@ def is_privileged(privuser=None, directory=None):
             try:
                 test = pathlib.Path(directory).join('temp')  # pylint: disable=no-member
                 open(str(test), 'w')
-            except OSError:
+            except (OSError, PermissionError):
                 return False
             else:
                 if test.exists():
