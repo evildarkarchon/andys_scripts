@@ -57,7 +57,7 @@ args['files'] = [x for x in args['files'] if x.is_file()]
 if args['debug_cleanlist']:
     args['files'] = cleanlist(args['files'], debug=True)
 elif args['verbose_cleanlist']:
-    args['files'] = cleanlist(args['files'], quiet=False)
+    args['files'] = cleanlist(args['files'], verbose=True)
 else:
     args['files'] = cleanlist(args['files'])
 
