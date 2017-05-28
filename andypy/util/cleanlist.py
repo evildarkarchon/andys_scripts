@@ -1,9 +1,17 @@
-import itertools
+# import itertools
+import collections
+
 
 from ..mood2 import Mood
 
+def flattenlist(l):
+    for el in l:
+        if isinstance(el, collections.Iterable) and not isinstance(el, (str, bytes)):
+            yield from flattenlist(el)
+        else:
+            yield el
 
-def cleanlist(iterable, flatten=True, dedup=True, clean=True, debug=False, quiet=True):
+def cleanlist(iterable, flatten=True, dedup=True, clean=True, debug=False, verbose=False):
     """
     iterable is the iterable to be cleaned (usually a list)
 
@@ -18,35 +26,31 @@ def cleanlist(iterable, flatten=True, dedup=True, clean=True, debug=False, quiet
     quiet messages will not be printed when exceptions are caught (does nothing to uncaught exceptions)
     """
     out = iterable
-    if clean and not debug:
+    if clean:
         try:
-            out = [x for x in iterable if x is not None]
+            out = [x for x in out if x is not None]
         except TypeError:
-            if not quiet:
+            if verbose:
                 print(Mood.neutral('Clean failed due to a type error, skipping.'))
-    elif clean and debug:
-        out = [x for x in iterable if x is not None]
+            if debug:
+                raise
 
-    if dedup and not debug:
+    if flatten:
+        try:
+            out = list(flattenlist(out))
+        except TypeError:
+            if verbose:
+                print(Mood.neutral('Flatten failed due to a type error, skipping.'))
+            if debug:
+                raise
+
+    if dedup:
         try:
             out = list(dict.fromkeys(out))
         except TypeError:
-            if not quiet:
+            if verbose:
                 print(Mood.neutral('De-Dup failed due to a type error, skipping.'))
-    elif dedup and debug:
-        out = list(dict.fromkeys(out))
+            if debug:
+                raise
 
-    if flatten and not debug:
-        try:
-            out = list(itertools.chain.from_iterable(out))
-        except TypeError:
-            if not quiet:
-                print(Mood.neutral('Flatten failed due to a type error, skipping.'))
-    elif flatten and debug:
-        out = list(itertools.chain.from_iterable(out))
-
-    '''if not isinstance(out, list):
-        return list(out)
-    else:
-        return out'''
     return out
