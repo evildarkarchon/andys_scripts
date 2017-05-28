@@ -17,7 +17,9 @@ from andypy.mood2 import Mood
 from andypy.program import Program
 from andypy.util.cleanlist import cleanlist
 from andypy.util.genjson import genjson
+from andypy.util.resolvepaths import resolvepaths
 from andypy.util.sortentries import sortentries
+from andypy.util.sortfiles import sortfiles
 from andypy.videoinfodb import VideoData, VideoInfo, VideoJSON, sqa_session
 
 arg = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -39,15 +41,18 @@ audio.add_argument("--filter", "-f", type=str, help="Filter to be applied to the
 config.add_argument("--database", "-db", type=pathlib.Path, default=pathlib.Path.cwd().joinpath('videoinfo.sqlite'), help="Location of the video info database.")
 config.add_argument("--convert-test", dest="convert_test", action="store_true", help="Conversion test, doesn't delete entrys from database.")
 config.add_argument("--config", "-c", type=pathlib.Path, default=pathlib.Path.home().joinpath(".config", "absconvert.json"), help="Location of the configuration file (JSON format).")
-config.add_argument("--container", "-ct", type=str, help="Container format to put the video in.")
-config.add_argument("--no-sort", "-ns", action="store_true", dest="no_sort", help="Don't sort the list of file(s) to be encoded.")
+config.add_argument("--container", "-ct", type=str, default="mkv", help="Extension for the container format to put the video in (no dot).")
+config.add_argument("--no-sort", "-ns", action="store_false", dest="sort", help="Don't sort the list of file(s) to be encoded.")
 config.add_argument("--debug", "-d", action="store_true", help="Print variables and exit.")
 
 fileargs.add_argument("--backup", "-b", type=pathlib.Path, help="Directory where files will be moved when encoded.")
 fileargs.add_argument("--output-dir", "-o", dest="output", type=pathlib.Path, default=pathlib.Path.cwd(), help="Directory to output the encoded file(s) to (defaults to previous directory unless you are in your home directory).")
 
-arg.add_argument("files", nargs="*", help="Files to encode.")
+arg.add_argument("files", nargs="*", type=pathlib.Path, help="Files to encode.")
 
 args = vars(arg.parse_args())
 
 args["files"] = cleanlist(args["files"])
+args["files"] = list(resolvepaths(args["files"]))
+if args["sort"]:
+    args["files"] = sortfiles(args["files"])
