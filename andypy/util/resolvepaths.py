@@ -3,9 +3,13 @@ import pathlib  # noqa: F401 pylint: disable=W0611
 
 
 def resolvepaths(iterator):
+    if not isinstance(iterator, (pathlib.Path, str, list, tuple)):
+        raise TypeError('Argument must be a Path, String, List, or Tuple')
     if isinstance(iterator, pathlib.Path) and iterator.exists():
-        return list(iterator.resolve())
+        yield iterator.resolve()
     elif isinstance(iterator, str) and os.path.exists(iterator):
-        return list(pathlib.Path(iterator).resolve())
-    else:
-        return [x.resolve() for x in iterator if isinstance(x, pathlib.Path) and x.exists()]
+        yield pathlib.Path(iterator).resolve()
+    elif isinstance(iterator, (list, tuple)):
+         for i in iterator:
+            if isinstance(i, pathlib.Path) and i.exists():
+                yield i.resolve()
