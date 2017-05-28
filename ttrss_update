@@ -5,6 +5,7 @@ require 'pathname'
 require 'fileutils'
 require 'optparse'
 require 'ostruct'
+require 'subprocess'
 
 require_relative 'andyrb/util/program'
 require_relative 'andyrb/util/datediff'
@@ -87,5 +88,11 @@ else
 end
 
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
-
-Util::Program.runprogram(%w[systemctl -M web restart ttrssd], use_sudo: true) if Opts[:args][:restart]
+begin
+  print(Mood.happy('Restarting ttrssd... ')) if Opts[:args][:restart]
+  Util::Program.runprogram(%w[systemctl -M web restart ttrssd], use_sudo: true) if Opts[:args][:restart]
+rescue Interrupt, Subprocess::NonZeroExit
+  puts('failed') if Opts[:args][:restart]
+else
+  puts('done') if Opts[:args][:restart]
+end
