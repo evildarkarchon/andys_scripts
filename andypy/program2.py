@@ -79,9 +79,10 @@ class Program:
 
         if addparm:
             program = self.program + addparm
-            cleanlist(program)
+            cleanlist(program, dedup=False)
         else:
             program = self.program
+            cleanlist(program, dedup=False)
         try:
             if parse_output:
                 if string:
