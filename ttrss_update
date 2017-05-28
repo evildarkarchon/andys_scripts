@@ -90,7 +90,7 @@ end
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
 begin
   print(Mood.happy('Restarting ttrssd... ')) if Opts[:args][:restart]
-  Util::Program.runprogram(%w[systemctl -M web restart ttrssd], use_sudo: true) if Opts[:args][:restart]
+  Util::Program.runprogram(%w[systemctl restart ttrssd], use_sudo: true) if Opts[:args][:restart]
 rescue Interrupt, Subprocess::NonZeroExit
   puts('failed') if Opts[:args][:restart]
 else
