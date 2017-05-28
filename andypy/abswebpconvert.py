@@ -18,7 +18,7 @@ class ABSWebPConvert:
             outdir = pathlib.Path(outdir)
 
         cmd = shlex.split("{} {}".format(exepath, filename))
-        cmd.extend(shlex.split("-quality {}".format(quality)))
+        cmd += shlex.split("-quality {}".format(quality))
         if not explicit:
             with magic.Magic(flags=magic.MAGIC_MIME_ENCODING) as m:  # noqa: F821 pylint: disable=e0602
                 lossless = "image/png image/gif image/tiff image/x-pcx application/tga application/x-tga application/x-targs image/tga image/x-tga image/targa image/x-targa image/vnd.adobe.photoshop".split()
@@ -26,8 +26,9 @@ class ABSWebPConvert:
                 if m.id_filename(str(filename)) in lossless or filename.suffix in raw:
                     mode = 'lossless'
         if mode is 'lossless':
-            cmd.extend(shlex.split("-define webp:lossless=true"))
-        cmd.extend(shlex.split('-define webp:thread-level=1'))
+            cmd += shlex.split("-define webp:lossless=true")
+        cmd += shlex.split('-define webp:thread-level=1')
+
         if verbose:
             cmd.append('-verbose')
         cmd.append(str(outdir.joinpath(filename.with_suffix('.webp').name)))
