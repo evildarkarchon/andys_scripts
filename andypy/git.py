@@ -9,15 +9,16 @@ from .util.is_privileged import is_privileged
 
 
 class Git:
-    """High level functions for working with git, using my runprogram function.
+    """
+    High level functions for working with git, using my runprogram function.
 
-        directory is the directory to be worked in.
+    directory is the directory to be worked in.
 
-        use_sudo controls whether sudo is used.
+    use_sudo controls whether sudo is used.
 
-        sudo_user tells sudo what user to run as.
+    sudo_user tells sudo what user to run as.
 
-        """
+    """
 
     def __init__(self, directory, use_sudo=None, sudo_user=None):
 
@@ -64,7 +65,7 @@ class Git:
         """Clones the repository to the directory specified by the class using the url specified by the class.
 
         url tells git what url to use when cloning a repository."""
-        cmdline = shlex.split("git clone {} {}".format(url, self.directory))
+        cmdline = shlex.split("git clone") + [url, self.directory]
 
         Program.runprogram(cmdline, use_sudo=self.use_sudo, user=self.sudo_user)
 
