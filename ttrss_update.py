@@ -48,14 +48,16 @@ if pathlib.Path("/data/web/feeds/.git").is_dir():
     ttrss.pull()
 elif pathlib.Path("/data/web/feeds").exists() and not pathlib.Path("/data/web/feeds/.git").exists():
     if options["replace"]:
-        Program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.old"], use_sudo=True, user="nginx")
+        # Program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.old"], use_sudo=True, user="nginx")
+        Program.runprogram(shlex.split("mv /dev/web/feeds /data/web/feeds.old"), use_sudo=True, user="nginx")
         ttrss.clone("https://tt-rss.org/gitlab/fox/tt-rss.git")
     else:
         print(Mood.sad("No git repository located in the target directory."))
         raise FileNotFoundError
 elif pathlib.Path("/data/web/feeds").is_file():
     print(Mood.sad("Target location is a file, renaming and cloning repository."))
-    Program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.bad"], use_sudo=True, user="nginx")
+    # Program.runprogram(["mv", "/data/web/feeds", "/data/web/feeds.bad"], use_sudo=True, user="nginx")
+    Program.runprogram(shlex.split("mv /data/web/feeds /data/web/feeds.bad"), use_sudo=True, user="nginx")
     ttrss.clone("https://tt-rss.org/gitlab/fox/tt-rss.git")
 else:
     print(Mood.neutral("{Target location does not exist, cloning repository."))
