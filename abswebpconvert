@@ -23,24 +23,26 @@ backuparchive = str(backuparchivedir.joinpath("{}.7z".format(backuparchivedir.pa
 
 # parser = argparse.ArgumentParser(description='A "simple" script to convert images to WebP using ImageMagick.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser = argparse.ArgumentParser(description='A "simple" script to convert images to WebP using ImageMagick.')
-mode = parser.add_mutually_exclusive_group()
-debug = parser.add_argument_group()
+mode = parser.add_mutually_exclusive_group(description='Quality Mode:')
+debug = parser.add_argument_group(description='Diagnostic Options:')
+progpaths = parser.add_argument_group(description='Program Path Customization:')
+backup = parser.add_argument_group(description='Backup Options:')
+out = parser.add_argument_group(description='Output Options:')
+misc = parser.add_argument_group(description='Miscellanious Options:')
 mode.add_argument('--lossy', action='store_true', help="Encode images in lossy mode.")
 mode.add_argument('--lossless', action='store_true', help="Encode images in lossless mode.")
-parser.add_argument('--quality', '-q', nargs='?', type=int, default=80, help="Quality factor (0-100).")
-parser.add_argument('--no-sort', action='store_false', dest='sort', help="Don't sort the file list.")
-parser.add_argument('--backup-archive', nargs='?', type=pathlib.Path, help='Location to store the archive of original images.', default=pathlib.Path(backuparchive))
-parser.add_argument('--backup-dir', nargs='?', type=pathlib.Path, help='Directory to put the original file (disables the backup archive feature)')
-parser.add_argument('--output-dir', nargs='?', type=pathlib.Path, help='Directory to store the resulting images.', default=pathlib.Path.cwd())
-parser.add_argument('--no-archive', action='store_false', dest='archive', help='Disable backing up the source images to an archive.')
-parser.add_argument('--keep-original', action='store_false', dest='del_original', help='Keep the original files.')
-parser.add_argument('--force', '-f', action='store_true', help='Move any existing files.')
-parser.add_argument('--verbose', '-v', action='store_true', help='Make the script more chatty.')
+out.add_argument('--quality', '-q', nargs='?', type=int, default=80, help="Quality factor (0-100).")
+misc.add_argument('--no-sort', action='store_false', dest='sort', help="Don't sort the file list.")
+backup.add_argument('--backup-archive', nargs='?', type=pathlib.Path, help='Location to store the archive of original images.', default=pathlib.Path(backuparchive))
+backup.add_argument('--backup-dir', nargs='?', type=pathlib.Path, help='Directory to put the original file (disables the backup archive feature)')
+out.add_argument('--output-dir', nargs='?', type=pathlib.Path, help='Directory to store the resulting images.', default=pathlib.Path.cwd())
+backup.add_argument('--no-archive', action='store_false', dest='archive', help='Disable backing up the source images to an archive.')
+backup.add_argument('--keep-original', action='store_false', dest='del_original', help='Keep the original files.')
+misc.add_argument('--force', '-f', action='store_true', help='Move any existing files.')
+debug.add_argument('--verbose', '-v', action='store_true', help='Make the script more chatty.')
 debug.add_argument('--debug', '-d', action='store_true', help='Print variables and exit')
-debug.add_argument('--debug-cleanlist', action='store_true', help='Remove the safties from the cleanlist function and activate debug mode.')
-debug.add_argument('--verbose-cleanlist', action='store_true', help='Shows cleanlist error messages.')
-parser.add_argument('--convert-path', dest='convert', type=str, default=shutil.which('convert', mode=os.X_OK))
-parser.add_argument('--7z-path', dest='7z', type=str, default=shutil.which('7za', mode=os.X_OK))
+progpaths.add_argument('--convert-path', dest='convert', type=str, default=shutil.which('convert', mode=os.X_OK))
+progpaths.add_argument('--7z-path', dest='7z', type=str, default=shutil.which('7za', mode=os.X_OK))
 
 parser.add_argument('files', nargs='+', type=pathlib.Path)
 
@@ -48,18 +50,10 @@ args = vars(parser.parse_args())
 
 explicit = bool(args['lossy'] or args['lossless'])
 
-if args['debug_cleanlist']:
-    args['debug'] = True
-
 args['files'] = list(resolvepaths(args['files']))
 args['files'] = [x for x in args['files'] if x.is_file()]
 
-if args['debug_cleanlist']:
-    args['files'] = cleanlist(args['files'], debug=True)
-elif args['verbose_cleanlist']:
-    args['files'] = cleanlist(args['files'], verbose=True)
-else:
-    args['files'] = cleanlist(args['files'])
+args['files'] = cleanlist(args['files'], verbose=args['verbose'], debug=args['debug'])
 
 if args['sort']:
     if args['debug']:
@@ -91,25 +85,25 @@ if args['debug']:
     print(Mood.neutral('Conversion Command-line Dictionary:'))
     print(cmdlines)
 
-if not args['debug'] and not args['output_dir'].exists():
+if not args['debug']:
     try:
         args['output_dir'].mkdir(mode=0o755, parents=True, exist_ok=True)
     except TypeError:
         try:
             args['output_dir'].mkdir(mode=0o755, parents=True)
         except FileExistsError:
-            if not args['output_dir'].is_file():  # gotta handle the weird edge cases
+            if not args['output_dir'].is_file():
                 pass
             else:
                 raise
-if not args['debug']:
-    progbar = progressbar.ProgressBar(max_value=len(cmdlines.keys()), redirect_stdout=True)
-    for i in progbar(args['files']):
-        cmdline = cmdlines[str(i)]
-        if not args['debug']:
-            print("Converting {} to webp".format(str(i)))
-            Program.runprogram(cmdline)
-            progbar.update(args['files'].index(i))
+
+    with progressbar.ProgressBar(max_value=len(cmdlines.keys()), redirect_stdout=True) as progbar:
+        for i in progbar(args['files']):
+            cmdline = cmdlines[str(i)]
+            if not args['debug']:
+                print("Converting {} to webp".format(str(i)))
+                Program.runprogram(cmdline)
+                progbar.update(args['files'].index(i))
 if args['debug']:
     for i in args['files']:
         print()
