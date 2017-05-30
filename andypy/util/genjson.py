@@ -1,5 +1,4 @@
 import json
-import collections
 import pathlib
 
 from ..mood2 import Mood
@@ -16,15 +15,15 @@ def genjson(dictionary, filename=None, printdata=False, indentjson=True):
 
     If indentjson is True, it will insert tabs in the resulting json (this is the default mode), otherwise, it will output a sorted version of the raw json."""
 
-    if not isinstance(filename, str) and printdata is False:
+    if not isinstance(filename, (str, pathlib.Path)) and printdata is False:
         raise TypeError("File name was not specified and printdata mode is disabled.")
+    if isinstance(filename, str):
+        filename = pathlib.Path(filename)
 
-    jsonpath = pathlib.Path(filename)
+    if filename.exists():
+        filename = filename.resolve()
 
-    if jsonpath.exists():
-        jsonpath = jsonpath.resolve()
-
-    if not isinstance(dictionary, (dict, collections.ChainMap, collections.OrderedDict, collections.defaultdict)):
+    if not isinstance(dictionary, dict):
         raise TypeError("First argument must be a dictionary.")
     if printdata:
         if indentjson:
@@ -32,13 +31,13 @@ def genjson(dictionary, filename=None, printdata=False, indentjson=True):
         else:
             print(json.dumps(dictionary, sort_keys=True))
     else:
-        if jsonpath.exists():
-            print(Mood.happy("Backing up {} to {}".format(str(jsonpath), str(jsonpath).replace(".json", ".json.bak"))))
-            with open(str(jsonpath)) as orig, open(str(jsonpath).replace(".json", ".json.bak"), "w") as backup:
+        if filename.exists():
+            print(Mood.happy("Backing up {} to {}".format(str(filename), str(filename).replace(".json", ".json.bak"))))
+            with open(str(filename)) as orig, open(str(filename).replace(".json", ".json.bak"), "w") as backup:
                 backup.write(orig.read())
 
-        with open(str(jsonpath), "w") as dest:
-            print(Mood.happy("Writing values to JSON file: {}".format(str(jsonpath))))
+        with open(str(filename), "w") as dest:
+            print(Mood.happy("Writing values to JSON file: {}".format(str(filename))))
             if indentjson:
                 dest.write(json.dumps(dictionary, sort_keys=True, indent="\t"))
             else:
