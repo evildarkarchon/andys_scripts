@@ -27,6 +27,7 @@ Opts.construct! do |h, i|
   h.on('-a', '--aggressive', 'Activate git gc in aggressive mode if run.') { i[:aggressive] = true }
   h.on('-r', '--replace', 'Rename any existing directory if a repository is not found.') { i[:aggressive] = true }
   h.on('-g', '--garbage-collect', 'Force garbage collection to run.') { i[:gc] = true }
+  h.on('--container', 'Specify a container for systemctl to run in. (Only relevant if --restart-ttrssd is used.)') { |x| i[:container] = x }
   h.on('--restart-ttrssd', 'Restart ttrssd.') { i[:restart] = true }
 end
 
@@ -90,7 +91,10 @@ end
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
 begin
   print(Mood.happy('Restarting ttrssd... ')) if Opts[:args][:restart]
-  Util::Program.runprogram(%w[systemctl restart ttrssd], use_sudo: true) if Opts[:args][:restart]
+  cmdline = %w[systemctl]
+  cmdline += %W[-m #{Opts[:args][:container]}] if Opts[:args][:container]
+  cmdline += %w[restart ttrssd]
+  Util::Program.runprogram(cmdline, use_sudo: true) if Opts[:args][:restart]
 rescue Interrupt, Subprocess::NonZeroExit
   puts('failed') if Opts[:args][:restart]
 else
