@@ -23,7 +23,7 @@ Opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:gc] = false
   defaults[:restart] = false
 end
-Opts.construct! do |h, i|
+Opts.parse_args! do |h, i|
   h.on('-a', '--aggressive', 'Activate git gc in aggressive mode if run.') { i[:aggressive] = true }
   h.on('-r', '--replace', 'Rename any existing directory if a repository is not found.') { i[:aggressive] = true }
   h.on('-g', '--garbage-collect', 'Force garbage collection to run.') { i[:gc] = true }
