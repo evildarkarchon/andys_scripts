@@ -12,18 +12,17 @@ module Util
     def self.runprogram(program, use_sudo: false, sudo_user: nil, parse_output: false, workdir: nil, systemd: false, container: nil)
       cmdline = []
       use_sudo = true if container
-      sudo_user = nil if container
 
       Dir.chdir(workdir) if workdir
 
       raise 'Program variable is not an array or convertable into an array' unless program.is_a?(Array) || program.respond_to?(:to_a)
       program = program.to_a unless program.is_a?(Array)
       program.freeze
-      cmdline << %W[sudo -u #{sudo_user}] if use_sudo && sudo_user
-      cmdline << %w[sudo] if use_sudo && !sudo_user
+      cmdline << %W[sudo -u #{sudo_user}] if use_sudo && sudo_user && !container
+      cmdline << %w[sudo] if [use_sudo && !sudo_user, container].any?
       cmdline << %w[systemd-run -t] if systemd || container
       cmdline << %W[--machine=#{container}] if container
-      cmdline << %W[-p User=#{sudo_user}] if systemd && container
+      cmdline << %W[-p User=#{sudo_user}] if systemd && sudo_user
       cmdline << program
       cmdline.cleanup!(unique: false)
       cmdline.freeze
