@@ -11,6 +11,8 @@ module Util
   class Program
     def self.runprogram(program, use_sudo: false, sudo_user: nil, parse_output: false, workdir: nil, systemd: false, container: nil)
       cmdline = []
+      use_sudo = true if container
+      sudo_user = nil if container
 
       Dir.chdir(workdir) if workdir
 
@@ -19,10 +21,9 @@ module Util
       program.freeze
       cmdline << %W[sudo -u #{sudo_user}] if use_sudo && sudo_user
       cmdline << %w[sudo] if use_sudo && !sudo_user
-      cmdline << %w[systemd-run -t] if systemd && !container && !use_sudo
-      cmdline << %w[sudo systemd-run -t] if systemd && container && !use_sudo
-      cmdline << %W[--machine=#{container}] if systemd && container && !use_sudo
-      cmdline << %W[-p User=#{sudo_user}] if systemd && container && !use_sudo && sudo_user
+      cmdline << %w[systemd-run -t] if systemd || container
+      cmdline << %W[--machine=#{container}] if container
+      cmdline << %W[-p User=#{sudo_user}] if systemd && container
       cmdline << program
       cmdline.cleanup!(unique: false)
       cmdline.freeze

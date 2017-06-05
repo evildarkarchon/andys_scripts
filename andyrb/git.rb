@@ -9,9 +9,9 @@ require_relative 'util/program'
 require_relative 'util/findapp'
 class Git
   attr_reader :use_sudo, :sudo_user, :wd, :wdpath
-  def initialize(wd, use_sudo: false, sudo_user: 'root')
-    @use_sudo = use_sudo
-    @sudo_user = sudo_user
+  def initialize(wd, use_sudo: false, sudo_user: 'root', container: nil)
+    @use_sudo = container ? true : use_sudo
+    @sudo_user = container ? 'root' : sudo_user
     @wdpath = Pathname.new(wd)
     @wd = wd
     @wdlock = @wdpath + '.git/index.lock'
@@ -20,6 +20,8 @@ class Git
       raise 'git found, but is not executable' if loc && !File.executable?(loc)
       loc
     end
+    @container = container
+    @systemd = container ? true : false
 
     case
     when !@use_sudo && @sudo_user && !Util.privileged?(@sudo_user)
@@ -38,10 +40,13 @@ class Git
     @wdpath.freeze
     @wd.freeze
     @wdlock.freeze
+    @container.freeze if @container
   end
 
   def clean_lock
     case
+    when @container && @wdlock.exist?
+      Util::Program.runprogram(%W[rm #{@wdlock}], use_sudo: true, systemd: @systemd, container: @container)
     when @use_sudo && @wdlock.exist?
       Util::Program.runprogram(%W[rm #{@wdlock}], use_sudo: true, sudo_user: @sudo_user)
     when !@use_sudo && @wdlock.exist?
@@ -54,7 +59,7 @@ class Git
   end
 
   def clone(url)
-    Util::Program.runprogram(%W[#{@git} clone #{url} #{@wd}], use_sudo: @use_sudo, sudo_user: @sudo_user)
+    Util::Program.runprogram(%W[#{@git} clone #{url} #{@wd}], use_sudo: @use_sudo, sudo_user: @sudo_user, systemd: @systemd, container: @container)
   end
 
   def gc(aggressive: false)
@@ -62,10 +67,10 @@ class Git
     gccmd = %W[#{@git} gc]
     gccmd << '--aggressive' if aggressive
     gccmd.freeze
-    Util::Program.runprogram(gccmd, use_sudo: @use_sudo, sudo_user: @sudo_user)
+    Util::Program.runprogram(gccmd, use_sudo: @use_sudo, sudo_user: @sudo_user, systemd: @systemd, container: @container)
   end
 
   def pull
-    Util::Program.runprogram(%W[#{@git} pull], use_sudo: @use_sudo, sudo_user: @sudo_user, workdir: @wd)
+    Util::Program.runprogram(%W[#{@git} pull], use_sudo: @use_sudo, sudo_user: @sudo_user, workdir: @wd, systemd: @systemd, container: @container)
   end
 end
