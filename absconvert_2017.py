@@ -5,22 +5,12 @@ import json
 import pathlib
 import shlex
 import shutil
-import subprocess
-from collections import ChainMap
-
-import magic
-from sqlalchemy import create_engine
-from sqlalchemy.engine.reflection import Inspector
-from sqlalchemy.orm import sessionmaker
 
 from andypy.mood2 import Mood
-from andypy.program import Program
 from andypy.util.cleanlist import cleanlist
-from andypy.util.genjson import genjson
 from andypy.util.resolvepaths import resolvepaths
-from andypy.util.sortentries import sortentries
 from andypy.util.sortfiles import sortfiles
-from andypy.videoinfodb import VideoData, VideoInfo, VideoJSON, sqa_session
+
 
 arg = argparse.ArgumentParser(description="A Basic Simple Converter: A Batch Conversion Frontend for ffmpeg", fromfile_prefix_chars="@", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -57,26 +47,4 @@ args["files"] = list(resolvepaths(args["files"]))
 if args["sort"]:
     args["files"] = sortfiles(args["files"])
 
-confdiff = {}
-
-try:
-    defaults = json.loads(args['config'].read_text())
-except NameError:
-    with args['config'].open() as data:
-        defaults = json.loads(data.read())
-except FileNotFoundError:
-    defaults = {}
-
-    defaults["defaults"] = {}
-    defaults["defaults"]["video"] = "libvpx-vp9"
-    defaults["defaults"]["audio"] = "libopus"
-    defaults["defaults"]["container"] = "mkv"
-    defaults["defaults"]["passes"] = 2
-    defaults["defaults"]["audiofilter"] = "aresample=async=1:min_comp=0.001:first_pts=0"
-
-    defaults["codecs"] = {}
-    defaults["codecs"]["libvpx-vp9"] = shlex.split("-threads 4 -tile-columns 2 -frame-parallel 1 -speed 1")
-    print(Mood.neutral("Config file not found, generating one with default values."))
-    genjson(defaults, str(args["config"]))
-else:
-    config = ChainMap(confdiff, args, defaults)
+# absconvert = ABSConvert(args)
