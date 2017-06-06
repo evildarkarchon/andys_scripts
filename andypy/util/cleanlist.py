@@ -29,28 +29,28 @@ def cleanlist(iterable, flatten=True, dedup=True, clean=True, debug=False, verbo
     if clean:
         try:
             out = [x for x in out if x is not None]
-        except TypeError:
-            if verbose:
+        except TypeError as c:
+            if verbose or debug:
                 print(Mood.neutral('Clean failed due to a type error, skipping.'))
             if debug:
-                raise
+                print(c)
 
     if flatten:
         try:
             out = list(flattenlist(out))
-        except TypeError:
-            if verbose:
+        except TypeError as f:
+            if verbose or debug:
                 print(Mood.neutral('Flatten failed due to a type error, skipping.'))
             if debug:
-                raise
+                print(f)
 
     if dedup:
         try:
             out = list(dict.fromkeys(out))
-        except TypeError:
-            if verbose:
+        except TypeError as d:
+            if verbose or debug:
                 print(Mood.neutral('De-Dup failed due to a type error, skipping.'))
             if debug:
-                raise
+                print(d)
 
     return out
