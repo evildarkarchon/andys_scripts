@@ -43,7 +43,7 @@ class VideoInfo(SQLBase):
     duration = Column(String)
     duration_raw = Column(Float)
     numstreams = Column(Integer)
-    container = Column(String, nullable=False)
+    container = Column(String)
     width = Column(Integer)
     height = Column(Integer)
     frame_rate = Column(Float)
