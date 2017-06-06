@@ -1,33 +1,18 @@
 import os
-try:
-    import pwd  # pylint: disable = e0401
-except ImportError:
-    pwdimport = False
-else:
-    pwdimport = True
 import pathlib
 
+def is_privileged(comp):
+        """Helper function to check if the current user can access the comp/file specified.
 
-def is_privileged(privuser=None, directory=None):
-        """Helper function to check if the current effective user is the same as the "privileged" user specified.
+        Directory is the path-like object (or a string that can be turned into one) to evaluate."""
 
-        privuser can be either a UID integer or a username string."""
+        assert isinstance(comp, (str, pathlib.Path))
+        if isinstance(comp, str):
+            comp = pathlib.Path(comp)
 
-        if not directory and isinstance(privuser, str):
-            if pwdimport:
-                user = pwd.getpwnam(privuser)
-                return bool(user.pw_uid == os.geteuid())  # pylint: disable=no-member
-            else:
-                return None
-        elif not directory and isinstance(privuser, int):
-            return bool(privuser == os.geteuid())  # pylint: disable=no-member
-        elif not directory and not isinstance(privuser, (str, int)):
-            return bool(os.geteuid() == 0)  # pylint: disable=no-member
-
-
-        if directory:
+        if comp and comp.is_dir():
             try:
-                test = pathlib.Path(directory).joinpath('temp').write_text('this is a test')  # pylint: disable=no-member
+                test = comp.joinpath('temp').write_text('this is a test')  # pylint: disable=no-member
             except (OSError, PermissionError):
                 return False
             else:
@@ -35,3 +20,9 @@ def is_privileged(privuser=None, directory=None):
             finally:
                 if test.exists():
                     test.delete()
+        elif comp and comp.is_file():
+            assert isinstance(test, bool)
+            try:
+                return os.access(comp, os.W_OK)
+            except TypeError:
+                return os.access(str(comp), os.W_OK)
