@@ -21,7 +21,6 @@ def is_privileged(comp):
                 if test.exists():
                     test.delete()
         elif comp and comp.is_file():
-            assert isinstance(test, bool)
             try:
                 return os.access(comp, os.W_OK)
             except TypeError:
