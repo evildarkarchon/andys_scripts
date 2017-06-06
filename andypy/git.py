@@ -1,5 +1,4 @@
 # pylint: disable=line-too-long
-import os
 import pathlib
 import shlex
 
@@ -37,11 +36,9 @@ class Git:
                 # print("{} use_sudo variable is unset, reverting to manual detection".format(Mood.neutral()))
                 print(Mood.neutral("use_sudo variable is unset, reverting to auto-detection"))
                 if sudo_user:
-                    return is_privileged(privuser=sudo_user), sudo_user
+                    return is_privileged(directory=directory), sudo_user
                 else:
                     return False, None
-            elif not os.access(self.directory, os.W_OK) and not use_sudo and not sudo_user:
-                return True, "root"
             elif use_sudo and not sudo_user:
                 return use_sudo, "root"
 
