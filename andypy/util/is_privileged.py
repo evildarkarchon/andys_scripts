@@ -9,6 +9,7 @@ def is_privileged(comp):
         assert isinstance(comp, (str, pathlib.Path))
         if isinstance(comp, str):
             comp = pathlib.Path(comp)
+        assert comp.exists()
 
         if comp and comp.is_dir():
             try:
