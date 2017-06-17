@@ -38,10 +38,10 @@ playlistpath =
   case
   when opts[:playlistpath]
     opts[:playlistpath]
-  when ytdl.directory.to_s.include?('/data/Videos/Youtube') && opts[:subdirectory]
-    Pathname.new("/data/Videos/Youtube/Playlists/#{opts[:subdirectory]}/#{ytdl.date}.xspf")
-  when ytdl.directory.to_s.include?('/data/Videos/Youtube') && !opts[:subdirectory]
-    Pathname.new("/data/Videos/Youtube/Playlists/#{ytdl.date}.xspf")
+  when ytdl.directory.to_s.include?('/data/Videos/Youtube')
+    pldir = '/data/Videos/Youtube/Playlists'
+    opts[:subdirectory] ? Pathname.new("#{pldir}/#{opts[:subdirectory]}/#{ytdl.date}.xspf") : Pathname.new("#{pldir}/#{ytdl.date}.xspf")
+    pldir = nil
   else
     Pathname.new("#{ytdl.directory}/Playlists/#{ytdl.date}.xspf")
   end
