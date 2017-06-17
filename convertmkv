@@ -1,288 +1,81 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require 'ostruct'
 require 'optparse'
 require 'pathname'
-require 'fileutils'
-require 'data_mapper'
 require 'json'
+begin
+  require 'power_p'
+rescue LoadError
+  nil
+end
 
-require_relative 'andyrb/mood'
+require_relative 'andyrb/convertmkv'
+require_relative 'andyrb/options'
 require_relative 'andyrb/core/sort'
-require_relative 'andyrb/util/program'
-require_relative 'andyrb/util/recursive_symbolize_keys'
-require_relative 'andyrb/util/findapp'
-require_relative 'andyrb/videoinfo/database'
-require_relative 'andyrb/videoinfo/genhash'
 require_relative 'andyrb/core/cleanup'
+require_relative 'andyrb/core/monkeypatch'
+require_relative 'andyrb/util/recursive_symbolize_keys'
 
-# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
+# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
+AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
 
-class Options
-  def self.parse(args)
-    options = OpenStruct.new
-    options.db = nil
-    options.gvi = false
-    options.sort = true
-    options.ffmpeg = false
-    options.output = Pathname.getwd
-    options.outputdb = nil
-    options.backup = nil
-    options.combine = false
-    options.debug = false
-    options.verbose = false
-    options.audio = false
-    options.config = '/home/evildarkarchon/.config/convertmkv.json'
-
-    optparse = OptionParser.new do |opts|
-      opts.on('--database file', 'Database to read metadata from (if any).') { |db| options.db = Pathname.new(db) }
-      opts.on('-f', '--ffmpeg', 'Use ffmpeg instead of mkvmerge. Note: ffmpeg hates mpeg2-ps files.') { |f| options.ffmpeg = f }
-      opts.on('-c', '--combine', 'Run in concatenation mode.') { |c| options.combine = c }
-      opts.on('--no-sort', "Don't sort the list of files to be muxed.") { options.sort = false }
-      opts.on('--gvi', 'Generate video info for the muxed files.') { options.gvi = true }
-      opts.on('-o directory', '--output directory', 'Directory where the muxed files will be located. (defaults to current directory)') { |dir| options.output = Pathname.new(dir) }
-      opts.on('-b directory', '--backup directory', 'Directory where the source files will be moved.') { |dir| options.backup = Pathname.new(dir) }
-      opts.on('--outputdb file', 'File name for the output videoinfo database (if any)') { |db| options.outputdb = Pathname.new(db) }
-      opts.on('--debug', '-d', "Print what would be done, but don't actually do it") { |debug| options.debug = debug }
-      opts.on('-v', '--verbose', 'Get a lot more chatty.') { |v| options.verbose = v }
-      opts.on('--config file', 'Location of the configuration file') { |c| options.config = c }
-      opts.on('--audio', '-a', 'Input files are audio files.') { options.audio = true }
-    end
-    optparse.parse!(args)
-    options
-  end
+opts = Options.new(ARGV.dup.cleanup) do |defaults|
+  defaults[:audio] = false
+  defaults[:sort] = true
+  defaults[:ffmpeg] = false
+  defaults[:outputdir] = Pathname.getwd
+  defaults[:backup] = nil
+  defaults[:combine] = false
+  defaults[:debug] = false
+  defaults[:verbose] = false
+  defaults[:config] = "#{Dir.home}/.config/convertmkv.json"
+  defaults[:ffmpegpath] = nil
+  defaults[:mkvmergepath] = nil
+  defaults[:mkvpropeditpath] = nil
+  defaults[:debug] = false
+end
+opts.parse_args! do |h, i|
+  h.on('-f', '--ffmpeg', 'Use ffmpeg instead of mkvmerge. Note: ffmpeg hates mpeg2-ps files.') { i[:ffmpeg] = true }
+  h.on('--ffmpeg-path path', 'Path to the ffmpeg executable (if not in normal search path)') { |f| i[:ffmpegpath] = f }
+  h.on('--mkvmerge-path path', 'Path to the mkvmerge executable (if not in normal search path)') { |m| i[:mkvmergepath] = m }
+  h.on('--mkvpropedit-path path', 'Path to the mkvpropedit executable (if not in normal search path)') { |m| i[:mkvpropeditpath] = m }
+  h.on('-c', '--combine', 'Run in concatenation mode.') { i[:combine] = true }
+  h.on('--no-sort', "Don't sort the list of files to be muxed.") { i[:sort] = false }
+  h.on('-o directory', '--output directory', 'Directory where the muxed files will be located or filename of combined file in combine mode.') { |o| i[:outputdir] = o }
+  h.on('-b directory', '--backup directory', 'Directory where the source files will be moved.') { |o| i[:backup] = o }
+  h.on('-d', '--debug', "Print what would be done, but don't actually do it") { i[:debug] = true }
+  h.on('--config file', 'Location of the configuration file') { |o| i[:config] = o }
+  h.on('-a', '--audio', 'Input files are audio files.') { i[:audio] = true }
+  h.on('--debug', 'Print variables and exit') { i[:debug] = true }
+end
+def opts.files
+  out = @source.dup
+  out.keep_if { |f| File.file?(f) }
+  out.natsort! if @args[:sort]
+  p out if @args[:debug]
+  out.freeze
 end
 
-args = lambda do
-  arg = ARGV.dup
-  outargs = Options.parse(arg)
-  outfiles = arg.dup
-  outfiles.cleanup!
-  outfiles.keep_if { |f| File.file?(f) }
-  outfiles.natsort! if Args.sort
-  [outargs.freeze, outfiles.freeze]
-end
+files = opts.files
+paths = {}
+paths[:mkvmerge] = opts[:args][:mkvmergepath] if opts[:args][:mkvmergepath]
+paths[:ffmpeg] = opts[:args][:ffmpegpath] if opts[:args][:ffmpegpath]
+paths[:mkvpropedit] = opts[:args][:mkvpropeditpath] if opts[:args][:mkvpropeditpath]
+paths = { ffmpeg: Util::FindApp.which('ffmpeg'), mkvmerge: Util::FindApp.which('mkvmerge'), mkvpropedit: Util::FindApp.which('mkvpropedit') } if paths.empty?
+p paths if opts[:args][:debug]
+config = Util.recursive_symbolize_keys(JSON.parse(File.read(opts[:args][:config])))
+p config if opts[:args][:debug]
 
-Args, Files = args.call
+mux = ConvertMkv::Mux.new(files, opts[:args][:outputdir], paths: paths, audio: opts[:args][:audio]) unless opts[:args][:combine]
+combine = ConvertMkv::Combine.new(files, opts[:args][:outputdir], paths: paths) if opts[:args][:combine]
 
-Database = Args.db && Args.db.exist? ? Args.db.realpath : nil
-
-prettyodb = lambda do # I know I could do a case statement, but the one I had was very ugly. This is more readable.
-  Database if Args.db && Args.outputdb.nil? && Args.output.directory
-  Database if Args.db && Args.outputdb.nil? && !Args.output.exist?
-  Database if Args.db && Args.outputdb && Args.outputdb == Args.output.join('videoinfo.sqlite')
-  Database if Args.db && !Args.output.parent.directory? && Args.combine
-  Args.output + 'videoinfo.sqlite' if !Args.output.directory? && !Args.combine
-end
-
-# Args = Options.parse(ARGV)
-
-OutputDatabase = prettyodb.call if Database && Args.gvi
-
-FileUtils.touch(Database.to_s) unless Args.gvi && Database.file?
-FileUtils.touch(OutputDatabase.to_s) if Args.gvi && OutputDatabase && !OutputDatabase.parent.directory? && !OutputDatabase.file?
-
-# files = lambda do
-#   out = ARGV.dup
-#   out.cleanup!
-#   out.keep_if { |f| File.file?(f) }
-#   Util.sort(out) if Args.sort
-#   out
-# end
-
-# Files = ARGV.dup
-# Files.cleanup!
-# Files.keep_if { |filename| File.file?(filename) }
-# Files = Util.sort(Files) if Args.sort
-# Files.freeze
-# print "#{Files}\n"
-
-# Files = files.call.freeze
-# puts Files.inspect
-
-MkvPropEdit = Util::FindApp.which('mkvpropedit')
-FFMPEG = Util::FindApp.which('ffmpeg')
-MkvMerge = Util::FindApp.which('mkvmerge')
-
-puts Mood.neutral 'ffmpeg concatenation mode has been disabled for the time being, reverting to mkvmerge.' if Args.combine && Args.ffmpeg
-Args.ffmpeg = false if Args.combine
-
-Config =
-  case
-  when File.exist?(Args.config)
-    configfile = File.open(Args.config)
-    config = JSON.parse(configfile.read)
-    config = Util.recursive_symbolize_keys(config)
-    configfile.close
-    print "#{config}\n" if Args.debug && config
-    config
-  end
-Config.freeze
-
-case
-when !FFMPEG && Args.ffmpeg && MkvMerge, FFMPEG && !File.executable?(FFMPEG) && MkvMerge && File.executable?(MkvMerge)
-  puts Mood.neutral('ffmpeg not found or is not executable, using mkvmerge instead.')
-  Args.ffmpeg = false
-when !MkvMerge && !Args.ffmpeg && !FFMPEG.nil?, FFMPEG && File.executable?(FFMPEG) && MkvMerge && !File.executable?(MkvMerge)
-  puts Mood.neutral('mkvmerge not found or is not executable, using ffmpeg instead.')
-  Args.ffmpeg = true
-else
-  raise "Could not find either ffmpeg or mkvmerge (or they weren't executable)"
-end
-raise 'Can not find mkvmerge or it is not executable' unless (MkvMerge && File.executable?(MkvMerge)) || Args.ffmpeg
-raise 'Can not find ffmpeg or it is not executable' if (Args.ffmpeg && !FFMPEG) || (Args.ffmpeg && FFMPEG && !File.executable?(FFMPEG))
-raise 'Can not find mkvpropedit or it is not executable' unless MkvPropEdit && File.executable?(MkvPropEdit)
-
-Args.freeze
-
-if Database
-  DataMapper::Model.raise_on_save_failure = true
-  DataMapper.setup(:default, "sqlite:#{Database.realpath}")
-  DataMapper.setup(:output, "sqlite:#{OutputDatabase.realpath}") if OutputDatabase
-  DataMapper::Logger.new($stdout, :debug) # if Args.debug || Args.verbose
-  # db = DataMapper.repository(:default).adapter
-  VI = VideoInfo::Database::Videoinfo.new
-  GVI = VideoInfo::Database::Data.new(Database.realpath, Args.verbose) if Args.gvi
-  DataMapper.finalize
-  begin
-    DataMapper.auto_upgrade!
-  rescue DataObjects::SyntaxError
-    DataMapper.auto_migrate!
-  end
-end
-
-VI = nil unless Database
-GVI = nil unless Args.gvi
-
-class Convenience
-  def initialize(filename)
-    @filename = filename.freeze
-  end
-
-  def genvi
-    filepath = Pathname.new(@filename).realpath.freeze
-    insert = VideoInfo::Database::Videoinfo.new
-    outhash = Util.hashfile(filepath.realpath.to_s).freeze
-    print "#{outhash}\n"
-    puts(Mood.happy { "Extracting metadata from #{filepath}" })
-    if OutputDatabase
-      DataMapper.repository(:output) do
-        VideoInfo::Database::Videoinfo.storage_names[:output] = 'videoinfo'
-        VideoInfo::Database::Videojson.storage_names[:output] = 'videojson'
-        begin
-          VideoInfo::Database::Videoinfo.auto_upgrade!
-          VideoInfo::Database::Videojson.auto_upgrade!
-        rescue DataObjects::SyntaxError
-          VideoInfo::Database::Videoinfo.auto_migrate!
-          VideoInfo::Database::Videojson.auto_migrate!
-        end
-      end
-    end
-
-    jsondata =
-      case
-      when !OutputDatabase
-        GVI.json(@filename, Args.debug)
-      when OutputDatabase
-        DataMapper.repository(:output) { GVI.json(@filename, Args.debug, :output) }
-      end
-
-    VideoInfo.genhash(@filename, jsondata, outhash) do |h|
-      begin
-        puts Mood.happy("Writing metadata for #{File.basename(@filename)}")
-        if !OutputDatabase
-          insert.attributes = h
-          insert.save
-        else
-          DataMapper.repository(:output) do
-            VideoInfo::Database::Videoinfo.storage_names[:output] = 'videoinfo'
-            insert.attributes = h
-            insert.save
-          end
-        end
-      rescue DataMapper::SaveFailureError
-        insert.errors.each { |e| puts e } if Args.verbose
-      end
-    end
-  end
-
-  def self.mkvmergeconcat
-    basecommand = %W[#{MkvMerge} -o #{Args.output}].freeze
-
-    filelist = Files.join(' + ')
-    filelist = filelist.split.freeze
-
-    command = basecommand + Config[:mkvmerge] + filelist
-    command.cleanup!(unique: false)
-    command.freeze
-
-    Util::Program.runprogram(command) unless Args.debug
-    genvi(Args.output.to_s) if Args.gvi
-  end
-
-  def backup
-    case
-    when !Args.backup.nil? && Args.backup.directory?
-      puts Mood.happy("Moving #{@filename} to #{Args.backup}")
-      FileUtils.mv(@filename, Args.backup.to_s) unless Args.debug
-    end
-    case
-    when Database && !Vi.nil? && !Args.debug
-      vientry = VideoInfo::Database::Videoinfo.all(filename: @filename)
-      vientry.destroy
-    end
-  end
-end
-
-Args.output.mkpath unless Args.output.exist? || Args.combine
-
-if Args.combine
-  raise 'Output specified is not a file' if Args.output.exist? && !Args.output.file?
-  Convenience.mkvmergeconcat unless Args.ffmpeg && Args.debug == false
-  Files.each do |file|
-    convenience = Convenience.new(file)
-    convenience.backup
-  end
-else
-  raise 'Output specified is not a directory' unless Args.output.directory?
-  Files.each do |file|
-    convenience = Convenience.new(file)
-    filepath = Pathname.new(file).freeze
-    fileoutpath =
-      case
-      when Args.audio
-        Args.output + filepath.sub_ext('.mka').basename
-      else
-        Args.output + filepath.sub_ext('.mkv').basename
-      end
-    fileoutpath.freeze
-
-    puts Mood.happy("Muxing #{file} to a matroska file.")
-    if Args.ffmpeg
-      ffcmd = %W[#{FFMPEG} -i #{filepath.realpath} -c copy -f matroska -hide_banner -y #{fileoutpath}]
-      ffcmd.cleanup!(unique: false)
-      ffcmd.freeze
-
-      mpecmd = %W[#{MkvPropEdit} --add-track-statistics-tags #{fileoutpath}]
-      mpecmd.cleanup!(unique: false)
-      mpecmd.freeze
-
-      case
-      when !Args.debug
-        Util::Program.runprogram(ffcmd)
-        Util::Program.runprogram(mpecmd)
-      end
-    else
-      command = %W[#{MkvMerge} #{Config[:mkvmerge]} -o #{fileoutpath} = #{file}]
-      command.cleanup!(unique: false)
-      command.freeze
-      Util::Program.runprogram(command) unless Args.debug
-    end
-    convenience.genvi if Args.gvi && fileoutpath.exist?
-    convenience.backup if Args.backup
-  end
-end
+mux.mkvmerge(config[:mkvmerge]) unless [opts[:args][:combine] || opts[:args][:ffmpeg], !opts[:args][:debug]].all?
+mux.ffmpeg(config[:ffmpeg]) if [opts[:args][:ffmpeg] && !opts[:args][:combine], !opts[:args][:debug]].all?
+combine.mkvmerge(config[:mkvmerge]) if [opts[:args][:combine] && !opts[:args][:ffmpeg], !opts[:args][:debug]].all?
+combine.ffmpeg(config[:ffmpeg]) if [opts[:args][:combine] && opts[:args][:ffmpeg], !opts[:args][:debug]].all?
+files.each { |i| ConvertMkv.backup(i, opts[:args][:backup]) } if files.respond_to?(:each) && !opts[:args][:debug]
+p mux if opts[:args][:debug] && !opts[:args][:combine]
+p combine if opts[:args][:debug] && opts[:args][:combine]
