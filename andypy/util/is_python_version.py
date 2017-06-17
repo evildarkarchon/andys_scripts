@@ -1,8 +1,6 @@
 # noqa E111
-import collections
 import sys
 from pkg_resources import parse_version
-from ..mood2 import Mood
 
 
 def is_python_version(query):
@@ -12,10 +10,11 @@ def is_python_version(query):
 
     query is a list of the minimum version of python that will return True."""
 
-    if not isinstance(query, (tuple, list, collections.deque)):
-        # print("{} Value must be a tuple or a list.".format(Mood.sad()))
-        print(Mood.sad('Value must be convertable to a list.'))
-        raise TypeError
+    # if not isinstance(query, (tuple, list, collections.deque)):
+    #     # print("{} Value must be a tuple or a list.".format(Mood.sad()))
+    #     print(Mood.sad('Value must be convertable to a list.'))
+    #     raise TypeError
+    assert isinstance(query, (tuple, list))
 
     if isinstance(query, tuple):
         query = list(query)
