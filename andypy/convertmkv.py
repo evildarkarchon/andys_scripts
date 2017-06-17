@@ -7,13 +7,16 @@ import subprocess
 import tempfile
 
 from .program import Program
+from .util.is_python_version import is_python_version
 
+assert is_python_version([3, 6, 0])
 
 class ConvertMKV:
     def __init__(self, filelist, out, verbose=False, progs=None, debug=False):
         self.verbose = verbose
         self.debug = debug
         self.filelist = filelist
+        assert isinstance(out, (str, pathlib.Path))
         if isinstance(out, pathlib.Path):
             self.out = out
         else:
@@ -25,11 +28,11 @@ class ConvertMKV:
 
     def ffmpegconcat(self):
         with tempfile.NamedTemporaryFile as t:  # pylint: disable=e1129
-            for a in self.filelist:
-                t.write("{}\n".format(str(a)))
+            files = list(map(str, self.filelist))
+            for a in files:
+                t.write(f"{a}\n")
             t.fsync()
-            cmdline = shlex.split("{} -f concat -safe 0 -i {} -c copy {}".format(self.progs['ffmpeg'], t.name, self.out))
-            cmdline += self.filelist
+            cmdline = [self.progs['ffmpeg'], '-f', 'concat', '-safe', '0', '-i', t.name, '-c', 'copy', self.out]
             if self.debug:
                 print("FFMPEG Concatenation Comand Line:")
                 print(cmdline)
