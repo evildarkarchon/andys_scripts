@@ -20,6 +20,12 @@ module Mood
 
   def self.colorful(color, message = nil)
     message = yield if block_given? && !message
-    "<#{color}>*<#{color}> #{message}".termcolor
+    "<#{color}>*</#{color}> #{message}".termcolor
+  end
+
+  class << self
+    def [](color, message = nil)
+      "<#{color}>*</#{color}> #{message}".termcolor
+    end
   end
 end
