@@ -22,6 +22,7 @@ Opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:replace] = false
   defaults[:gc] = false
   defaults[:restart] = false
+  defaults[:container] = nil
 end
 Opts.parse_args! do |h, i|
   h.on('-a', '--aggressive', 'Activate git gc in aggressive mode if run.') { i[:aggressive] = true }
@@ -55,11 +56,11 @@ touchgcfile unless File.exist?('/var/cache/ttrssgc')
 def ttrssgc(thendate)
   diff = Util.datediff(thendate).freeze
   begin
-    TTrss.gc(aggressive: Opts[:args][:aggressive]) if [diff >= 30, Opts[:args][:gc]].any?
+    TTrss.gc(aggressive: Opts[:args][:aggressive]) if diff >= 30 || Opts[:args][:gc]
   rescue Interrupt => e
     raise e
   else
-    touchgcfile if [diff >= 30, Opts[:args][:gc]].any?
+    touchgcfile if diff >= 30 || Opts[:args][:gc]
   end
 end
 
@@ -70,7 +71,7 @@ case
 when repopath.directory?
   TTrss.clean_lock
   TTrss.pull
-when [wdpath.exist?, !repopath.exist?].all?
+when wdpath.exist? && !repopath.exist?
   case
   when Opts[:replace]
     puts(Mood.neutral { "No git repository located in the target directory, renaming it to #{wdpath}.old" })
