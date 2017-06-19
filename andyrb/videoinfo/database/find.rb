@@ -31,7 +31,7 @@ module VideoInfo
       if verbose
         puts 'Non-deduped directory list:'
         # puts 'find 3:'
-        print "#{directories}\n"
+        p directories
       end
 
       directories.uniq!
@@ -42,7 +42,7 @@ module VideoInfo
       if verbose
         # puts 'find 5:'
         puts 'De-duped directory list:'
-        print "#{directories}\n"
+        p directories
         puts
       end
 
