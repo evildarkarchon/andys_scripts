@@ -54,7 +54,7 @@ module ABSConvert
         opts.on('--video-codec [codec]', 'Video codec to use to encode the video stream') do |i|
           novideo = %w[none None].any? { |a| a == i }
           @args[:novideo] = true if novideo
-          @args[:videocodec] = !novideo ? i : nil
+          @args[:videocodec] = novideo ? nil : i
         end
         opts.on('--frame-rate [framerate]', '-f', 'Frame rate for the video stream') { |i| @args[:framerate] = i }
         opts.on('--video-bitrate [bitrate]', 'Bitrate for the video stream') { |i| @args[:videobitrate] = i }
