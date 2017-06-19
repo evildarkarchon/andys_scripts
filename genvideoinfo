@@ -22,7 +22,6 @@ require_relative 'andyrb/videoinfo/genhash'
 require_relative 'andyrb/videoinfo/filelist'
 require_relative 'andyrb/options'
 
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
 AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
 opts = Options.new(ARGV.dup.cleanup) do |defaults|
