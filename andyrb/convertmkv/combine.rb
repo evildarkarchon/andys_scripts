@@ -6,10 +6,9 @@ require 'pathname'
 require_relative '../util/program'
 require_relative '../util/findapp'
 require_relative '../core/cleanup'
+require_relative '../core/monkeypatch'
 
-# Array.include AndyCore::Array::Cleanup unless Array.private_method_defined? :include
-# Array.send(:include, AndyCore::Array::Cleanup) if Array.private_method_defined? :include
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Array::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
 module ConvertMkv
   class Combine
