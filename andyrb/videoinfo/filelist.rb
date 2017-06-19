@@ -2,7 +2,10 @@
 
 require 'filemagic'
 
-require_relative '../util/sort'
+require_relative '../core/sort'
+require_relative '../core/monkeypatch'
+
+AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
 
 module VideoInfo
   def self.genfilelist(filelist, testmode: false, sort: true)
@@ -10,7 +13,7 @@ module VideoInfo
     whitelist = %w[video/x-flv video/mp4 video/mp2t video/3gpp video/quicktime video/x-msvideo video/x-ms-wmv video/webm video/x-matroska video/3gpp2 audio/x-wav]
     whitelist += %w[audio/wave video/dvd video/mpeg application/vnd.rn-realmedia-vbr audio/vnd.rn-realaudio audio/x-realaudio]
     magic = FileMagic.new(:mime_type)
-    filelist = Util.sort(filelist) if sort
+    filelist.natsort! if sort
     puts 'Files to be examined:' if testmode
     filelist.keep_if { |f| whitelist.include?(magic.file(f)) } unless testmode
     case
