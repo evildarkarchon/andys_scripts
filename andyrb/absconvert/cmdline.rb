@@ -6,13 +6,14 @@ require 'pathname'
 require_relative '../util/recursive_symbolize_keys'
 require_relative '../util/findapp'
 require_relative '../core/cleanup'
+require_relative '../core/monkeypatch'
 
-Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Array::Cleanup) : Array.include(AndyCore::Array::Cleanup)
+AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
 module ABSConvert
   class CmdLine
     attr_reader :list
-    def initialize(filename, options, config, verbose: false, passnum:, passmax:)
+    def initialize(filename, options, config, verbose: false, passnum: nil, passmax: nil)
       @verbose = verbose
       @config = config
       @options = options.to_h
@@ -27,7 +28,7 @@ module ABSConvert
       bitrates.to_h unless bitrates.is_a?(Hash)
       vcodec =
         case
-        when [@options[:novideo], bitrates[:video].nil?].any?
+        when @options[:novideo], bitrates[:video].nil?
           '-vn'
         when @config[:defaults][:video]
           %W[-c:v #{@config[:defaults][:video]}]
@@ -47,14 +48,14 @@ module ABSConvert
         case
         when !@options[:novideo] && @options[:videocodecopts]
           @options[:videocodecopts]
-        when [!@options[:novideo], @options[:videocodec].respond_to?(:to_sym) && @config[:defaults][@options[:videocodec].to_sym]].all?
+        when !@options[:novideo] && @options[:videocodec].respond_to?(:to_sym) && @config[:defaults][@options[:videocodec].to_sym]
           @config[:codecs][@options[:videocodec].to_sym]
         end
       vcodecopts.freeze
 
       acodec =
         case
-        when [@passnum == 1 && @passmax == 2, @options[:noaudio], bitrates[:audio].nil?].any?
+        when @passnum == 1 && @passmax == 2, @options[:noaudio], bitrates[:audio].nil?
           '-an'
         when @options[:audiocodec]
           %W[-c:a #{@options[:audiocodec]}]
@@ -67,9 +68,9 @@ module ABSConvert
 
       acodecopts =
         case
-        when [!@options[:noaudio], @options[:audiocodecopts]].all?
+        when !@options[:noaudio] && @options[:audiocodecopts]
           @options[:audiocodecopts]
-        when [!@options[:noaudio], @options[:audiocodec].respond_to?(:to_sym) && @config[:codecs][@options[:audiocodec].to_sym]].all?
+        when !@options[:noaudio] && @options[:audiocodec].respond_to?(:to_sym) && @config[:codecs][@options[:audiocodec].to_sym]
           @config[:codecs][@options[:audiocodec].to_sym]
         end
       acodecopts.freeze
