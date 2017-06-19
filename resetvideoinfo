@@ -4,6 +4,12 @@
 require 'pathname'
 require 'find'
 
+begin
+  require 'power_p'
+rescue LoadError
+  nil
+end
+
 # require_relative 'andyrb/mood'
 require_relative 'andyrb/util/hashfile'
 require_relative 'andyrb/core/sort'
