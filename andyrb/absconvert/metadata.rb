@@ -54,8 +54,7 @@ module ABSConvert
     end
 
     def to_h
-      hash = @metadata.dup
-      hash
+      @metadata.dup
     end
 
     def [](key)
