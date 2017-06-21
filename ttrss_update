@@ -4,7 +4,6 @@
 require 'pathname'
 require 'fileutils'
 require 'optparse'
-require 'ostruct'
 require 'subprocess'
 
 require_relative 'andyrb/util/program'
@@ -17,14 +16,14 @@ require_relative 'andyrb/options'
 
 AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 
-Opts = Options.new(ARGV.dup.cleanup) do |defaults|
+opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:aggressive] = false
   defaults[:replace] = false
   defaults[:gc] = false
   defaults[:restart] = false
   defaults[:container] = nil
 end
-Opts.parse_args! do |h, i|
+opts.parse_args! do |h, i|
   h.on('-a', '--aggressive', 'Activate git gc in aggressive mode if run.') { i[:aggressive] = true }
   h.on('-r', '--replace', 'Rename any existing directory if a repository is not found.') { i[:aggressive] = true }
   h.on('-g', '--garbage-collect', 'Force garbage collection to run.') { i[:gc] = true }
@@ -53,14 +52,14 @@ end
 
 touchgcfile unless File.exist?('/var/cache/ttrssgc')
 
-def ttrssgc(thendate)
+def ttrssgc(thendate, agg: opts[:args][:aggressive], force: opts[:args][:gc])
   diff = Util.datediff(thendate).freeze
   begin
-    TTrss.gc(aggressive: Opts[:args][:aggressive]) if diff >= 30 || Opts[:args][:gc]
+    TTrss.gc(aggressive: agg) if diff >= 30 || force
   rescue Interrupt => e
     raise e
   else
-    touchgcfile if diff >= 30 || Opts[:args][:gc]
+    touchgcfile if diff >= 30 || opts[:args][:gc]
   end
 end
 
@@ -73,7 +72,7 @@ when repopath.directory?
   TTrss.pull
 when wdpath.exist? && !repopath.exist?
   case
-  when Opts[:replace]
+  when opts[:replace]
     puts(Mood.neutral { "No git repository located in the target directory, renaming it to #{wdpath}.old" })
     Util::Program.runprogram(%W[mv #{wdpath} #{wdpath}.old], use_sudo: true, sudo_user: 'nginx')
     TTrss.clone(giturl)
@@ -90,14 +89,16 @@ else
 end
 
 ttrssgc(File.stat('/var/cache/ttrssgc').mtime)
-begin
-  print(Mood.happy('Restarting ttrssd... ')) if Opts[:args][:restart]
-  cmdline = %w[systemctl]
-  cmdline += %W[-m #{Opts[:args][:container]}] if Opts[:args][:container]
-  cmdline += %w[restart ttrssd]
-  Util::Program.runprogram(cmdline, use_sudo: true) if Opts[:args][:restart]
-rescue Interrupt, Subprocess::NonZeroExit
-  puts('failed') if Opts[:args][:restart]
-else
-  puts('done') if Opts[:args][:restart]
+if opts[:args][:restart]
+  begin
+    print(Mood.happy('Restarting ttrssd... '))
+    cmdline = %w[systemctl]
+    cmdline += %W[-m #{opts[:args][:container]}] if opts[:args][:container]
+    cmdline += %w[restart ttrssd]
+    Util::Program.runprogram(cmdline, use_sudo: true)
+  rescue Interrupt, Subprocess::NonZeroExit
+    puts('failed')
+  else
+    puts('done')
+  end
 end
