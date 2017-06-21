@@ -16,8 +16,6 @@ require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/core/monkeypatch'
 require_relative 'andyrb/util/recursive_symbolize_keys'
 
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
 AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
 AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
 
@@ -54,6 +52,7 @@ def opts.files
   out = @source.dup
   out.keep_if { |f| File.file?(f) }
   out.natsort! if @args[:sort]
+  out.map! { |i| Pathname.new(i) }
   p out if @args[:debug]
   out.freeze
 end
