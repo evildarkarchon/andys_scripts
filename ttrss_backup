@@ -4,7 +4,6 @@
 require 'pathname'
 require 'shellwords'
 require 'logger'
-require 'optparse'
 require 'date'
 require 'subprocess'
 require 'tempfile'
