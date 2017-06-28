@@ -41,7 +41,7 @@ opts.parse_args! do |h, i|
   h.on('--mkvpropedit-path path', 'Path to the mkvpropedit executable (if not in normal search path)') { |m| i[:mkvpropeditpath] = m }
   h.on('-c', '--combine', 'Run in concatenation mode.') { i[:combine] = true }
   h.on('--no-sort', "Don't sort the list of files to be muxed.") { i[:sort] = false }
-  h.on('-o directory', '--output directory', 'Directory where the muxed files will be located or filename of combined file in combine mode.') { |o| i[:outputdir] = o }
+  h.on('-o directory', '--output directory', 'Directory where the muxed files will be located or filename of combined file in combine mode.') { |o| i[:outputdir] = Pathname.new(o) }
   h.on('-b directory', '--backup directory', 'Directory where the source files will be moved.') { |o| i[:backup] = o }
   h.on('-d', '--debug', "Print what would be done, but don't actually do it") { i[:debug] = true }
   h.on('--config file', 'Location of the configuration file') { |o| i[:config] = o }
