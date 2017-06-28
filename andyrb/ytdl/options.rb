@@ -15,8 +15,6 @@ module YTDL
       @args[:stats] = true
       @args[:archive] = nil
       @args[:no_download] = false
-      # @args[:mux] = false
-      # @args[:config] = Pathname.new(Dir.home) + '.config/convertmkv.json'
       @args[:keep_original] = false
       @args[:keep_split] = false
       @args[:ffmpegdl] = false
@@ -44,8 +42,6 @@ module YTDL
         opts.on('--no-download', "Run operations that don't require downloading.") { @args[:no_download] = true }
         opts.on('--no-stats', "Don't calculate statistics for MKV files.") { @args[:stats] = false }
         opts.on('--webm', 'use webm instead of mkv for merging files (videos that have separate files per stream).') { @args[:webm] = true }
-        # opts.on('-m', '--mux', 'mux non-mkv files') { @args[:mux] = true }
-        # opts.on('--convertmkv-config', 'Location for the convertmkv configuration file.') { |c| @args[:config] = c } # Reusing the convertmkv config file since the @args used are the same.
         opts.on('--mux-mkv', 'Mux any non-mkv files to mkv') { @args[:mux] = true }
         opts.on('--ffmpeg-mux', 'Use ffmpeg instead of mkvmerge for muxing mkv files (warning: ffmpeg hates mpeg2-ps files)') { @args[:ffmpegmux] = true }
         opts.on('-k', '--keep-original', 'Keep the original file if muxing non-mkv files.') { @args[:keep_original] = true }
