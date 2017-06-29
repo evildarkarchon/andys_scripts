@@ -2,6 +2,8 @@
 
 require 'pathname'
 require 'optparse'
+
+require 'addressable/uri'
 module YTDL
   class Options
     attr_reader :args, :urls
@@ -69,7 +71,12 @@ module YTDL
     def parse_urls!
       @urls = @sourceargs.dup
       @urls.keep_if { |url| url.is_a?(String) }
-      @urls.keep_if { |url| url =~ /\A#{URI.regexp(%w[http https])}\z/ }
+      # @urls.keep_if { |url| url =~ /\A#{URI.regexp(%w[http https])}\z/ }
+      @urls.keep_if do |url|
+        parsed = Addressable::URI.parse(url)
+        parsed.normalize!
+        %w[http https].include?(parsed.scheme)
+      end
     end
   end
 end
