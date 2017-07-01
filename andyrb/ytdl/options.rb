@@ -8,6 +8,8 @@ module YTDL
   class Options
     attr_reader :args, :urls
     def initialize(sourceargs)
+      raise 'sourceargs can not be empty' if sourceargs.empty?
+      raise 'sourceargs can not be nil' if sourceargs.nil?
       @args = {}
       @args[:directory] = Pathname.new('/data/Videos/Youtube')
       @args[:subdirectory] = nil
@@ -73,8 +75,7 @@ module YTDL
       @urls.keep_if { |url| url.is_a?(String) }
       # @urls.keep_if { |url| url =~ /\A#{URI.regexp(%w[http https])}\z/ }
       @urls.keep_if do |url|
-        parsed = Addressable::URI.parse(url)
-        parsed.normalize!
+        parsed = Addressable::URI.parse(url).normalize
         %w[http https].include?(parsed.scheme)
       end
     end
