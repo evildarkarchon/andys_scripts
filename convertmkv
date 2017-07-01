@@ -16,8 +16,7 @@ require_relative 'andyrb/core/cleanup'
 require_relative 'andyrb/core/monkeypatch'
 require_relative 'andyrb/util/recursive_symbolize_keys'
 
-AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
-AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
+AndyCore.monkeypatch(Array, [AndyCore::Array::Cleanup, AndyCore::Array::NatSort])
 
 opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:audio] = false

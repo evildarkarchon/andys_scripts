@@ -9,10 +9,7 @@ require_relative '../mood'
 require_relative '../core/cleanup'
 require_relative '../core/monkeypatch'
 
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
-AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
-AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
+AndyCore.monkeypatch(Array, [AndyCore::Array::Cleanup, AndyCore::Array::NatSort])
 
 module YTDL
   class Fetch

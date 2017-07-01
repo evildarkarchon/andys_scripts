@@ -20,10 +20,7 @@ require_relative 'andyrb/util/recursive_symbolize_keys'
 require_relative 'andyrb/absconvert'
 require_relative 'andyrb/videoinfo/database'
 
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
-AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
-AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
+AndyCore.monkeypatch(Array, [AndyCore::Array::Cleanup, AndyCore::Array::NatSort])
 
 opts = ABSConvert::Options.new(ARGV.dup)
 opts.parse_args!

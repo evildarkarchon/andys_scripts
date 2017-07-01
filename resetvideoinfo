@@ -20,10 +20,7 @@ require_relative 'andyrb/videoinfo/filelist'
 require_relative 'andyrb/videoinfo/genhash'
 require_relative 'andyrb/options'
 
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::Cleanup) : Array.include(AndyCore::Array::Cleanup)
-# Array.private_method_defined?(:include) ? Array.send(:include, AndyCore::Aray::NatSort) : Array.include(AndyCore::Array::NatSort)
-AndyCore.monkeypatch(Array, AndyCore::Array::Cleanup)
-AndyCore.monkeypatch(Array, AndyCore::Array::NatSort)
+AndyCore.monkeypatch(Array, [AndyCore::Array::Cleanup, AndyCore::Array::NatSort])
 
 opts = Options.new(ARGV.dup.cleanup) do |defaults|
   defaults[:reset_json] = false
