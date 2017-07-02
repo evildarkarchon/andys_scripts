@@ -116,7 +116,7 @@ module ABSConvert
           @config = JSON.parse(cf.read)
         end
         @config = Util.recursive_symbolize_keys(@config)
-        puts config.inspect if @args[:debug] && @config
+        p config if @args[:debug] && @config
         @config.freeze
       end
     end
