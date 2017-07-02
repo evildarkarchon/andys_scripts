@@ -11,13 +11,21 @@ class Options
     @args = default if default && !block_given?
     raise TypeError, '@args must be either a hash or nil' unless @args.is_a?(Hash) || @args.nil?
     @source = sourceargs.is_a?(String) ? sourceargs.to_a : sourceargs
+    @source.freeze
   end
 
   def parse_args!
     optparse = OptionParser.new
     raise 'A block must be passed to this method.' unless block_given?
     yield optparse, @args if block_given?
-    optparse.parse!(@source)
+    optparse.parse!(@source.dup)
+  end
+
+  def parse_args
+    optparse = OptionParser.new
+    raise 'A block must be passed to this method.' unless block_given?
+    yield optparse, @args if block_given?
+    optparse.parse(@source)
   end
 
   def [](key)
@@ -41,8 +49,8 @@ class Options
     @args - other
   end
 
-  def <<(obj)
-    @args << obj
+  def <<(other)
+    @args << other
   end
 
   def <=>(other)
