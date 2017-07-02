@@ -27,11 +27,11 @@ class Git
     case
     when !@use_sudo && @sudo_user && !Util.privileged?(@sudo_user)
       @use_sudo = true
-      puts Mood.neutral('use_sudo was not set properly, defaulting to root, fix the code asap.')
+      puts Mood.neutral('use_sudo was not set properly, defaulting to enabled, fix the code asap.')
     when @use_sudo && !@sudo_user
       @sudo_user = 'root'
       puts Mood.neutral('sudo_user was not set properly, defaulting to root, fix the code asap.')
-    when !@wdpath.parent.writable? && !@wdpath.writable? && !@use_sudo
+    when !@wdpath.exist? && !@wdpath.parent.writable? && !@use_sudo, @wdpath.exist? && !@wdpath.writable? && !@use_sudo
       @use_sudo = true
       @sudo_user = 'root'
       puts Mood.neutral('Working directory is not writable, sudo forced.')
