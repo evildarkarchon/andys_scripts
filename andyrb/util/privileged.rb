@@ -15,13 +15,9 @@ module Util
       when user.respond_to?(:to_i) && !path
         Etc.getpwuid(user.to_i)
       end
-    # value = true if currentuser.uid == privuser.uid && !path
-    # value = true if path && path.respond_to?(:writable?) && path.writable?
-    value =
-      case
-      when path && path.respond_to?(:writable?) && path.writable?, currentuser.uid == privuser.uid && !path
-        true
-      end
+
+    value = path.writable? if path && path.respond_to?(:writable?)
+    value = currentuser.uid == privuser.uid unless path
     yield value if block_given?
     value
   end
