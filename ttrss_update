@@ -64,7 +64,7 @@ end
 
 repopath = Pathname.new('/data/web/feeds/.git').freeze
 wdpath = repopath.parent.freeze
-giturl = 'https://tt-rss.org/gitlab/fox/tt-rss.git'
+giturl = 'https://tt-rss.org/git/tt-rss.git'
 case
 when repopath.directory?
   TTrss.clean_lock
