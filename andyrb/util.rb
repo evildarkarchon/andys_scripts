@@ -26,4 +26,6 @@ module Util
   require_relative 'util/datediff'
 
   require_relative 'util/program'
+
+  require_relative 'util/media_file'
 end
