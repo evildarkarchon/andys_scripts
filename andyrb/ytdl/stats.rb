@@ -47,7 +47,7 @@ module YTDL
     end
 
     def genstats
-      Util::FindApp.which('mkvpropedit') do |mpe|
+      Util.findapp('mkvpropedit') do |mpe|
         mpe.freeze
         raise "Couldn't find mkvpropedit" unless mpe
         raise 'mkvpropedit is not executable' unless mpe && File.executable?(mpe)

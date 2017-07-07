@@ -6,6 +6,7 @@ require 'addressable'
 require 'htmlentities'
 require 'xspf'
 require 'filemagic'
+require 'fileutils'
 
 begin
   rv = Gem::Version.new(RUBY_VERSION.to_s.freeze)
@@ -40,7 +41,7 @@ module YTDL
       filenames.map! { |i| "#{i}\n" }
       n = @videodir + '.noplaylist'
       o = n.exist? ? File.readlines(n.to_s) : nil
-      q = @videodir + 'no-playlist.txt' if @videodir.join('no-playlist.txt').exist?
+      q = @videodir + 'no-playlist.txt' if @videodir.join('.noplaylist').exist?
       begin
         q.rename n.to_s unless q.nil? || !q.exist?
         n.open('a') do |x|
@@ -162,6 +163,7 @@ module YTDL
       ng = Nokogiri.XML(xspf.to_xml)
 
       unless @pretend
+        FileUtils.touch(@outname) unless File.exist?(@outname)
         File.open(@outname, 'w') do |f|
           puts(Mood.happy { "Writing playlist to #{@outname}" })
           f.write(ng.to_s)

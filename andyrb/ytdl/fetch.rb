@@ -15,6 +15,7 @@ module YTDL
   class Fetch
     attr_reader :filenames, :date, :directory, :subdirectory, :filepaths
     def initialize(directory, urls, sort: true, pretend: false, subdirectory: nil, datesubdir: true, nodownload: false)
+      p directory
       @date = Time.now.strftime('%Y%m%d').freeze
       @datesubdir = datesubdir
       @subdirectory = subdirectory.to_s
@@ -33,7 +34,7 @@ module YTDL
       unless @nodownload # rubocop:disable Style/GuardClause
         @filenames = []
         print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
-        Util::FindApp.which('youtube-dl') do |yt|
+        Util.findapp('youtube-dl') do |yt|
           @urls.each { |url| @filenames << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true).split("\n") }
         end
         # puts @filenames.inspect
@@ -52,13 +53,13 @@ module YTDL
         puts @filenames.inspect if @pretend
         puts @filepaths.inspect if @pretend
 
-        archdir = @directory.parent.parent.freeze if [@subdirectory, @directory.to_s.include?('/data/Videos/Youtube'), @datesubdir].all?
+        archdir = @directory.parent.parent.freeze if @subdirectory && @directory.to_s.include?('/data/Videos/Youtube') && @datesubdir
 
         archive =
           case
-          when archivedir
+          when archdir
             puts(Mood.neutral { 'Archive from command line' }) if @pretend
-            archivedir + 'downloaded.txt'
+            archdir + 'downloaded.txt'
           when [@datesubdir, archdir].all?
             puts(Mood.neutral { 'Archive in subdirectory parent' }) if @pretend
             archdir + 'downloaded.txt'
@@ -76,7 +77,7 @@ module YTDL
     end
 
     def fetch_videos(webmout: false, force: false, keep_split: false, ffmpegdl: false)
-      Util::FindApp.which('youtube-dl') do |yt|
+      Util.findapp('youtube-dl') do |yt|
         ytdl = %W[#{yt}]
         ytdl << %W[--download-archive #{@archive}] unless force || @nodownload
         ytdl << %w[--merge-output-format webm] if webmout
