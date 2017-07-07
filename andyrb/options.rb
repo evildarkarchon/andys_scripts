@@ -4,21 +4,21 @@ require 'optparse'
 
 class Options
   attr_reader :source, :args
-  def initialize(sourceargs, default = nil)
+  def initialize(sourceargs, default = nil, lossless = false)
     raise ValueError, 'You must supply either a code block or a hash.' unless block_given? || default
     @args = {}
     yield @args if block_given? && !default
     @args = default if default && !block_given?
     raise TypeError, '@args must be either a hash or nil' unless @args.is_a?(Hash) || @args.nil?
     @source = sourceargs.is_a?(String) ? sourceargs.to_a : sourceargs
-    @source.freeze
+    @lossless = lossless
   end
 
   def parse_args!
     optparse = OptionParser.new
     raise 'A block must be passed to this method.' unless block_given?
     yield optparse, @args if block_given?
-    optparse.parse!(@source.dup)
+    @lossless ? optparse.parse!(@source.dup) : optparse.parse!(@source)
   end
 
   def [](key)
