@@ -97,6 +97,7 @@ if Opts[:args][:restart]
     Util::Program.runprogram(cmdline, use_sudo: true)
   rescue Interrupt, Subprocess::NonZeroExit
     puts('failed')
+    raise
   else
     puts('done')
   end
