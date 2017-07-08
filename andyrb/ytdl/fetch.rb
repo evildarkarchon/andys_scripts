@@ -15,7 +15,6 @@ module YTDL
   class Fetch
     attr_reader :filenames, :date, :directory, :subdirectory, :filepaths
     def initialize(directory, urls, sort: true, pretend: false, subdirectory: nil, datesubdir: true, nodownload: false)
-      p directory
       @date = Time.now.strftime('%Y%m%d').freeze
       @datesubdir = datesubdir
       @subdirectory = subdirectory.to_s
@@ -31,49 +30,47 @@ module YTDL
       @nodownload = nodownload
       @filepaths = []
 
-      unless @nodownload # rubocop:disable Style/GuardClause
-        @filenames = []
-        print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
-        Util.findapp('youtube-dl') do |yt|
-          @urls.each { |url| @filenames << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true).split("\n") }
-        end
-        # puts @filenames.inspect
-        puts 'done.'
-        # puts 'deleting is not necessary' unless @filenames.to_s.include?("\n")
-        @filenames.cleanup!
-        # splitfilenames = @filenames.map { |e| e.split("\n") if !e.nil? && e.include?("\n") }
-        # splitfilenames.cleanup!(unique: false)
-        # @filenames += splitfilenames unless splitfilenames.empty?
-        # @filenames.delete_if { |i| i.include?("\n") }
-        @filenames.map!(&:strip)
-        @filenames.map! { |i| @directory.join(i).to_s }
-        @filenames.natsort! if @sort
-        @filepaths = @filenames.map { |i| Pathname.new(i) } unless @filenames.empty?
-        puts Mood.neutral('Derived Filenames:') if @pretend
-        puts @filenames.inspect if @pretend
-        puts @filepaths.inspect if @pretend
-
-        archdir = @directory.parent.parent.freeze if @subdirectory && @directory.to_s.include?('/data/Videos/Youtube') && @datesubdir
-
-        archive =
-          case
-          when archdir
-            puts(Mood.neutral { 'Archive from command line' }) if @pretend
-            archdir + 'downloaded.txt'
-          when [@datesubdir, archdir].all?
-            puts(Mood.neutral { 'Archive in subdirectory parent' }) if @pretend
-            archdir + 'downloaded.txt'
-          when [@datesubdir, @directory.to_s.include?('/data/Videos/Youtube')].all?
-            puts(Mood.neutral { 'Archive in parent directory' }) if @pretend
-            @directory.parent + 'downloaded.txt'
-          else
-            puts(Mood.neutral { 'Archive in download directory' }) if @pretend
-            @directory + 'downloaded.txt'
-          end
-        archive.freeze
-        puts(Mood.neutral { archive }) if [@pretend, !@nodownload].all?
-        @archive = archive
+      @filenames = []
+      print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
+      Util.findapp('youtube-dl') do |yt|
+        @urls.each { |url| @filenames << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true).split("\n") }
       end
+      # puts @filenames.inspect
+      puts 'done.'
+      # puts 'deleting is not necessary' unless @filenames.to_s.include?("\n")
+      @filenames.cleanup!
+      # splitfilenames = @filenames.map { |e| e.split("\n") if !e.nil? && e.include?("\n") }
+      # splitfilenames.cleanup!(unique: false)
+      # @filenames += splitfilenames unless splitfilenames.empty?
+      # @filenames.delete_if { |i| i.include?("\n") }
+      @filenames.map!(&:strip)
+      @filenames.map! { |i| @directory.join(i).to_s }
+      @filenames.natsort! if @sort
+      @filepaths = @filenames.map { |i| Pathname.new(i) } unless @filenames.empty?
+      puts Mood.neutral('Derived Filenames:') if @pretend
+      puts @filenames.inspect if @pretend
+      puts @filepaths.inspect if @pretend
+
+      archdir = @directory.parent.parent.freeze if @subdirectory && @directory.to_s.include?('/data/Videos/Youtube') && @datesubdir
+
+      archive =
+        case
+        when archdir
+          puts(Mood.neutral { 'Archive from command line' }) if @pretend
+          archdir + 'downloaded.txt'
+        when [@datesubdir, archdir].all?
+          puts(Mood.neutral { 'Archive in subdirectory parent' }) if @pretend
+          archdir + 'downloaded.txt'
+        when [@datesubdir, @directory.to_s.include?('/data/Videos/Youtube')].all?
+          puts(Mood.neutral { 'Archive in parent directory' }) if @pretend
+          @directory.parent + 'downloaded.txt'
+        else
+          puts(Mood.neutral { 'Archive in download directory' }) if @pretend
+          @directory + 'downloaded.txt'
+        end
+      archive.freeze
+      puts(Mood.neutral { archive }) if [@pretend, !@nodownload].all?
+      @archive = archive
     end
 
     def fetch_videos(webmout: false, force: false, keep_split: false, ffmpegdl: false)
