@@ -46,10 +46,6 @@ module VideoInfo
     calc = Dentaku::Calculator.new
 
     fs = lambda do |n|
-      # puts n.class
-      # puts n.length
-      # puts n
-      # puts n.to_i.class
       out =
         case
         when n.nil? || n.empty?
@@ -61,19 +57,11 @@ module VideoInfo
         when n.to_i < 1000 && n.to_i >= 1
           n.to_s + 'b/s'
         end
-      # puts out
       out
     end
 
     fr = lambda do |s|
-      out =
-        case
-        when jsondata.respond_to?(:dig)
-          jsondata.dig(:streams, s, :avg_frame_rate)
-        when jsondata[:streams][s] && jsondata[:streams][s].is_a?(Hash) && jsondata[:streams][s].key?(:avg_frame_rate) && !jsondata.respond_to?(:dig)
-          true
-        end
-      out
+      jsondata.dig(:streams, s, :avg_frame_rate) ? jsondata[:streams][s][:avg_frame_rate] : nil
     end
 
     frc = lambda do |n|
@@ -87,7 +75,6 @@ module VideoInfo
     hw = lambda do |i|
       return nil unless jsondata[:streams][0][i] || jsondata[:streams][1][i]
       jsondata.dig(:streams, 1, i) ? jsondata[:streams][1][i] : jsondata[:streams][0][i]
-      # jsondata[:streams][0].is_a?(Hash) && jsondata[:streams][0][i] ? jsondata[:streams][0][i] : nil
     end
 
     brr = lambda do |n|
@@ -117,8 +104,7 @@ module VideoInfo
 
     outhash[:bitrate_1_raw] = brr.call(1).freeze if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash)
     outhash[:bitrate_1] = outhash[:bitrate_1_raw] ? fs.call(outhash[:bitrate_1_raw]).freeze : nil
-    # outhash[:type_1] = jsondata[:streams][1][:codec_type] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_type)
-    # outhash[:codec_1] = jsondata[:streams][1][:codec_name] if jsondata[:streams][1] && jsondata[:streams][1].is_a?(Hash) && jsondata[:streams][1].key?(:codec_name)
+
     outhash[:type_1] = jsondata[:streams][1][:codec_type].freeze if jsondata.dig(:streams, 1, :codec_type)
     outhash[:codec_1] = jsondata[:streams][1][:codec_name].freeze if jsondata.dig(:streams, 1, :codec_name)
 
