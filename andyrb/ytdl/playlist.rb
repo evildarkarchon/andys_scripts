@@ -158,8 +158,8 @@ module YTDL
       playlist = XSPF::Playlist.new(tracklist: tracklist) unless playlist.instance_of?(XSPF::Playlist)
       xspf = XSPF.new(playlist: playlist) unless xspf.instance_of?(XSPF)
 
-      puts(Mood.happy { "Creating Directory #{@outdir}" }) unless [@pretend, @outdir.exist?].any?
-      @outdir.mkpath unless [@pretend, @outdir.exist?].any?
+      puts(Mood.happy { "Creating Directory #{@outdir}" }) unless @pretend || @outdir.exist?
+      @outdir.mkpath unless @pretend || @outdir.exist?
       ng = Nokogiri.XML(xspf.to_xml)
 
       unless @pretend
