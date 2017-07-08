@@ -20,8 +20,8 @@ module YTDL
     outtemp = out.natsort if sort
     out = outtemp.map { |i| Pathname.new(i) } if sort
     puts out.inspect if pretend
-    puts Mood.neutral('No files found in this directory, will not do any statistics calculation, muxing, or playlist creation/modification.') if [out.nil?, out.empty?].any?
-    exit if [out.nil?, out.empty?].any?
+    puts Mood.neutral('No files found in this directory, will not do any statistics calculation, muxing, or playlist creation/modification.') if out.nil? || out.empty?
+    exit if out.nil? || out.empty?
     out
   end
 end
