@@ -24,7 +24,7 @@ module YTDL
       defaultargs[:ffmpegdl] = false
       defaultargs[:webm] = false
       defaultargs[:playlist] = true
-      defaultargs[:playlistpath] = nil
+      defaultargs[:playlistpath] = Pathname.new("/data/Youtube/Videos/#{Time.now.strftime('%Y%m%d')}/#{Time.now.strftime('%Y%m%d')}.xspf")
       defaultargs[:resetplaylist] = false
       defaultargs[:no_blacklist] = false
       defaultargs[:sort] = true
