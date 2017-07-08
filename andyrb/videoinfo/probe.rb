@@ -14,7 +14,7 @@ module VideoInfo
     filepath = Pathname.new(filepath) unless filepath.is_a?(Pathname)
     filepath.freeze unless frozen?
     puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
-    Util::FindApp.which('ffprobe') do |fp|
+    Util.findapp('ffprobe') do |fp|
       raise 'ffprobe not found' unless fp
       raise 'ffprobe found, but is not executable' if fp && !File.executable?(fp)
       cmd = %W[#{fp} -i #{filepath.realpath} -hide_banner -of json -show_streams -show_format]
