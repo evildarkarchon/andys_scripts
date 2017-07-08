@@ -10,6 +10,7 @@ module YTDL
   class YtOptions < Options
     attr_reader :args, :urls
     def initialize(sourceargs)
+      now = Time.now.strftime('%Y%m%d')
       defaultargs = {}
       defaultargs[:directory] = Pathname.new('/data/Videos/Youtube')
       defaultargs[:subdirectory] = nil
@@ -24,7 +25,7 @@ module YTDL
       defaultargs[:ffmpegdl] = false
       defaultargs[:webm] = false
       defaultargs[:playlist] = true
-      defaultargs[:playlistpath] = Pathname.new("/data/Youtube/Videos/#{Time.now.strftime('%Y%m%d')}/#{Time.now.strftime('%Y%m%d')}.xspf")
+      defaultargs[:playlistpath] = Pathname.new("/data/Youtube/Videos/#{now}/#{now}.xspf")
       defaultargs[:resetplaylist] = false
       defaultargs[:no_blacklist] = false
       defaultargs[:sort] = true

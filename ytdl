@@ -34,16 +34,7 @@ if Opts[:args][:test_download]
   end
 end
 
-playlistpath =
-  case
-  when Opts[:args][:playlistpath]
-    Opts[:args][:playlistpath]
-  when YtDl.directory.to_s.include?('/data/Videos/Youtube')
-    pldir = '/data/Videos/Youtube/Playlists'
-    Opts[:args][:subdirectory] ? Pathname.new("#{pldir}/#{Opts[:args][:subdirectory]}/#{YtDl.date}.xspf") : Pathname.new("#{pldir}/#{YtDl.date}.xspf")
-  else
-    Pathname.new("#{YtDl.directory}/Playlists/#{YtDl.date}.xspf")
-  end
+playlistpath = Opts[:args][:playlistpath]
 raise if playlistpath.nil? && Opts[:args][:playlist]
 puts Mood.neutral('Playlist Path:') if Opts[:args][:pretend]
 p playlistpath if Opts[:args][:pretend]
