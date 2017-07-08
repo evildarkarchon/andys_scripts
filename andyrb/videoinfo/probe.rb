@@ -15,8 +15,6 @@ module VideoInfo
     filepath.freeze unless frozen?
     puts Mood.happy("Extracting metadata from #{filepath.basename}") if verbose
     Util.findapp('ffprobe') do |fp|
-      raise 'ffprobe not found' unless fp
-      raise 'ffprobe found, but is not executable' if fp && !File.executable?(fp)
       cmd = %W[#{fp} -i #{filepath.realpath} -hide_banner -of json -show_streams -show_format]
       cmd << %w[-loglevel quiet] unless verbose
       out = Util::Program.runprogram(cmd, parse_output: true).to_s
