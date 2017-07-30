@@ -34,10 +34,10 @@ if Opts[:args][:test_download]
   end
 end
 
-playlistpath = Opts[:args][:playlistpath]
-raise if playlistpath.nil? && Opts[:args][:playlist]
+PlaylistPath = Opts[:args][:playlistpath]
+raise if PlaylistPath.nil? && Opts[:args][:playlist]
 puts Mood.neutral('Playlist Path:') if Opts[:args][:pretend]
-p playlistpath if Opts[:args][:pretend]
+p PlaylistPath if Opts[:args][:pretend]
 root = YtDl.directory.to_s.include?('/data/Videos') ? '/data/Videos' : YtDl.directory.parent.to_s
 
 if Opts[:args][:stats]
@@ -53,9 +53,9 @@ if Opts[:args][:mux]
   mux.ffmpeg if Opts[:args][:ffmpegmux]
 end
 
-plfilenames = YtDl.filenames.respond_to?(:empty?) && YtDl.filenames.empty? && !(Opts[:args][:no_download] || Opts[:args][:pretend]) ? Files : YtDl.filepaths
+PlFilenames = YtDl.filenames.respond_to?(:empty?) && YtDl.filenames.empty? && !(Opts[:args][:no_download] || Opts[:args][:pretend]) ? Files : YtDl.filepaths
 
-pl = YTDL::Playlist.new(plfilenames, playlistpath.to_s, YtDl.directory, root, resetplaylist: Opts[:args][:resetplaylist], pretend: Opts[:args][:pretend], noblacklist: Opts[:args][:no_blacklist])
+pl = YTDL::Playlist.new(PlFilenames, PlaylistPath.to_s, YtDl.directory, root, resetplaylist: Opts[:args][:resetplaylist], pretend: Opts[:args][:pretend], noblacklist: Opts[:args][:no_blacklist])
 pl.blacklist unless Opts[:args][:playlist]
 pl.genplfilelist! if Opts[:args][:playlist] || Opts[:args][:pretend]
 
