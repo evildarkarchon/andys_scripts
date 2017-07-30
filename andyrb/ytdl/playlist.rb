@@ -41,9 +41,7 @@ module YTDL
       filenames.map! { |i| "#{i}\n" }
       n = @videodir + '.noplaylist'
       o = n.exist? ? File.readlines(n.to_s) : nil
-      q = @videodir + 'no-playlist.txt' if @videodir.join('.noplaylist').exist?
       begin
-        q.rename n.to_s unless q.nil? || !q.exist?
         n.open('a') do |x|
           filenames.each do |i|
             puts(Mood.happy { "Writing #{File.basename(i.to_s.strip)} to #{n}" }) unless [@pretend, @noblacklist, o && o.include?(i)].any?
@@ -59,12 +57,12 @@ module YTDL
       filenames.each { |i| puts i } if [@pretend, !@noblacklist].all?
     end
 
-    private def genplaylisthash(filename)
+    private def genplaylisthash(filename, driveletter = 'z')
       jsondata = VideoInfo.probe(filename)
       filepath = Pathname.new(filename)
       coder = HTMLEntities.new
 
-      out = { location: Addressable::URI.convert_path("z:/#{filepath.realpath.relative_path_from(@rootpath)}").to_s.gsub("'", "\\\\'") }
+      out = { location: Addressable::URI.convert_path("#{driveletter}:/#{filepath.realpath.relative_path_from(@rootpath)}").to_s.gsub("'", "\\\\'") }
 
       if jsondata.dig(:format, :tags)
         out[:title] = jsondata[:format][:tags][:title].gsub("'", "\\\\'") if jsondata.dig(:format, :tags, :title)
@@ -89,7 +87,7 @@ module YTDL
       blacklist.map!(&:strip) if [@pretend, blacklist.respond_to?(:map)].all?
       puts blacklist.inspect if @pretend
 
-      if [@outpath.exist?, !@resetplaylist].all?
+      if @outpath.exist? && !@resetplaylist
         o = File.open(@outname)
         begin
           xspf = XSPF.new(o)
@@ -105,7 +103,7 @@ module YTDL
 
       @filelist.keep_if { |i| File.dirname(i.to_s) == @videodir.to_s }
 
-      uris = existing.map { |x| Addressable::URI.parse(x).to_s } if [@pretend, !existing.empty?].all?
+      uris = existing.map { |x| Addressable::URI.parse(x).to_s } if @pretend && !existing.empty?
       puts(Mood.neutral { 'Existing URIs:' }) if [@pretend, uris].all?
       puts uris.inspect if [@pretend, uris].all?
 
