@@ -3,20 +3,18 @@
 source 'https://rubygems.org'
 
 # gem "rails"
-
+gem 'backticks'
+gem 'childprocess'
 gem 'json'
 gem 'power_assert'
 gem 'power_p'
+gem 'subprocess'
 group :compat do
   gem 'ruby_dig', platforms: %i[ruby_20 ruby_21 ruby_22]
 end
 
 group :core do
   gem 'naturalsorter'
-end
-
-group :util do
-  gem 'subprocess'
 end
 
 group :mood do
