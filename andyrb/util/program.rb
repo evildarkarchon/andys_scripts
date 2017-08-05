@@ -30,7 +30,7 @@ module Util
       if !parse_output
         process = ChildProcess.build(*cmdline)
         process.cwd = workdir if workdir
-        process.io.inherit! unless parse_output
+        process.io.inherit!
         process.start
         process.wait while process.alive?
       else
