@@ -5,8 +5,7 @@ require 'pathname'
 require 'shellwords'
 require 'logger'
 require 'date'
-require 'subprocess'
-require 'tempfile'
+require 'childprocess'
 require 'fileutils'
 
 require_relative 'andyrb/util'
@@ -26,6 +25,7 @@ end
 # Args = Options.parse(ARGV.dup.cleanup(unique: false))
 
 Now = Time.now.strftime('%Y%m%d_%H%M').freeze
+IP = '192.168.0.104'
 
 begin
   Log = opts[:args][:cron] ? Logger.new('/var/log/ttrss/ttrss_backup.log', 'monthly') : nil
@@ -33,37 +33,28 @@ rescue Errno::EACCES
   Log = nil
 end
 
-PgDump = Util::FindApp.which('pg_dump').freeze
-Xz = Util::FindApp.which('xz').freeze
+PgDump = Util.findapp('pg_dump').freeze
+Xz = Util.findapp('xz').freeze
 
-Tempfile.open('ttrss_') do |f|
-  tmppath = Pathname.new(f.path).freeze
-  xzpath = tmppath.sub_ext('.xz').freeze
+out = "/data/ttrssbackup/feeds-#{Now}.xz"
+File.open(out, 'w+', 0o644) do |o|
+  xz = ChildProcess.build(Xz, '-k', '-C', 'sha256', '-T', '0', '-c')
+  xz.duplex = true
+  xz.io.stdout = o
+  xz.start
 
-  Subprocess.check_call(%W[#{PgDump} -C -c --if-exists -d feeds -U postgres -h 192.168.0.104], stdout: Subprocess::PIPE) do |p|
-    puts(Mood.happy { "Dumping database to #{tmppath}" }) unless Log.respond_to?(:info)
-    Log.info { "Dumping database to #{tmppath}" } if Log.respond_to?(:info)
-    f.write p.communicate[0]
-    f.fsync
-  end
-
-  # puts f.path
-  out = "/data/ttrssbackup/feeds-#{Now}.xz"
-  puts(Mood.happy { "Compressing #{tmppath} to #{out}" }) unless Log.respond_to?(:info)
-  Log.info { "Compressing #{tmppath} to #{out}" } if Log.respond_to?(:info)
-  Subprocess.check_call(%W[#{Xz} -k -C sha256 -T 0 #{tmppath}])
-  begin
-    FileUtils.mv(xzpath.to_s, out)
-    FileUtils.chown('evildarkarchon', 'evildarkarchon', out)
-    FileUtils.chmod(0o644, out)
-  ensure
-    FileUtils.rm(xzpath.to_s) if xzpath.exist?
-  end
+  pg = ChildProcess.build(PgDump, '-C', '-c', '--if-exists', '-d', 'feeds', '-U', 'postgres', '-h', IP)
+  pg.io.stdout = xz.io.stdin
+  puts(Mood.happy { "Dumping database to #{out}" })
+  pg.start
+  pg.wait
+  xz.io.stdin.close
+  xz.wait
 end
+
 cpath = Pathname.new('/data/ttrssbackup').freeze
 clean = cpath.find.to_a
-clean.keep_if(&:file?)
-clean.freeze
+clean.keep_if(&:file?).freeze
 
 clean.each do |f|
   diff = Util.datediff(f.mtime).freeze
