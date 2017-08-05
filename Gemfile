@@ -2,10 +2,10 @@
 
 source 'https://rubygems.org'
 
-# gem "rails"
 gem 'backticks'
 gem 'childprocess'
 gem 'json'
+gem 'paint'
 gem 'power_assert'
 gem 'power_p'
 gem 'subprocess'
