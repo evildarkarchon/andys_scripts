@@ -52,13 +52,18 @@ File.open(out, 'w+', 0o644) do |o|
   xz.wait
 end
 
+FileUtils.chown('evildarkarchon', 'evildarkarchon', out)
+
 cpath = Pathname.new('/data/ttrssbackup').freeze
-clean = cpath.find.to_a
-clean.keep_if(&:file?).freeze
+clean = cpath.find.to_a.keep_if(&:file?).freeze
 
 clean.each do |f|
   diff = Util.datediff(f.mtime).freeze
-  puts(Mood.happy { "Removing #{f}" }) if diff > 14 && !Log.respond_to?(:info)
-  Log.info { "Removing #{f}" } if diff > 14 && Log.respond_to?(:info)
-  f.delete if diff > 14
+  if diff > 14 # rubocop:disable Style/GuardClause
+    puts(Mood.happy { "Removing #{f}" }) unless Log.respond_to?(:info)
+    Log.info { "Removing #{f}" } if Log.respond_to?(:info)
+    f.delete
+  else
+    next
+  end
 end
