@@ -34,6 +34,7 @@ module Util
         process.start
         process.wait while process.alive?
       else
+        Dir.chdir(workdir) if workdir
         out = Backticks.run(*cmdline)
         out = out&.chomp
       end
