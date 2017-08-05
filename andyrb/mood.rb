@@ -5,27 +5,27 @@ require 'paint'
 module Mood
   def self.happy(message = nil)
     message = yield if block_given? && message.nil?
-    Paint['*', :green] + message
+    Paint['*', :green] + ' ' + message
   end
 
   def self.neutral(message = nil)
     message = yield if block_given? && message.nil?
-    Paint['*', :yellow] + message
+    Paint['*', :yellow] + ' ' + message
   end
 
   def self.sad(message = nil)
     message = yield if block_given? && message.nil?
-    Paint['*', :red] + message
+    Paint['*', :red] + ' ' + message
   end
 
   def self.colorful(color, message = nil)
     message = yield if block_given? && !message
-    Paint['*', color.to_sym] + message
+    Paint['*', color.to_sym] + ' ' + message
   end
 
   class << self
     def [](color, message = nil)
-      Paint['*', color.to_sym] + message
+      Paint['*', color.to_sym] + ' ' + message
     end
   end
 end
