@@ -12,6 +12,7 @@ class Options
     raise TypeError, '@args must be either a hash or nil' unless @args.is_a?(Hash) || @args.nil?
     @source = sourceargs.is_a?(String) ? sourceargs.to_a : sourceargs
     @lossless = lossless
+    @hash = { source: @source, args: @args }
   end
 
   def parse_args!
@@ -22,8 +23,7 @@ class Options
   end
 
   def [](key)
-    hash = { source: @source, args: @args }
-    hash[key]
+    @hash[key]
   end
 
   def inspect
@@ -31,7 +31,7 @@ class Options
   end
 
   def to_h
-    { source: @source, args: @args }
+    @hash
   end
 
   def +(other)
