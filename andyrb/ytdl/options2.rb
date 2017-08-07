@@ -34,6 +34,7 @@ module YTDL
       defaultargs[:mux] = false
       defaultargs[:ffmpegmux] = false
       super(sourceargs, defaultargs)
+      @hash = { source: @source, args: @args, urls: @urls }
     end
 
     def parse_args!
@@ -81,8 +82,7 @@ module YTDL
     end
 
     def [](key)
-      hash = { source: @source, args: @args, urls: @urls }
-      hash[key]
+      @hash[key]
     end
 
     def inspect
@@ -90,7 +90,7 @@ module YTDL
     end
 
     def to_h
-      { source: @source, args: @args, urls: @urls }
+      @hash
     end
   end
 end

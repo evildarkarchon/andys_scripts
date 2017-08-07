@@ -125,7 +125,7 @@ class Command
       outmode = 'lossless'
     end
 
-    Util::FindApp.which('convert') do |c|
+    Util.findapp('convert') do |c|
       raise 'convert not found or is not executable.' unless c && File.executable?(c)
       @list = %W[#{c} #{filepath}]
       @list << %W[-quality #{Args.quality}]
@@ -155,7 +155,7 @@ def backuparchive
   paths.freeze
 
   begin
-    Util::FindApp.which('7za') do |z|
+    Util.findapp('7za') do |z|
       z.freeze
       raise '7za not found or is not executable.' if [[Args.backuparchive, !z].all?, [Args.backuparchive, z, !File.executable?(z)].all?].any?
       Util::Program.runprogram(%W[#{z} a #{Args.backuparchive} #{paths.join(' ')}])
@@ -188,7 +188,7 @@ def archive
   puts Mood.happy("Adding files to #{archivepath}")
   begin
     # Util::Program.runprogram([SevenZ, 'a', Args.archive, paths.join(' ')])
-    Util::FindApp.which('7za') { |z| Util::Program.runprogram(%W[#{z} a #{Args.archive} paths.join(' ')]) }
+    Util.findapp('7za') { |z| Util::Program.runprogram(%W[#{z} a #{Args.archive} paths.join(' ')]) }
   rescue Subprocess::NonZeroExit, Interrupt => e
     puts e.message.freeze
     raise e

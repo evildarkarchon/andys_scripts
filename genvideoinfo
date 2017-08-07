@@ -117,8 +117,7 @@ if files.respond_to?(:empty?) && !files.empty?
     dir = nil
     if path.directory?
       dir = path.find.to_a
-      dir.keep_if(&:file?)
-      dir.map!(&:to_s)
+      dir.keep_if(&:file?).map!(&:to_s)
     end
     dir unless path.file?
     path.realpath.to_s if path.file?
@@ -133,7 +132,7 @@ existing.freeze unless frozen?
 
 # print "#{existing}\n"
 filelist = VideoInfo.genfilelist(initlist, testmode: opts[:args][:debug])
-filelist.delete_if { |h| existing.include?(File.basename(h.to_s)) } unless existing.nil? || existing.empty?
+filelist.delete_if { |h| existing.include?(File.basename(h.to_s)) } if filelist.respond_to?(:delete_if)
 filelist.freeze unless frozen?
 
 if opts[:args][:debug]

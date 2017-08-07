@@ -17,7 +17,7 @@ module VideoInfo
     Util.findapp('ffprobe') do |fp|
       cmd = %W[#{fp} -i #{filepath.realpath} -hide_banner -of json -show_streams -show_format]
       cmd << %w[-loglevel quiet] unless verbose
-      out = Util::Program.runprogram(cmd, parse_output: true).to_s
+      out = Util.runprogram(cmd, parse_output: true).to_s
     end
     out = Util.recursive_symbolize_keys(JSON.parse(out))
     out.freeze

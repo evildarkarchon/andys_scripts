@@ -56,7 +56,7 @@ module YTDL
             puts(Mood.happy { "Adding statistic tags to #{file}" })
             cmd = %W[#{mpe} --add-track-statistics-tags #{file}].freeze
             begin
-              Util::Program.runprogram(cmd) unless @pretend
+              Util.runprogram(cmd) unless @pretend
 
               puts cmd.inspect if @pretend
             rescue Subprocess::NonZeroExit => e

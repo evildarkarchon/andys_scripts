@@ -33,7 +33,7 @@ module YTDL
       @filenames = []
       print(Mood.happy { 'Retrieving filenames for videos to be downloaded... ' })
       Util.findapp('youtube-dl') do |yt|
-        @urls.each { |url| @filenames << Util::Program.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true).split("\n") }
+        @urls.each { |url| @filenames << Util.runprogram(%W[#{yt} --get-filename #{url}], parse_output: true).split("\n") }
       end
       # puts @filenames.inspect
       puts 'done.'
@@ -71,6 +71,7 @@ module YTDL
       archive.freeze
       puts(Mood.neutral { archive }) if [@pretend, !@nodownload].all?
       @archive = archive
+      @hash = { directory: @directory, filenames: @filenames, urls: @urls, subdirectory: @subdirectory, filepaths: @filepaths, date: @date }
     end
 
     def fetch_videos(webmout: false, force: false, keep_split: false, ffmpegdl: false)
@@ -84,7 +85,7 @@ module YTDL
         ytdl.cleanup!(unique: false)
         ytdl.freeze
 
-        Util::Program.runprogram(ytdl, workdir: @directory) unless [@pretend, @nodownload].any?
+        Util.runprogram(ytdl, workdir: @directory) unless @pretend || @nodownload
         puts ytdl.inspect if @pretend && !@nodownload
       end
     end
@@ -94,12 +95,11 @@ module YTDL
     end
 
     def [](key)
-      hash = { directory: @directory, filenames: @filenames, urls: @urls, subdirectory: @subdirectory, filepaths: @filepaths, date: @date }
-      hash[key]
+      @hash[key]
     end
 
     def to_h
-      { directory: @directory, filenames: @filenames, urls: @urls, subdirectory: @subdirectory, filepaths: @filepaths, date: @date }
+      @hash
     end
   end
 end

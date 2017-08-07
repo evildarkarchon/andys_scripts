@@ -10,7 +10,7 @@ module ConvertMkv
     def initialize(filelist, outdir, paths: nil, audio: false)
       @filelist = filelist
       @outdir = outdir.is_a?(Pathname) ? outdir : Pathname.new(outdir)
-      @paths = paths ? paths : { ffmpeg: Util::FindApp.which('ffmpeg'), mkvmerge: Util::FindApp.which('mkvmerge'), mkvpropedit: Util::FindApp.which('mkvpropedit') }
+      @paths = paths ? paths : { ffmpeg: Util.findapp('ffmpeg'), mkvmerge: Util.findapp('mkvmerge'), mkvpropedit: Util.findapp('mkvpropedit') }
       @audio = audio
     end
 
@@ -20,7 +20,7 @@ module ConvertMkv
         cmdline = [@paths[:mkvmerge]]
         cmdline += options if options
         cmdline += @audio ? %W[-o #{@outdir.join(i.sub_ext('.mka').basename)} = #{i}] : %W[-o #{@outdir.join(i.sub_ext('.mkv').basename)} = #{i}]
-        Util::Program.runprogram(cmdline)
+        Util.runprogram(cmdline)
       end
     end
 
@@ -33,11 +33,11 @@ module ConvertMkv
         cmdline << options if options && options.is_a?(String)
         cmdline << out
         begin
-          Util::Program.runprogram(cmdline)
+          Util.runprogram(cmdline)
         rescue Interrupt => e
           raise e
         else
-          Util::Program.runprogram(%W[#{@paths[:mkvpropedit]} --add-track-statistics-tags #{out}])
+          Util.runprogram(%W[#{@paths[:mkvpropedit]} --add-track-statistics-tags #{out}])
         end
       end
     end

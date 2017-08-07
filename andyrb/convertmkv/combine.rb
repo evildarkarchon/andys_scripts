@@ -17,7 +17,7 @@ module ConvertMkv
       @filelist = filelist
       @outname = outname.is_a?(Pathname) ? outname : Pathname.new(outname)
       @verbose = verbose
-      @paths = paths ? paths : { mkvmerge: Util::FindApp.which('mkvmerge'), ffmpeg: Util::FindApp.which('ffmpeg'), mkvpropedit: Util::FindApp.which('mkvpropedit') }
+      @paths = paths ? paths : { mkvmerge: Util.findapp('mkvmerge'), ffmpeg: Util.findapp('ffmpeg'), mkvpropedit: Util.findapp('mkvpropedit') }
       @audio = audio
     end
 
@@ -32,11 +32,11 @@ module ConvertMkv
           cmdline += options if options && options.is_a?(Array)
           cmdline << options if options && options.is_a?(String)
           cmdline << @outname
-          Util::Program.runprogram(cmdline)
+          Util.runprogram(cmdline)
         rescue Interrupt => e
           raise e
         else
-          Util::Program.runprogram(%W[#{@paths[:mkvpropedit]} --add-track-statistics-tags #{@outname}])
+          Util.runprogram(%W[#{@paths[:mkvpropedit]} --add-track-statistics-tags #{@outname}])
         end
       end
     end
@@ -50,7 +50,7 @@ module ConvertMkv
       command += filelist
       command.cleanup!(unique: false).freeze
 
-      Util::Program.runprogram(command)
+      Util.runprogram(command)
     end
   end
 end

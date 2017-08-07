@@ -57,20 +57,20 @@ opts.files.each do |i|
       pass2 = ABSConvert::CmdLine.new(i, opts[:args], opts[:config], verbose: opts[:args][:verbose], passnum: 2, passmax: 2)
       pass2.generate!(metadata.bitrates, metadata.frame_rate, progs[:ffmpeg])
 
-      Util::Program.runprogram(pass1.list)
-      Util::Program.runprogram(pass2.list)
+      Util.runprogram(pass1.list)
+      Util.runprogram(pass2.list)
     elsif opts[:args][:passes] == 1 && opts[:args][:novideo]
       cmdline = ABSConvert::CmdLine.new(i, args, opts[:config], verbose: opts[:args][:verbose], passnum: 1, passmax: 1)
       cmdline.generate!(metadata.bitrates, metadata.frame_rate, progs[:ffmpeg])
 
-      Util::Program.runprogram(cmdline.list)
+      Util.runprogram(cmdline.list)
     end
   rescue Subprocess::NonZeroExit, Interrupt => e
     puts Mood.neutral('Removing unfinished output file.')
     outpath.delete if outpath.exist?
     raise e
   else
-    Util::Program.runprogram(%W[#{progs[:mkvpropedit]} --add-track-statistics-tags #{outpath}]) if opts[:args][:stats] && outpath.exist? && (outcon == '.mkv' || outcon == '.mka') && !opts[:args][:debug]
+    Util.runprogram(%W[#{progs[:mkvpropedit]} --add-track-statistics-tags #{outpath}]) if opts[:args][:stats] && outpath.exist? && (outcon == '.mkv' || outcon == '.mka') && !opts[:args][:debug]
 
     if !opts[:args][:converttest] && !opts[:args][:debug]
       del = VideoInfo::Database::Videoinfo.all(filename: filepath.basename.to_s)
