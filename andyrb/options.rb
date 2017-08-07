@@ -3,7 +3,8 @@
 require 'optparse'
 
 class Options
-  attr_reader :source, :args
+  attr_reader :source
+  attr_accessor :args
   def initialize(sourceargs, default = nil, lossless = false)
     raise ValueError, 'You must supply either a code block or a hash.' unless block_given? || default
     @args = {}
